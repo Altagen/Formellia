@@ -1,0 +1,6 @@
+[
+  {"id": "1", "product": "Widget A", "qty": 10, "price": 29.99},
+  {"id": "2", "product": "Widget B", "qty": 5, "price": 49.99},
+  {"id": "3", "product": "Gadget X", "qty": 20, "price": 9.99},
+  {"id": "4", "product": "Gadget Y", "qty": 3, "price": 149.99}
+]

@@ -1,0 +1,301 @@
+id,title,author,genre,country,price,pages,rating,status,purchase_date
+7a1b5806-6160-a6b4-9360-715fc3fe0183,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2025-09-16T03:28:39Z
+df6a8f93-1a43-2f0a-7daa-39f0c0b6fce2,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2025-09-17T09:09:39Z
+8d03c91e-4f8d-5238-288b-78b5b5b453ca,L'Hiver des Esprits,Julien Deschamps,Thriller,Canada,20.9,383,4.4,done,2025-09-17T15:43:39Z
+21bddb41-0699-8731-ddcf-8766a93b12cd,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2025-09-17T21:15:14Z
+52e2afd9-96bf-10ab-3ce9-15e7c9d6a63b,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-09-18T01:32:42Z
+cafda613-72bb-912d-7da6-7785b63b4dc3,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2025-09-18T08:21:33Z
+b20dcb6e-f231-1f17-9586-3a76c51155ff,La Montagne Silencieuse,Léa Simon,Biographie,Suisse,15.5,189,4.0,done,2025-09-18T19:01:31Z
+964db03f-9340-3fad-dc4a-d56bd6016237,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2025-09-19T00:40:50Z
+98de8ebb-a3b5-cece-a446-be72364c911a,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-09-19T03:31:58Z
+8a80068d-df54-7e50-7cea-2045c268283e,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2025-09-21T23:18:06Z
+f6febc0e-7ecd-dbaf-26f0-5fcffb16e5db,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2025-09-22T04:31:26Z
+9384ec2b-44fe-acae-d248-a9a7ac1aa554,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2025-09-22T19:29:35Z
+c85aca46-90e0-f4a0-fbdd-3933cbd58bf6,L'Hiver des Esprits,Julien Deschamps,Thriller,Canada,20.9,383,4.4,done,2025-09-22T23:23:45Z
+46d483f3-d450-281c-6c6f-7633a2607723,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-09-23T13:27:33Z
+bea29dfe-c73f-6e1b-af90-8e3cdd750e98,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-09-24T12:33:45Z
+8a175dfe-bfc0-0dc8-04f6-4d8678660765,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2025-09-25T02:44:11Z
+284d82e5-87f7-e1fb-da4b-d9caeb5cf467,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2025-09-26T01:04:40Z
+79699ed2-ec48-bf55-afd3-80c42713582c,Fragments d'Éternité,Baptiste Laurent,Sci-Fi,France,23.0,467,4.6,done,2025-09-28T00:51:50Z
+d0e6e660-7c69-dee1-bb5e-4bcf15ed6269,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2025-09-28T10:33:13Z
+b45ed1f0-3139-d32c-93cd-59bf5c941cf0,L'Art du Mensonge,Emma Dubois,Thriller,Royaume-Uni,21.5,312,4.7,done,2025-09-28T12:09:01Z
+a5e5a5ab-aefc-fad8-efc8-9849b3aa7efe,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2025-09-28T20:45:35Z
+246998e8-d39e-198b-4400-7d5ae88da719,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2025-09-28T20:47:38Z
+f6802cdb-77e4-90c7-1d7b-c313cde22f1c,Les Marées du Temps,Alexis Moreau,Fiction,France,19.9,359,4.3,done,2025-09-29T14:55:13Z
+709b7d97-464c-04af-3d3f-3799a07295e9,Le Temps Suspendu,Inès Thomas,Biographie,Belgique,14.9,214,3.6,done,2025-09-30T01:05:54Z
+fc377a4c-4a15-544d-c5e7-ce8a3a578a8e,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-09-30T11:51:27Z
+9e8fc965-0a2c-827e-9832-685694340a03,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2025-09-30T22:04:13Z
+ef43613c-d4aa-c9a3-3ed8-c56cda09dfa0,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-10-01T19:52:42Z
+21a4344f-bb7b-ee03-5d67-8bb1945ef2e4,Le Manuscrit Oublié,Camille Girard,Mystère,France,19.5,318,4.8,done,2025-10-02T12:03:07Z
+03c72ba8-d605-e770-8a63-f881ffd0f9d5,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-10-03T02:38:09Z
+8ce21ea3-db20-a56e-dc81-5fe7ceda8bbb,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-10-04T00:17:15Z
+fa745761-6f18-c108-1723-199dbf2c14a0,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2025-10-04T02:46:41Z
+dea4ae17-54fd-9ad3-9716-108ef72169bb,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2025-10-04T11:43:58Z
+e9a1fa6f-81f7-6d1c-2dbc-2134c30ff46e,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2025-10-05T15:54:37Z
+7bb38605-da74-3152-627b-41a1ffd6f232,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-10-05T17:02:24Z
+5f18e583-f0b6-f83f-a377-f6f1d289f0ab,L'Équation du Destin,Anaïs Michel,Sci-Fi,Allemagne,22.0,445,4.5,done,2025-10-06T00:55:45Z
+09cb3942-43f5-9a85-fbc9-f87af668a617,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2025-10-06T01:11:32Z
+dc713d96-0c0f-d195-c17a-f08a1745d6d8,Le Temps Suspendu,Inès Thomas,Biographie,Belgique,14.9,214,3.6,done,2025-10-06T07:00:07Z
+7a4c75d4-dc99-e04c-f0e9-8b3b40a26c60,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2025-10-07T03:41:04Z
+7394988f-847f-d9b4-e64d-1bcb702753a1,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2025-10-08T11:55:13Z
+d9178793-a9d3-c2e6-505c-c6869f871ce7,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2025-10-09T04:47:45Z
+3d114802-2702-878b-9f0f-da8d05379ff6,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2025-10-09T12:13:56Z
+b289f224-4ac9-778d-8da8-eee40df56ac6,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-10-09T12:30:18Z
+ff50bde4-3825-67b8-5cab-cc97663f1c97,L'Art du Mensonge,Emma Dubois,Thriller,Royaume-Uni,21.5,312,4.7,done,2025-10-11T20:40:21Z
+72d8567d-894a-05e4-30b1-87ef310c0c00,L'Énigme du Lac,Clara Bonnet,Mystère,Suisse,17.0,287,3.9,done,2025-10-12T05:17:48Z
+32fa2de8-ce7a-e7f6-3982-0cff4f77a665,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2025-10-13T14:43:09Z
+dd81b7f5-7d59-11c6-a8f1-e091ffb8102d,L'Équation du Destin,Anaïs Michel,Sci-Fi,Allemagne,22.0,445,4.5,done,2025-10-13T20:30:17Z
+d50755d9-a5d0-4d53-1e12-42e3f27292b6,L'Énigme du Lac,Clara Bonnet,Mystère,Suisse,17.0,287,3.9,done,2025-10-14T21:33:26Z
+a79fbfaf-def5-7689-68f4-5bce24e75e8e,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-10-14T23:22:31Z
+7c967f79-b7e9-9aca-a970-65e18e46d534,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2025-10-15T01:24:19Z
+8beddb12-ad77-e82f-49a2-3a89e6b5a92c,L'Hiver des Esprits,Julien Deschamps,Thriller,Canada,20.9,383,4.4,done,2025-10-15T16:13:11Z
+6f4cc69a-4b22-d308-1c8e-aee95715bd6f,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2025-10-15T17:04:06Z
+3eabedcb-baa8-0dd4-88bd-64072bcfbe01,Les Gardiens du Vide,Maxime Leroy,Sci-Fi,France,21.0,518,4.1,done,2025-10-16T17:30:38Z
+d1bdb8c0-c71d-5e60-1d52-06abb7e6427c,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2025-10-16T19:12:14Z
+0f02bad0-e706-7ef4-66aa-9385dd59ba71,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2025-10-16T23:15:52Z
+7194eae2-19ba-d7ae-df61-5a5cb4323070,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2025-10-17T07:18:57Z
+2e183554-cae2-8e66-ae8a-781390e0a95b,Le Temps Suspendu,Inès Thomas,Biographie,Belgique,14.9,214,3.6,done,2025-10-18T00:10:52Z
+3d67cde9-2834-e4c0-14c8-b3b4a911d192,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2025-10-18T18:01:47Z
+3805f907-6cd6-6193-c746-8f591b494e15,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2025-10-19T03:41:28Z
+5738811d-70c2-903f-7a8d-03aa782a65e0,L'Équation du Destin,Anaïs Michel,Sci-Fi,Allemagne,22.0,445,4.5,done,2025-10-20T19:11:49Z
+de9e3757-5260-001e-eecf-67d2749176f4,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2025-10-21T15:11:01Z
+683514f2-ceb8-1f9d-7914-c120c8dcd19f,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2025-10-21T23:22:28Z
+2095eef6-8ded-f9fb-4bb0-0f20b27c4026,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-10-22T06:02:22Z
+2cf6bf75-6a5e-6920-bf5a-e7e653a3dd5a,Terres Grises,Baptiste Laurent,Biographie,Suisse,14.0,198,3.5,done,2025-10-23T23:46:17Z
+0d366dfc-c28e-bd70-7129-9889a01ac992,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2025-10-24T12:39:00Z
+8de08fc2-c3e1-5a85-d46e-f10411906f50,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2025-10-25T05:25:23Z
+5af30553-5ec4-2e08-29a3-b2e95d65a441,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2025-10-25T16:22:24Z
+7c441fe7-ab42-20a7-474a-493b3ceddf2d,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-10-26T14:24:57Z
+8b6870b5-1d61-fac3-6cd5-e85932a447b2,L'Hiver des Esprits,Julien Deschamps,Thriller,Canada,20.9,383,4.4,done,2025-10-28T15:41:16Z
+176132ed-069f-14f1-4018-1c6e9a8cfa3c,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2025-10-29T10:51:54Z
+aff8754d-1238-d630-743b-65a2dc0f2fcf,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-10-30T07:50:01Z
+71d79665-7181-8dcf-379e-fc6e5edb0d3c,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-10-30T20:21:52Z
+15eabb27-30e9-12f2-f2b4-3abf8441aefd,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2025-10-31T20:48:02Z
+a092f52a-d4a0-57a7-b0cc-1b3b9793b9b4,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2025-11-01T03:45:36Z
+664fa663-7e8f-8095-624c-69b6b24445a7,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2025-11-01T09:02:59Z
+25440fe0-6e41-7d47-5ff5-95ea5bc440f1,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-11-01T10:02:33Z
+e117dac3-119c-4ea3-e180-50815958a499,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2025-11-01T10:26:52Z
+23bed01d-43cf-2fde-2493-3b83757750a9,Terres Grises,Baptiste Laurent,Biographie,Suisse,14.0,198,3.5,done,2025-11-01T21:22:02Z
+f319c125-07f1-94f9-c115-6d6d0a4e5b70,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2025-11-02T00:25:25Z
+6bebac31-d4f8-fd72-f382-1cfdc083b73a,Fragments d'Éternité,Baptiste Laurent,Sci-Fi,France,23.0,467,4.6,done,2025-11-02T23:40:13Z
+aa448259-5001-8b7b-6d40-67f450032b35,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2025-11-03T11:52:21Z
+cc3ebdde-5ad5-cf06-364d-7c877cd0129d,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-11-04T04:00:34Z
+7337c599-7984-4388-dc8a-ee30be6033f7,L'Art du Mensonge,Emma Dubois,Thriller,Royaume-Uni,21.5,312,4.7,done,2025-11-04T07:55:12Z
+50fd9d3f-85d5-1695-90b2-b633956b8c0c,Le Manuscrit Oublié,Camille Girard,Mystère,France,19.5,318,4.8,done,2025-11-04T15:15:22Z
+e08596db-1d87-0966-0710-d430f071d879,Le Temps Suspendu,Inès Thomas,Biographie,Belgique,14.9,214,3.6,done,2025-11-04T17:21:03Z
+fad409e2-a319-dcb4-217d-65a0c56811cd,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-11-04T20:48:00Z
+ac1e86d8-bfbf-397b-ac3e-7b0d5e5ba13d,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2025-11-04T21:45:38Z
+b83cfe0b-e037-e5ed-b8db-0672f42d47cc,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2025-11-05T03:28:54Z
+8181a8cc-3691-47eb-89a2-688b12c136e0,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2025-11-05T11:55:24Z
+c0398710-8976-e334-e281-7efdae849217,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2025-11-05T19:29:43Z
+382c043f-7cfc-9b79-3875-394ce5d6f6e6,L'Hiver des Esprits,Julien Deschamps,Thriller,Canada,20.9,383,4.4,done,2025-11-06T23:58:14Z
+b495db4e-8245-6fb4-4ab7-706eb77350ca,Archipel,Hugo Martin,Fiction,Canada,20.5,389,4.0,done,2025-11-07T02:15:08Z
+2067bdac-88bd-13d1-b540-b30e039f3a25,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2025-11-07T06:23:00Z
+6553867d-a881-bfd3-d47d-577bfa5a91ca,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-11-07T07:10:16Z
+65ec7acd-0f80-35f5-5bd2-0c98a5135ea0,L'Art du Mensonge,Emma Dubois,Thriller,Royaume-Uni,21.5,312,4.7,done,2025-11-07T13:42:02Z
+e14eb70d-b380-c73a-989d-9d4ae15ca666,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-11-07T15:30:17Z
+7bf47042-bd15-31c8-3764-fbda3108d448,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2025-11-07T16:34:53Z
+687a4850-9d9b-6231-7d45-d8efd56ce8ea,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2025-11-08T07:41:00Z
+98c7472a-864e-9a13-c29c-fc0cfa02eaec,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2025-11-08T22:52:10Z
+ebc2026f-af34-cf65-a193-c4b23c19e71d,Les Gardiens du Vide,Maxime Leroy,Sci-Fi,France,21.0,518,4.1,done,2025-11-09T19:16:59Z
+966b1964-fcd6-bdca-5876-fd09f1faf665,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-11-12T02:09:35Z
+90164161-cfa7-01cd-2631-d00b26d794d3,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2025-11-12T23:58:34Z
+598336e3-75d6-6ed4-eb1f-a9f2d10bd1d0,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2025-11-13T06:17:33Z
+3e493f43-b118-f68d-6786-d50638ba8abc,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-11-13T11:01:24Z
+edcb8cb6-0692-dc63-9424-aed51bac5c15,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2025-11-14T13:49:34Z
+168b1625-746f-7891-0964-fbbf8cd321b0,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2025-11-15T01:45:22Z
+986f9025-8f15-ba58-fce6-850487f8424d,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2025-11-15T14:42:56Z
+292bd156-db94-6570-1ac7-0ec0ab8ddeb4,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-11-18T00:59:47Z
+dc1110c1-080a-adfb-e7c9-9b26114125c6,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-11-18T03:54:30Z
+68586eba-6a34-c854-1071-4d5136c59dac,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2025-11-18T06:01:08Z
+87ea7ff5-8db0-6746-7927-99735e781fd7,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2025-11-20T18:01:32Z
+cd4b69a9-9b68-9c88-3ae9-09fecc8218da,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-11-22T09:56:04Z
+e61fecc0-0a36-8ce7-dc57-0131f8e1daa7,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2025-11-23T11:30:42Z
+3a3c563e-4bd6-cee6-31b1-b099d52721e7,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2025-11-24T01:49:39Z
+c72c1fe3-72c2-2a16-79eb-4168104556e5,L'Énigme du Lac,Clara Bonnet,Mystère,Suisse,17.0,287,3.9,done,2025-11-24T07:13:26Z
+42999aa4-0cdf-742b-2e85-cb217631de9d,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2025-11-27T14:45:07Z
+22bae10e-899c-a782-e323-6d1a3c1bdacc,L'Énigme du Lac,Clara Bonnet,Mystère,Suisse,17.0,287,3.9,done,2025-11-29T11:13:15Z
+e82c7d7b-06e7-45f9-88bc-539c9f4c3b79,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2025-11-30T12:16:02Z
+43ff5011-3d1a-85dd-506e-5a9ab758588d,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2025-11-30T20:29:44Z
+f1f8343e-a99f-1318-49c8-a43f7ed70ed7,Horizons Inversés,Antoine Blanc,Sci-Fi,Canada,21.9,502,4.3,done,2025-12-01T18:14:33Z
+50c187fc-ce17-7b4e-0837-b8a3d261a7ab,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-12-01T21:33:48Z
+a6348e78-4d5c-55c7-b379-cb1ee8cda0cc,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2025-12-03T06:47:47Z
+5913f9d3-7852-99f4-175b-a98df8140102,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2025-12-03T07:02:24Z
+aab97e49-4f2d-4796-81d2-c7de4ce1eb90,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2025-12-03T07:14:56Z
+6c6fa611-5ab3-3edf-6e59-5ed3a8b317fa,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-12-03T19:52:31Z
+e2aa7a5d-278e-d00d-ba02-66efbe055787,Le Manuscrit Oublié,Camille Girard,Mystère,France,19.5,318,4.8,done,2025-12-04T13:30:07Z
+66132e69-7418-8109-d3d1-bf0f56c438e4,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2025-12-04T18:39:08Z
+c3b290d0-8edd-dfcd-1e52-d7703f897142,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-12-04T19:30:41Z
+d5385b0e-34f3-193c-0ff0-a55c6a702e2f,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2025-12-05T14:00:38Z
+95a76d79-bf3c-4c06-4343-08bc89fa6a68,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2025-12-07T04:38:46Z
+a48b3dbe-157d-94a1-06f0-28ffa9ba5a27,Les Gardiens du Vide,Maxime Leroy,Sci-Fi,France,21.0,518,4.1,done,2025-12-07T05:28:49Z
+e3b137fc-0a34-50fc-9918-ee461497d658,Archipel,Hugo Martin,Fiction,Canada,20.5,389,4.0,done,2025-12-07T21:23:58Z
+504d281f-c953-5b63-ba81-edd9587ef344,Les Gardiens du Vide,Maxime Leroy,Sci-Fi,France,21.0,518,4.1,done,2025-12-08T17:44:34Z
+a6c9537f-84da-d06a-7872-bdeb2cd94cbb,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2025-12-09T20:56:18Z
+8c41561b-e827-a1b9-d4a0-2e536d3ee1dc,L'Art du Mensonge,Emma Dubois,Thriller,Royaume-Uni,21.5,312,4.7,done,2025-12-10T14:06:28Z
+47294739-614f-f3d7-19db-3ad0ddd1dfb2,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2025-12-12T01:02:42Z
+d2fe2fde-d918-b3e5-f2f2-5eef1f45dbfd,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2025-12-12T07:08:11Z
+3e652603-78e3-654b-faf1-4ff07b85179a,Le Manuscrit Oublié,Camille Girard,Mystère,France,19.5,318,4.8,done,2025-12-12T16:46:45Z
+e912b4bf-86a4-bae4-1986-b4b270b7e868,Les Marées du Temps,Alexis Moreau,Fiction,France,19.9,359,4.3,done,2025-12-12T17:26:21Z
+3b70b3a1-24a3-5cf2-9549-c931e9af299d,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2025-12-13T13:06:51Z
+37cc863b-f2a0-3459-9060-4f621d48a071,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2025-12-14T07:12:55Z
+dbccc477-09e9-db0a-df46-529061ee411a,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2025-12-15T09:34:28Z
+0f9240e1-07f9-7d05-f6ca-6b8ba4b1f991,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-12-17T00:13:02Z
+680ac07a-2a93-5d62-3c83-5dc0d9441fa5,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2025-12-18T07:15:06Z
+52fbe43b-9954-6eb4-0025-7ad1eb2263dd,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2025-12-18T21:04:03Z
+d284476c-6b88-f83d-d97d-c9cd033d2bce,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2025-12-19T04:30:19Z
+4dead645-0986-bbeb-f23e-323d0b9bd934,L'Énigme du Lac,Clara Bonnet,Mystère,Suisse,17.0,287,3.9,done,2025-12-19T15:47:49Z
+11a72609-5edd-bbbf-a959-76636daa2e68,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-12-22T05:56:53Z
+c9a7d91f-ef2a-e713-5702-10496a39aaa6,Solstice,Clara Bonnet,Romance,France,17.5,247,4.1,done,2025-12-22T14:13:44Z
+9970cf60-ebff-8d15-30cb-d7556232b17a,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2025-12-22T16:34:27Z
+006ed6e3-6fa1-7735-b572-f3d00b5cea6a,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2025-12-24T23:00:15Z
+a8addf36-ddf2-75eb-e8a3-f341c8819065,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-12-25T06:08:19Z
+bbda0242-2d17-4fc9-6f7c-15ea272a6d8e,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2025-12-25T07:30:57Z
+c693da11-39c6-a1ca-9e50-aa42ca6dfda1,Les Gardiens du Vide,Maxime Leroy,Sci-Fi,France,21.0,518,4.1,done,2025-12-25T11:21:52Z
+6bc4123e-bde1-3c1b-2073-3f6d0d6a05b3,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2025-12-26T03:44:10Z
+a76afde6-ce9e-1a11-fcbb-4e59fbddcf7c,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-12-26T17:02:32Z
+77d21e02-ff01-cf99-988c-24c961b1cd22,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2025-12-26T17:51:05Z
+98eeac2b-fe9f-ecaa-6182-f347533f5a72,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2025-12-27T00:34:26Z
+5da8d6d2-f8b3-8a8b-e05f-b8bc8a16a06c,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2025-12-27T01:57:04Z
+43b38eb4-0390-2c5d-6502-d6a2ca6a2224,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-12-28T04:36:29Z
+eb6c1016-cee6-24d0-9dac-6e8345241ea6,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2025-12-28T12:04:03Z
+801ef1da-45b1-ed25-f153-3ae8670acc5c,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-12-28T20:29:47Z
+b24cc64f-be3e-6e57-f30a-9e32aba4fc03,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2025-12-28T21:28:46Z
+de8ede0b-a85c-6e4a-004b-6fabfcf56188,Le Temps Suspendu,Inès Thomas,Biographie,Belgique,14.9,214,3.6,done,2025-12-29T08:40:09Z
+5e09a9ee-af88-bdec-fb1e-143b196f4dfa,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2025-12-29T17:23:41Z
+bc10fa52-bf5d-2fdf-89c8-d2ab6b44fa8d,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2025-12-30T01:09:39Z
+951f58d0-5e84-f058-d5a8-04eb093923de,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2025-12-31T06:57:12Z
+969b6662-0562-8059-568c-c69b1064005c,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2025-12-31T13:27:41Z
+cdf974a7-d882-b5c1-f79e-fd7065bcc272,La Chute des Empires,Lucas Garcia,Thriller,Royaume-Uni,23.5,456,4.6,done,2026-01-01T05:15:54Z
+0cdb1ca4-76ec-bdd6-8498-e113b227462c,L'Hiver des Esprits,Julien Deschamps,Thriller,Canada,20.9,383,4.4,done,2026-01-01T05:41:57Z
+6d7ce3c9-b4a6-9f3c-8d3a-ed99711c21c9,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2026-01-01T22:00:55Z
+e25d36eb-9e9a-9f83-0668-03ee78b2b549,La Chute des Empires,Lucas Garcia,Thriller,Royaume-Uni,23.5,456,4.6,done,2026-01-02T00:20:52Z
+ff9ab5c2-9f04-4aed-7552-332702627f73,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2026-01-02T07:44:25Z
+e0c53cb8-3da9-c2a9-0ed4-2f1a3d4cbf37,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2026-01-03T04:04:29Z
+76f72255-c01f-36bf-3e6d-d58b7367c28d,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-01-03T15:41:30Z
+a1384ddc-e2d9-de5d-6a18-ce4c74962764,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2026-01-04T18:49:15Z
+922fe15a-e1e3-db63-ef7d-dc76b92da22b,Le Temps Suspendu,Inès Thomas,Biographie,Belgique,14.9,214,3.6,done,2026-01-04T21:20:27Z
+e645f129-629c-2ae3-1d9a-f65982ec9f2d,Les Gardiens du Vide,Maxime Leroy,Sci-Fi,France,21.0,518,4.1,done,2026-01-04T23:05:42Z
+c9277d9b-6e0d-2648-35ce-884149732d6c,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2026-01-05T14:55:29Z
+0cd620c2-0ea2-622b-5048-67babf7b539b,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2026-01-06T10:27:53Z
+a21150f9-9fd3-4579-4667-72ce204e178c,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2026-01-06T15:59:49Z
+dc33e1f9-4c1f-55ab-7156-29eee893be3d,La Montagne Silencieuse,Léa Simon,Biographie,Suisse,15.5,189,4.0,done,2026-01-07T06:43:33Z
+bb2488a3-d363-57b6-6f81-cf4f7701f7bb,Solstice,Clara Bonnet,Romance,France,17.5,247,4.1,done,2026-01-08T01:07:54Z
+118a9d29-2f92-3996-d9f1-95d014822f53,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2026-01-08T13:03:52Z
+6c12ace8-ae34-0454-cac5-b68c28f49481,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2026-01-08T19:28:03Z
+af2b99b4-d9ac-d158-4d34-85c5c5c14eb4,L'Énigme du Lac,Clara Bonnet,Mystère,Suisse,17.0,287,3.9,done,2026-01-09T14:07:15Z
+48212ddb-45b8-9cd9-27cb-6f2a8da01097,L'Énigme du Lac,Clara Bonnet,Mystère,Suisse,17.0,287,3.9,done,2026-01-10T10:42:40Z
+9b1bc895-2af4-3ab7-5e6f-ea07c4536f1d,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2026-01-10T21:58:42Z
+5275eb94-14ae-af5c-e636-58c912d0498d,Terres Grises,Baptiste Laurent,Biographie,Suisse,14.0,198,3.5,done,2026-01-11T02:52:17Z
+a14923c2-f920-264c-0763-fcd01f15c7b6,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2026-01-11T05:32:51Z
+81f631d4-a392-31a7-d777-a4774c66e0a8,Les Marées du Temps,Alexis Moreau,Fiction,France,19.9,359,4.3,done,2026-01-11T06:00:24Z
+0f6b40d0-9efb-a58b-9191-b3634e2d6645,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2026-01-11T09:05:09Z
+38b77c07-80fb-9296-73b6-a09b1beaf6ac,Le Temps Suspendu,Inès Thomas,Biographie,Belgique,14.9,214,3.6,done,2026-01-12T10:36:20Z
+a0ee89ae-d453-dd32-4b0d-bb418d5288f1,Fragments d'Éternité,Baptiste Laurent,Sci-Fi,France,23.0,467,4.6,done,2026-01-13T02:30:39Z
+5c9d927d-84b8-71bb-3005-68d20de051a6,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2026-01-13T21:41:02Z
+56abf2f1-43d8-8870-f81d-baa1c8120a8e,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2026-01-14T00:35:57Z
+3531968d-c342-bd2b-f295-456e19675f06,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2026-01-14T11:06:40Z
+5110b492-f442-7e0b-6148-4bb3889b78d5,La Chute des Empires,Lucas Garcia,Thriller,Royaume-Uni,23.5,456,4.6,done,2026-01-14T17:05:45Z
+2303f6c6-d69d-42f1-ae4c-84ffa8c01f05,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2026-01-14T23:50:54Z
+93b7a886-12f7-0c97-7de3-1a516694c343,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2026-01-15T05:25:46Z
+b535106e-122c-9a56-01d7-425638602ab6,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2026-01-15T13:09:10Z
+6f962882-95d8-2980-ff37-d19c2e76128b,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2026-01-16T06:18:40Z
+102efde5-a5cc-8bf7-38ab-854c9c2e58de,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-01-16T09:11:48Z
+a748dbcf-ac61-9e63-0dde-29a6baa4b71a,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2026-01-18T11:24:57Z
+20de435d-2031-d750-c40d-b9b4885f6e66,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2026-01-21T02:39:42Z
+060edf5b-3911-8497-3a43-b2badf0f06cb,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2026-01-21T03:58:39Z
+96fc734d-a003-cd28-ca8f-3653c9af18f8,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2026-01-21T09:20:10Z
+ee87905e-4ca4-15ea-8dfa-6a56d12dbc9a,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2026-01-21T19:36:55Z
+83f4a9a9-48a6-39d0-15b5-2908a8aa7158,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2026-01-21T21:46:59Z
+11e9cdaa-6e69-81a3-5d3d-9e563270e4fa,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2026-01-21T23:34:19Z
+cd5f4822-6966-08aa-ee49-f329c84a7b28,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2026-01-23T01:59:36Z
+66245bfa-4fcc-a39a-b683-d2e6337ea2df,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2026-01-23T10:17:17Z
+71316269-7118-e364-7709-7749527eecfa,Les Gardiens du Vide,Maxime Leroy,Sci-Fi,France,21.0,518,4.1,done,2026-01-24T04:39:04Z
+ab3b4d37-560c-95ee-638c-254c076e2bba,Le Manuscrit Oublié,Camille Girard,Mystère,France,19.5,318,4.8,done,2026-01-24T21:01:50Z
+02f06b90-f143-262f-dc5c-0eed8da0365b,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-01-25T02:21:01Z
+9ea556aa-61ee-6c5b-deef-580f9c07a751,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2026-01-25T15:38:16Z
+a3d70628-ece6-6fa2-fd51-66e6451b4cf3,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2026-01-26T15:04:01Z
+77fc9703-1fd5-a423-706c-5c5649e2623d,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2026-01-26T17:28:19Z
+735435ea-6894-9b8d-00af-5b3a2812859a,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2026-01-26T20:42:08Z
+3d85de89-c217-1429-8e20-07247d137018,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2026-01-27T02:28:22Z
+620e99d3-3b33-f3d8-269c-d696236c7b87,Le Temps Suspendu,Inès Thomas,Biographie,Belgique,14.9,214,3.6,done,2026-01-27T18:02:25Z
+4bbe4aff-9326-dffd-5be4-bf5192698698,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2026-01-28T18:52:36Z
+5a104129-54ae-bd1b-8ce6-424dbef59fe6,Le Manuscrit Oublié,Camille Girard,Mystère,France,19.5,318,4.8,done,2026-01-29T11:32:29Z
+8b10550c-d570-4f32-702c-dd20286218b8,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-01-29T14:44:01Z
+7914f8a8-bea4-ff31-5174-00f80b2c782a,Solstice,Clara Bonnet,Romance,France,17.5,247,4.1,done,2026-01-29T22:36:00Z
+49c13de7-3b42-06c5-085b-15fb4a8ff810,Les Gardiens du Vide,Maxime Leroy,Sci-Fi,France,21.0,518,4.1,done,2026-01-30T06:39:10Z
+7d824264-1ba3-62e7-afa4-15e56d204496,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2026-01-31T08:01:50Z
+658b2523-6014-1de9-f54a-d0a2e87466d7,L'Équation du Destin,Anaïs Michel,Sci-Fi,Allemagne,22.0,445,4.5,done,2026-01-31T20:12:36Z
+d0a44432-9cd6-c852-714c-7df4e4347d51,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2026-02-01T16:03:34Z
+1ee34dc4-3b04-8a8b-405b-fdc94e7ed827,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2026-02-02T01:25:43Z
+ad238d36-dc32-2c97-39c1-e262f76c8ede,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2026-02-02T15:05:40Z
+f512c4c3-b253-d218-6c4a-37ea490617f2,Solstice,Clara Bonnet,Romance,France,17.5,247,4.1,done,2026-02-03T20:24:05Z
+944528c0-0ef8-c2d6-f7fd-564637bb3eec,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2026-02-04T20:47:01Z
+2dea9493-0658-663a-698c-206fe1a47e10,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2026-02-05T00:38:21Z
+f0b5156b-b82c-9074-afd5-dea589d7fd6c,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2026-02-06T01:44:16Z
+18b87245-6e8f-75a1-17dd-ed8115da705c,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2026-02-06T14:02:09Z
+4b8e63d4-ce76-07ad-f7a6-7b947b5a611a,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2026-02-06T23:13:07Z
+9ee3ac2a-f94d-6204-6808-593fdfed2c43,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2026-02-07T12:49:07Z
+f3b63fe1-d184-3324-17e8-392a55cee5db,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2026-02-07T20:33:26Z
+50f0fd0a-750c-ab75-4ccc-9bc2a53f8a28,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2026-02-07T23:56:32Z
+8a0f4efb-edcd-465e-3638-6821f6e07cc0,Les Gardiens du Vide,Maxime Leroy,Sci-Fi,France,21.0,518,4.1,done,2026-02-08T15:47:27Z
+ad81f8bd-4029-13ec-9ef2-b93e30ac7d7b,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2026-02-08T17:14:43Z
+f36cb62b-892e-6161-be2d-740a1e9b23bc,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2026-02-10T00:03:39Z
+8d4a75b8-551a-c8ea-585a-0afa7bfdcc12,Le Manuscrit Oublié,Camille Girard,Mystère,France,19.5,318,4.8,done,2026-02-10T03:14:39Z
+e0b15aba-a6a2-7967-a79b-44b6da509fed,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2026-02-11T07:37:33Z
+46b82659-11df-12d7-dd30-de8922f235f2,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2026-02-12T00:55:37Z
+11c58ef0-dd46-3c09-4752-87aa5408f9ac,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2026-02-12T03:57:48Z
+541c7a86-3ba5-cd2f-dea4-5c19d0243d72,L'Équation du Destin,Anaïs Michel,Sci-Fi,Allemagne,22.0,445,4.5,done,2026-02-12T08:49:08Z
+c4b032cc-d7c5-24a5-5304-317faf42e12f,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2026-02-12T16:25:18Z
+c40c5d91-46fd-e062-a33d-c7afd701410d,Le Miroir Brisé,Théo Marchand,Mystère,Belgique,16.5,291,3.8,done,2026-02-13T00:13:38Z
+8a14be62-295b-4715-c333-e8615fb8d16c,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2026-02-13T04:39:44Z
+5a8aaeca-1a50-aec3-aabc-25fa3fe12e47,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2026-02-13T11:36:18Z
+1190f938-a66f-d7f7-3966-9fa759970043,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2026-02-13T16:48:35Z
+ed3049cf-43e4-58fc-63f2-ae24fc3d3348,Fragments d'Éternité,Baptiste Laurent,Sci-Fi,France,23.0,467,4.6,done,2026-02-14T06:02:01Z
+203c8c25-fd23-5def-3e5a-87e35560db22,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2026-02-14T19:35:01Z
+28c13091-444d-610b-3f87-e362cf8d446a,Les Marées du Temps,Alexis Moreau,Fiction,France,19.9,359,4.3,done,2026-02-14T21:25:52Z
+4f1639a0-0a17-991e-a576-9411a0a11839,Étoiles Perdues,Théo Marchand,Sci-Fi,Belgique,22.5,412,4.2,done,2026-02-15T03:11:28Z
+a9e782d4-fd08-b32c-62d6-0e9361985d54,Terres Grises,Baptiste Laurent,Biographie,Suisse,14.0,198,3.5,done,2026-02-15T20:49:19Z
+1963c26d-6e21-8b09-9afd-4015816bcb9f,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-02-16T00:05:44Z
+f5b78cc7-e6b3-c944-cb32-3e357922bac2,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2026-02-16T13:44:39Z
+530a37df-0bc6-1066-0769-165fe746ccb9,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2026-02-16T14:17:50Z
+402adf9c-8a4b-8f7c-2147-2a15fcce96f6,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2026-02-17T01:20:38Z
+2999b735-dd56-cc94-3c9a-d14cee0caeb5,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2026-02-17T07:44:37Z
+222282e1-74da-aebf-1f11-5b76d92c9227,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-02-17T14:52:19Z
+bfbbb17f-9854-ce4e-4ebf-a5c3cae9b4a7,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2026-02-22T01:14:17Z
+e43e4288-a2b5-b498-5cb8-5aedf5f62c97,L'Énigme du Lac,Clara Bonnet,Mystère,Suisse,17.0,287,3.9,done,2026-02-22T22:03:21Z
+fc3e058b-e0f3-eab0-5cec-4eb5edd96831,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2026-02-23T11:50:32Z
+8c459ce2-67f4-8ad5-4d0b-0d1a91b0e1d9,Le Cycle des Ombres,Sophie Renard,Fiction,France,20.0,398,4.1,done,2026-02-23T21:26:27Z
+4c6e27ff-b9de-7a3a-4868-22b900a81de9,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-02-24T14:55:14Z
+adf4e62d-6651-529e-8268-690ba43825b5,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-02-25T19:44:45Z
+74f33103-4006-6ff2-b0b8-62ef6c9f82b9,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2026-02-26T03:24:06Z
+e87d1c78-e7c4-21c7-4049-7b717d106c60,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-02-26T07:07:44Z
+9c7c7377-79a2-8903-fbe3-3b243eae0032,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2026-02-27T00:03:52Z
+7e8adee7-0758-e201-561e-16d16105716b,Les Gardiens du Vide,Maxime Leroy,Sci-Fi,France,21.0,518,4.1,done,2026-02-27T05:43:39Z
+541cdfcd-da0d-4a5f-148f-8b74a65bb1f2,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2026-02-27T12:11:54Z
+a25d6b29-afff-cfd2-341e-f40b57c700aa,Quand Vient la Nuit,Alexis Moreau,Thriller,France,18.5,256,4.4,done,2026-02-27T14:51:42Z
+3bcabf85-620a-60ac-9261-549d3d225c30,La Prophétie d'Automne,Antoine Blanc,Mystère,Canada,23.0,421,4.5,done,2026-02-28T05:18:34Z
+46fb7bf3-00b9-d4a3-9892-40ace68933a9,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2026-02-28T16:27:44Z
+c03f3538-e485-5aa1-016b-6287b00805cc,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2026-03-01T01:56:37Z
+ccf3a171-56dc-8907-ba6c-34ab6712303a,Étoiles Perdues,Théo Marchand,Sci-Fi,Belgique,22.5,412,4.2,done,2026-03-01T07:41:06Z
+6778043b-c5c5-b37a-f85e-06a11dad09b2,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-03-01T22:46:31Z
+8715a103-43da-c043-2a45-c2ab8cbfedb0,Sous les Cendres,Nicolas Petit,Thriller,Royaume-Uni,16.0,275,3.7,done,2026-03-03T09:49:57Z
+9132b63e-f162-87e4-e9c3-49e03602f8ac,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-03-04T04:10:08Z
+c2dff335-5666-6f9f-53ac-2ab974672cd9,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-03-04T19:25:10Z
+70286046-49bc-473f-ed7b-f656218a1536,La Carte de l'Improbable,Emma Dubois,Fiction,Belgique,16.9,344,3.8,done,2026-03-05T01:02:33Z
+654821d0-7fcd-9eb1-a7ca-d415366eb16f,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2026-03-05T18:55:20Z
+73991a47-6e19-1042-370b-c063dd90e79e,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2026-03-06T10:48:14Z
+1d8cbbac-43b4-09ef-2260-e70fe0ccedc5,L'Énigme du Lac,Clara Bonnet,Mystère,Suisse,17.0,287,3.9,done,2026-03-06T18:21:42Z
+1eb0e38a-675d-d5af-3c36-5296dca02eec,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2026-03-06T21:02:22Z
+da7b9095-63d6-2a39-c0e3-befd4c71e0fe,Vertiges,Léa Simon,Romance,France,18.0,278,4.2,done,2026-03-07T03:21:02Z
+51d87c64-55fa-1ab8-458f-1f193c07c574,Par-delà l'Horizon,Marie Lefebvre,Fiction,France,18.9,337,4.0,done,2026-03-07T09:48:24Z
+0267deb3-aab6-12c9-415d-174a75a66981,Résonances,Jade Roux,Fiction,Suisse,19.0,302,4.3,done,2026-03-08T13:13:02Z
+5d59cd2a-4eea-04e7-0ab5-4bde20a04502,Mémoires d'Outre-Monde,Julien Deschamps,Sci-Fi,Canada,24.9,531,4.7,done,2026-03-08T13:33:26Z
+bf85bf0e-ad64-b56c-610f-aa3ff0bbac67,Le Manuscrit Oublié,Camille Girard,Mystère,France,19.5,318,4.8,done,2026-03-09T07:22:43Z
+e776b886-d534-ee1d-7f29-84f5bec39a37,Terres Grises,Baptiste Laurent,Biographie,Suisse,14.0,198,3.5,done,2026-03-09T07:58:54Z
+b0e6a969-e213-42b0-f1ee-dba313432e61,Le Dernier Souffle,Marie Lefebvre,Thriller,France,19.9,324,4.5,done,2026-03-09T12:36:44Z
+d7665cda-fe04-9059-3985-fb6217dc8eff,Nuits Blanches,Raphaël Robert,Romance,France,18.0,263,4.4,done,2026-03-11T06:33:41Z
+41c8ca8c-2a1f-955a-d499-da9945c45a3e,Archipel,Hugo Martin,Fiction,Canada,20.5,389,4.0,done,2026-03-11T11:46:36Z
+77a6e17c-d72b-6108-2a40-5f12b963f37f,L'Hiver des Esprits,Julien Deschamps,Thriller,Canada,20.9,383,4.4,done,2026-03-12T13:22:28Z
+1ff49b78-8946-3e85-759c-de66bacfb3d0,Cartographie de l'Invisible,Sophie Renard,Sci-Fi,Allemagne,22.9,476,4.2,done,2026-03-13T02:12:28Z
+dfde4fbf-3ff3-50bf-766e-cb15474ebc19,Le Manuscrit Oublié,Camille Girard,Mystère,France,19.5,318,4.8,done,2026-03-13T06:43:46Z
