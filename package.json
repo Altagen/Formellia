@@ -24,8 +24,8 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1019.0",
-    "@aws-sdk/lib-storage": "^3.1019.0",
+    "@aws-sdk/client-s3": "^3.1037.0",
+    "@aws-sdk/lib-storage": "^3.1037.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
@@ -43,13 +43,13 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/typography": "^0.5.19",
-    "@types/bcryptjs": "^2.4.6",
+    "@types/bcryptjs": "^3.0.0",
     "@types/js-yaml": "^4.0.9",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.5.17",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "latest",
-    "csv-parse": "^6.1.0",
+    "csv-parse": "^6.2.1",
     "drizzle-orm": "^0.45.2",
     "framer-motion": "latest",
     "geist": "^1.7.0",
@@ -68,7 +68,7 @@
     "radix-ui": "^1.4.3",
     "react": "^19",
     "react-dom": "^19",
-    "react-is": "^19.2.4",
+    "react-is": "^19.2.5",
     "react-markdown": "^10.1.0",
     "recharts": "latest",
     "sonner": "^2.0.7",
@@ -86,13 +86,17 @@
     "@types/pg": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "@vitest/coverage-v8": "^4.1.2",
+    "@vitest/coverage-v8": "^4.1.5",
     "dotenv-cli": "^11.0.0",
     "drizzle-kit": "latest",
     "husky": "^9.1.7",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.5"
+  },
+  "overrides": {
+    "vite": "^8.0.10",
+    "dompurify": "^3.4.1"
   }
 }
