@@ -47,7 +47,7 @@ backups/
 .vercel
 
 # Claude Code local settings (machine-specific)
-.claude/settings.local.json
+.claude/
 
 # Internal planning docs
 tasks/

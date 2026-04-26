@@ -2,10 +2,15 @@
   "name": "formellia",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
@@ -15,7 +20,8 @@
     "test:e2e": "bash scripts/run-e2e.sh",
     "test:seed": "dotenv -e .env.test -- npx tsx scripts/seed-test-db.ts",
     "test:db:up": "docker compose --profile test up -d db-test",
-    "test:db:down": "docker compose --profile test stop db-test"
+    "test:db:down": "docker compose --profile test stop db-test",
+    "prepare": "husky"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1019.0",
@@ -71,6 +77,8 @@
     "zod": "latest"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
     "@tailwindcss/postcss": "latest",
     "@types/adm-zip": "^0.5.8",
     "@types/node": "latest",
@@ -81,6 +89,7 @@
     "@vitest/coverage-v8": "^4.1.2",
     "dotenv-cli": "^11.0.0",
     "drizzle-kit": "latest",
+    "husky": "^9.1.7",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
