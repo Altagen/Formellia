@@ -1,0 +1,209 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Example — Analytics dashboard for the event registration form
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# This file complements `event-signup.yaml`. It CANNOT be applied through
+# the boot YAML (`config.yaml`) — the boot schema does not accept
+# `admin.pages`. Import it via:
+#
+#   Admin UI → Configuration → Restore from file
+#   (endpoint POST /api/admin/config/backup, mode=replace)
+#
+# Or via CLI once the admin is authenticated:
+#   curl -X POST http://localhost:3000/api/admin/config/backup?mode=replace \
+#     -H "Cookie: <session>" \
+#     -H "Content-Type: application/x-yaml" \
+#     --data-binary @event-dashboard.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+
+admin:
+  defaultPage: "registrations"
+
+  pages:
+    # ── Main page — Registrations ─────────────────────────────
+    - id: "page-registrations"
+      title: "Registrations"
+      slug: "registrations"
+      icon: "users"
+      formInstanceId: "/"        # filter on the main form
+      refreshInterval: 60        # auto-refresh every 60s
+
+      widgets:
+        # ── Stats cards (one row of 4) ──────────────────────
+        - type: "stats_card"
+          id: "stats-total"
+          statsConfig:
+            id: "stats-total"
+            title: "Total registrants"
+            icon: "users"
+            accent: "blue"
+            query: "count_total"
+
+        - type: "stats_card"
+          id: "stats-week"
+          statsConfig:
+            id: "stats-week"
+            title: "This week"
+            icon: "calendar"
+            accent: "green"
+            query: "count_week"
+
+        - type: "stats_card"
+          id: "stats-today"
+          statsConfig:
+            id: "stats-today"
+            title: "Today"
+            icon: "clock"
+            accent: "purple"
+            query: "count_today"
+
+        - type: "stats_card"
+          id: "stats-speakers"
+          statsConfig:
+            id: "stats-speakers"
+            title: "Speakers"
+            icon: "mic"
+            accent: "orange"
+            query:
+              fn: "count"
+              filterLogic: "and"
+              scope: "all"
+              filters:
+                - { field: "isSpeaker", op: "eq", value: "yes" }
+
+        # ── Registrations over time ─────────────────────────
+        - type: "chart"
+          id: "chart-signups"
+          title: "Registrations per day"
+          span: 2
+          chartConfig:
+            id: "chart-signups"
+            title: "Registrations per day"
+            type: "area"
+            groupBy: "date"
+            dateRange: "30d"
+            color: "#2563eb"
+            showComparison: true
+
+        # ── Speakers vs attendees breakdown ─────────────────
+        - type: "chart"
+          id: "chart-roles"
+          title: "Breakdown by role"
+          span: 1
+          chartConfig:
+            id: "chart-roles"
+            title: "Speakers vs attendees"
+            type: "pie"
+            groupBy: "isSpeaker"
+            dateRange: "all"
+
+        # ── Talk duration distribution ──────────────────────
+        - type: "stats_table"
+          id: "table-stats-roles"
+          title: "Stats by role"
+          span: 1
+          tableConfig:
+            groupBy: "isSpeaker"
+            groupByLabel: "Role"
+            columns:
+              - { id: "col-count", label: "Count", fn: "count" }
+            scope: "all"
+
+        # ── Detailed list ───────────────────────────────────
+        - type: "submissions_table"
+          id: "table-submissions"
+          title: "All registrations"
+          searchFields: ["email", "lastName", "firstName"]
+
+    # ── Secondary page — Talks (flattened view) ───────────────
+    - id: "page-talks"
+      title: "Talks"
+      slug: "talks"
+      icon: "mic"
+      formInstanceId: "/"
+      flattenRepeater:
+        fieldId: "talks"           # one synthetic row per proposed talk
+      refreshInterval: 60
+
+      widgets:
+        - type: "stats_card"
+          id: "stats-talks-total"
+          statsConfig:
+            id: "stats-talks-total"
+            title: "Total talks"
+            icon: "mic"
+            accent: "blue"
+            query:
+              fn: "count"
+              filterLogic: "and"
+              scope: "all"
+              filters: []
+
+        - type: "stats_card"
+          id: "stats-talks-sum"
+          statsConfig:
+            id: "stats-talks-sum"
+            title: "Total duration (min)"
+            icon: "clock"
+            accent: "purple"
+            query:
+              fn: "sum"
+              field: "durationMinutes"
+              filterLogic: "and"
+              scope: "all"
+              filters: []
+
+        - type: "stats_card"
+          id: "stats-talks-avg"
+          statsConfig:
+            id: "stats-talks-avg"
+            title: "Average duration (min)"
+            icon: "bar-chart-2"
+            accent: "green"
+            query:
+              fn: "avg"
+              field: "durationMinutes"
+              filterLogic: "and"
+              scope: "all"
+              filters: []
+
+        # Talks per author — grouped by submitter email
+        - type: "stats_table"
+          id: "table-talks-by-author"
+          title: "Talks per author"
+          span: 1
+          tableConfig:
+            groupBy: "email"
+            groupByLabel: "Author"
+            columns:
+              - { id: "col-count", label: "Count",            fn: "count" }
+              - { id: "col-sum",   label: "Total time (min)", fn: "sum", field: "durationMinutes" }
+            scope: "all"
+
+        # Distribution of proposed durations
+        - type: "chart"
+          id: "chart-talks-duration"
+          title: "Duration distribution"
+          span: 1
+          chartConfig:
+            id: "chart-talks-duration"
+            title: "Duration distribution (min)"
+            type: "bar"
+            groupBy: "durationMinutes"
+            dateRange: "all"
+            color: "#7c3aed"
+
+        # Free-text search across talk titles
+        - type: "submissions_table"
+          id: "table-talks-list"
+          title: "All talks"
+          searchFields: ["title", "email"]
+
+  # Columns shown in the global submissions table
+  tableColumns:
+    - { id: "col-email",     label: "Email",        source: "email" }
+    - { id: "col-firstname", label: "First name",   source: "firstName" }
+    - { id: "col-lastname",  label: "Last name",    source: "lastName" }
+    - { id: "col-role",      label: "Role",         source: "isSpeaker" }
+    - { id: "col-status",    label: "Status",       source: "status" }
+    - { id: "col-submitted", label: "Submitted at", source: "submittedAt" }
