@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: formellia
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Isolated test database — started only with: docker compose --profile test up -d db-test
+  db-test:
+    image: postgres:16-alpine
+    profiles: ["test"]
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: formellia_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    # No persistent volume — each docker compose rm resets it cleanly
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:

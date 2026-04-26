@@ -1,0 +1,59 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# MODE 1 — Single domain (internal use / not exposed to internet)
+#
+# Everything accessible from the same domain.
+# Do not set ADMIN_HOST in the Next.js environment.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# your-domain.com {
+#     reverse_proxy app:3000
+#     encode gzip
+#
+#     header {
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains"
+#     }
+# }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MODE 2 — Two separate subdomains (recommended for internet-facing deployments)
+#
+# Next.js prerequisites:
+#   ADMIN_HOST=admin.your-domain.com
+#   TRUSTED_PROXY=true
+#
+# The Next.js middleware returns 404 on /admin* and /api/admin* if the Host
+# does not match ADMIN_HOST — Caddy is a second line of defence.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Public entry — form users only
+forms.your-domain.com {
+    # Defence in depth: Caddy blocks admin paths before they reach Next.js
+    @admin path /admin* /api/admin* /api/auth*
+    respond @admin 404
+
+    reverse_proxy app:3000
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    }
+}
+
+# Admin entry — administration interface
+admin.your-domain.com {
+    # Option A: restrict by IP (recommended if admin is on a fixed network)
+    # Uncomment and replace with your IP or network range:
+    # @blocked not remote_ip 1.2.3.4/32 192.168.0.0/24
+    # respond @blocked 403
+
+    # Option B: no IP restriction (admin accessible from internet)
+    # In this case, rate limiting on /api/auth/login is the primary defence.
+
+    reverse_proxy app:3000
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    }
+}

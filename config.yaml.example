@@ -1,0 +1,195 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Formellia — Configuration as Code
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Ce fichier est world-readable et peut être commité dans git.
+# Il ne doit contenir AUCUN secret.
+#
+# Secrets → variables d'environnement uniquement :
+#   ADMIN_PASSWORD                  Mot de passe du compte admin
+#   EMAIL_API_KEY                   Clé API email (global fallback)
+#   EMAIL_API_KEY_{SLUG_UPPER}      Clé API email par formulaire
+#                                   ex: EMAIL_API_KEY_ROOT       (slug="/")
+#                                       EMAIL_API_KEY_RECLAMATIONS (slug="reclamations")
+#   ENCRYPTION_KEY                  Clé AES-256 pour les clés API stockées en DB
+#   ADMIN_UPDATE_PASSWORD_ON_RESTART  true → met à jour le mdp à chaque restart
+#                                     false (défaut) → crée uniquement si absent
+#
+# Emplacement du fichier :
+#   Par défaut : ./config.yaml (racine du projet)
+#   Personnalisé : CONFIG_YAML_PATH=/chemin/absolu/config.yaml
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: 1
+
+# ── Application ───────────────────────────────────────────
+app:
+  # Politique de mot de passe pour la création et le changement de compte admin.
+  # true  → min 8 chars, ≥1 majuscule, ≥1 chiffre, ≥1 caractère spécial
+  # false → aucune contrainte (pratique pour les environnements de développement)
+  # Peut aussi être défini via ENFORCE_PASSWORD_POLICY=true|false (prioritaire)
+  enforcePasswordPolicy: true
+
+# ── Compte administrateur ─────────────────────────────────
+admin:
+  # Email du compte admin. Le mot de passe vient de ADMIN_PASSWORD (env var).
+  # Si l'utilisateur n'existe pas encore → création automatique au démarrage.
+  # Si l'utilisateur existe déjà → pas de modification sauf si
+  #   ADMIN_UPDATE_PASSWORD_ON_RESTART=true.
+  email: admin@exemple.fr
+
+# ── Seuils de priorité des soumissions ───────────────────
+priorityThresholds:
+  redMaxDays:    7   # Rouge : échéance ≤ 7 jours
+  orangeMaxDays: 14  # Orange : échéance ≤ 14 jours
+  yellowMaxDays: 30  # Jaune : échéance ≤ 30 jours
+
+# ── Formulaires ───────────────────────────────────────────
+forms:
+  # Formulaire principal (slug "/")
+  - slug: "/"
+    name: "Formulaire principal"
+
+    features:
+      landingPage: true   # false → la page publique renvoie 404
+      form:        true   # false → la landing page est visible mais le formulaire est caché
+
+    notifications:
+      # La clé API email NE FIGURE PAS ici → variable d'env EMAIL_API_KEY_ROOT
+      email:
+        enabled:     false
+        provider:    "resend"        # resend | sendgrid | mailgun
+        fromAddress: "noreply@exemple.fr"
+        fromName:    "Mon Service"
+        subject:     "Votre demande a bien été reçue — {{formName}}"
+        bodyText: |
+          Bonjour,
+
+          Nous avons bien reçu votre demande.
+
+          Email de contact : {{email}}
+          Date de soumission : {{submittedAt}}
+
+          Cordialement,
+          L'équipe Mon Service
+
+    meta:
+      name:        "Mon Service"
+      title:       "Déposez votre demande"
+      description: "Formulaire de dépôt de dossier en ligne."
+      locale:      "fr"
+
+    page:
+      branding:
+        primaryColor:   "#2563eb"
+        secondaryColor: "#4f46e5"
+        defaultTheme:   "light"   # light | dark
+      hero:
+        title:             "Déposez votre demande"
+        description:       "Remplissez le formulaire ci-dessous, nous reviendrons vers vous rapidement."
+        ctaLabel:          "Commencer ma demande"
+        backgroundVariant: "gradient"   # gradient | solid | image
+      footer:
+        text: "Vos données sont traitées conformément au RGPD."
+
+    security:
+      honeypot:
+        enabled: false   # true → champ piège invisible contre les bots
+      rateLimit:
+        enabled:    false
+        maxPerHour: 10
+        maxPerDay:  50
+
+    form:
+      steps:
+        - id: "step-contact"
+          title: "Vos coordonnées"
+          fields:
+            - id:       "email"
+              type:     "email"
+              label:    "Adresse email"
+              required: true
+
+            - id:          "nom"
+              type:        "text"
+              label:       "Nom complet"
+              required:    true
+              placeholder: "Jean Dupont"
+
+        - id: "step-demande"
+          title: "Votre demande"
+          fields:
+            - id:      "objet"
+              type:    "select"
+              label:   "Objet de la demande"
+              required: true
+              options:
+                - value: "information"  label: "Demande d'information"
+                - value: "reclamation"  label: "Réclamation"
+                - value: "autre"        label: "Autre"
+
+            - id:      "message"
+              type:    "textarea"
+              label:   "Détails de votre demande"
+              required: true
+
+    # ── Message de succès personnalisé ────────────────────
+    # Affiché après la soumission. Supporte {{fieldId}}.
+    # successMessage: "Merci {{nom}}, votre demande a bien été enregistrée."
+
+    # ── Redirection après soumission ──────────────────────
+    # successRedirectUrl: "https://exemple.fr/merci"
+    # successRedirectDelay: 5   # secondes avant la redirection (0–60)
+
+    # ── Actions post-soumission ────────────────────────────
+    # Remplace le comportement par défaut (sauvegarde en base).
+    # onSubmitActions:
+    #   - type: save_to_db
+    #     label: "Sauvegarder"
+    #     enabled: true
+    #   - type: print_view
+    #     label: "Générer PDF"
+    #     enabled: true
+    #     config:
+    #       filename: "{{formName}}-{{submittedAt}}.pdf"
+
+    # ── Statuts personnalisés ──────────────────────────────
+    # Remplace les statuts par défaut (pending, in_progress, done, waiting_user).
+    # customStatuses:
+    #   - value: "nouveau"     label: "Nouveau"         color: "#6b7280"
+    #   - value: "en_cours"    label: "En cours"        color: "#2563eb"
+    #   - value: "cloture"     label: "Clôturé"         color: "#059669"
+    #   - value: "rejete"      label: "Rejeté"          color: "#dc2626"
+
+  # Exemple : deuxième formulaire (clé API → EMAIL_API_KEY_RECLAMATIONS)
+  # - slug: "reclamations"
+  #   name: "Réclamations"
+  #   features:
+  #     landingPage: true
+  #     form: true
+  #   notifications:
+  #     email:
+  #       enabled:     true
+  #       provider:    "sendgrid"
+  #       fromAddress: "reclamations@exemple.fr"
+  #       subject:     "Réclamation reçue — {{email}}"
+  #       bodyText:    "Réclamation de {{email}} reçue le {{submittedAt}}."
+  #   meta:
+  #     name:        "Réclamations"
+  #     title:       "Déposez une réclamation"
+  #     description: ""
+  #     locale:      "fr"
+  #   page:
+  #     branding:
+  #       defaultTheme: "light"
+  #     hero:
+  #       title:    "Réclamation"
+  #       ctaLabel: "Commencer"
+  #   form:
+  #     steps:
+  #       - id: "step-reclamation"
+  #         title: "Votre réclamation"
+  #         fields:
+  #           - id: "email"    type: "email"    label: "Email"    required: true
+  #           - id: "message"  type: "textarea" label: "Message"  required: true

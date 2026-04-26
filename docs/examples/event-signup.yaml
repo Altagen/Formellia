@@ -1,0 +1,203 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Example — Event registration with optional talk proposals
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# This example is intentionally complete to serve as a reference.
+# To use it:
+#   1. Copy this file as `config.yaml` at the project root.
+#   2. Adjust `meta`, `page.hero`, `notifications.email.fromAddress`, and
+#      `bodyText`.
+#   3. Start the app with `CONFIG_SOURCE=db` (default) and
+#      `EMAIL_API_KEY_ROOT=<Resend key>` in `.env`.
+#
+# The form has two steps:
+#   1. Contact details (first name, last name, email)
+#   2. Role (speaker or not) + a conditional repeater for talk proposals
+#      when "yes" is selected.
+#
+# The matching dashboard page lives in `event-dashboard.yaml` — import it
+# through Admin → Config → Restore (NOT through the boot YAML).
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: 1
+
+app:
+  enforcePasswordPolicy: true
+
+admin:
+  email: admin@example.org
+
+priorityThresholds:
+  redMaxDays:    7
+  orangeMaxDays: 14
+  yellowMaxDays: 30
+
+forms:
+  - slug: "/"
+    name: "Event registration"
+
+    features:
+      landingPage: true
+      form:        true
+
+    notifications:
+      email:
+        enabled:     true
+        provider:    "resend"
+        # For local testing without a verified domain, use onboarding@resend.dev
+        # and submit only with the email address registered on your Resend account.
+        # For production, verify a sending subdomain (e.g. send.example.com) and
+        # use an address on that domain — see docs/email-setup.md.
+        fromAddress: "onboarding@resend.dev"
+        fromName:    "Acme Conf"
+        subject:     "Registration confirmed — {{formName}}"
+        bodyText: |
+          Hello {{firstName}},
+
+          Thanks for registering! Your details have been recorded on
+          {{submittedAt}}.
+
+          Summary:
+            • Full name : {{firstName}} {{lastName}}
+            • Email     : {{email}}
+
+          If you indicated that you would like to speak, your proposal has
+          been forwarded to the program committee. We will reach out with
+          the final schedule shortly.
+
+          See you there!
+
+          --
+          The organizing team
+
+    meta:
+      name:        "Acme Conf"
+      title:       "Event registration"
+      description: "Registration form for Acme Conf 2026."
+      locale:      "en"
+      emoji:       "🎤"
+      translations:
+        editResponseLabel: "Submit another response"
+
+    page:
+      branding:
+        primaryColor:   "#2563eb"
+        secondaryColor: "#7c3aed"
+        defaultTheme:   "light"
+        fontFamily:     "inter"
+
+      layout:    "page"
+      formWidth: "lg"
+
+      hero:
+        title:             "Event registration"
+        eyebrow:           "2026 Edition"
+        description:       "Register for free and let us know if you would like to speak. You can submit several talk proposals if you have more than one in mind."
+        ctaLabel:          "Register"
+        backgroundVariant: "gradient"
+        height:            "normal"
+        textAlign:         "center"
+        ctaScrollToForm:   true
+
+      blocks:
+        - type: "info"
+          title: "How it works"
+          variant: "highlight"
+          content: |
+            Fill in your contact details, tell us whether you want to speak,
+            and add one row per talk you plan to give. You will receive a
+            confirmation email immediately after submitting.
+
+      footer:
+        text: "© 2026 Acme Conf — Your data is processed in accordance with applicable privacy regulations."
+
+    security:
+      honeypot:
+        enabled: true
+      rateLimit:
+        enabled:    true
+        maxPerHour: 20
+        maxPerDay:  100
+
+    successMessage: "Thanks {{firstName}}! Your registration is confirmed. A summary email has just been sent to you."
+
+    form:
+      steps:
+        # ── Step 1 — Contact details ─────────────────────────
+        - id: "step-contact"
+          title: "Your details"
+          description: "Required fields to identify you."
+          fields:
+            - id: "firstName"
+              type: "text"
+              label: "First name"
+              required: true
+              placeholder: "Jane"
+              validation:
+                minLength: 2
+                maxLength: 80
+
+            - id: "lastName"
+              type: "text"
+              label: "Last name"
+              required: true
+              placeholder: "Doe"
+              validation:
+                minLength: 2
+                maxLength: 80
+
+            - id: "email"
+              type: "email"
+              label: "Email address"
+              required: true
+              placeholder: "jane.doe@example.com"
+              helpText: "We will send the confirmation to this address."
+
+        # ── Step 2 — Role + conditional talk proposals ───────
+        - id: "step-role"
+          title: "Your role"
+          description: "Speaker or attendee? If you plan to speak, list your topics below."
+          fields:
+            - id: "isSpeaker"
+              type: "radio"
+              label: "Will you be speaking?"
+              required: true
+              options:
+                - { value: "yes", label: "Yes, I will give a talk" }
+                - { value: "no",  label: "No, I'm attending only" }
+
+            - id: "talks_intro"
+              type: "alert"
+              alertVariant: "info"
+              label: "Add one row per talk you would like to give. You can propose up to 5."
+              visibleWhen:
+                field: "isSpeaker"
+                operator: "eq"
+                value: "yes"
+
+            - id: "talks"
+              type: "repeater"
+              label: "Your talks"
+              required: true
+              repeaterMin: 1
+              repeaterMax: 5
+              repeaterAddLabel: "+ Add a talk"
+              repeaterColumns:
+                - id: "title"
+                  type: "text"
+                  label: "Talk title"
+                  required: true
+                  placeholder: "e.g. Introduction to Formellia"
+                  width: "lg"
+                  validation:
+                    maxLength: 100
+                - id: "durationMinutes"
+                  type: "number"
+                  label: "Duration (minutes)"
+                  required: true
+                  placeholder: "20"
+                  width: "sm"
+              visibleWhen:
+                field: "isSpeaker"
+                operator: "eq"
+                value: "yes"
