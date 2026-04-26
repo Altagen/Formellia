@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { deriveKey, deriveKeyFromEnv, hasPrevKey } from "@/lib/security/deriveKey";
 
-const VALID_KEY = "0123456789abcdef".repeat(4); // 64 hex chars
+const VALID_KEY = "0123456789abcdef".repeat(4); // 64 hex chars — gitleaks:allow
 
 describe("deriveKey", () => {
   beforeEach(() => {
