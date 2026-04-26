@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Synthetic test fixtures"
+paths = [
+  '''src/__tests__/.*''',
+]

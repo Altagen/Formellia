@@ -50,7 +50,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "latest",
     "csv-parse": "^6.1.0",
-    "drizzle-orm": "latest",
+    "drizzle-orm": "^0.45.2",
     "framer-motion": "latest",
     "geist": "^1.7.0",
     "html-to-image": "^1.11.13",
