@@ -1,5 +1,58 @@
 import { z } from "zod";
-import type { StepDef } from "@/types/config";
+import type { FieldDef, RepeaterColumn, StepDef } from "@/types/config";
+
+/**
+ * Builds a Zod schema for a repeater field. Client serialises rows as a JSON
+ * string, so we preprocess by parsing it before validating against an array of
+ * row objects whose shape is derived from the column definitions.
+ */
+function buildRepeaterSchema(field: FieldDef): z.ZodTypeAny {
+  const cols: RepeaterColumn[] = field.repeaterColumns ?? [];
+  const rowShape: Record<string, z.ZodTypeAny> = {};
+
+  for (const col of cols) {
+    let cell: z.ZodTypeAny =
+      col.type === "number" ? z.coerce.number() : z.string();
+
+    if (col.validation) {
+      const v = col.validation;
+      if (cell instanceof z.ZodString) {
+        if (v.minLength != null)
+          cell = (cell as z.ZodString).min(v.minLength, v.message ?? `${col.label} : minimum ${v.minLength} characters`);
+        if (v.maxLength != null)
+          cell = (cell as z.ZodString).max(v.maxLength, v.message ?? `${col.label} : maximum ${v.maxLength} characters`);
+        if (v.pattern != null) {
+          try {
+            cell = (cell as z.ZodString).regex(new RegExp(v.pattern), v.message ?? `${col.label} : format invalide`);
+          } catch {
+            console.warn(`[validation] Invalid regex pattern for repeater column "${col.id}":`, v.pattern);
+          }
+        }
+      }
+      if (cell instanceof z.ZodNumber) {
+        if (v.min != null) cell = (cell as z.ZodNumber).min(v.min);
+        if (v.max != null) cell = (cell as z.ZodNumber).max(v.max);
+      }
+    }
+
+    rowShape[col.id] = col.required ? cell : cell.optional();
+  }
+
+  const rowSchema = z.object(rowShape);
+  const minRows = field.repeaterMin ?? 0;
+  const maxRows = field.repeaterMax ?? 100;
+
+  return z.preprocess(
+    val => {
+      if (val == null || val === "") return [];
+      if (typeof val === "string") {
+        try { return JSON.parse(val); } catch { return val; }
+      }
+      return val;
+    },
+    z.array(rowSchema).min(minRows).max(maxRows),
+  );
+}
 
 /**
  * Builds a flat Zod object schema from config steps.
@@ -24,6 +77,9 @@ export function buildDynamicZodSchema(steps: StepDef[]): z.ZodObject<Record<stri
           break;
         case "number":
           schema = z.coerce.number();
+          break;
+        case "repeater":
+          schema = buildRepeaterSchema(field);
           break;
         default:
           schema = z.string();
@@ -74,15 +130,15 @@ export function buildDynamicZodSchema(steps: StepDef[]): z.ZodObject<Record<stri
  * Full submission schema including top-level DB columns.
  * Reserved field IDs extracted by the submit handler:
  *   "email"        → submissions.email
- *   "dateEcheance" → submissions.dateEcheance
+ *   "dueDate" → submissions.dueDate
  */
 export function buildSubmissionSchema(steps: StepDef[]) {
   const formDataSchema = buildDynamicZodSchema(steps);
 
   return z.object({
     formData: formDataSchema,
-    dateReception: z.string().optional(),
-    dateEcheance: z.string().optional(),
+    receivedAt: z.string().optional(),
+    dueDate: z.string().optional(),
     // Honeypot field — name varies, validated separately in submit handler
   });
 }

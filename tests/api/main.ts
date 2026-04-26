@@ -1143,11 +1143,11 @@ test("SUBS-17", "PATCH /api/admin/submissions/[id] assignedToEmail + null assign
   eq("status", res.status, 200);
 });
 
-test("SUBS-18", "PATCH /api/admin/submissions/[id] notes + dateEcheance → 200", async () => {
+test("SUBS-18", "PATCH /api/admin/submissions/[id] notes + dueDate → 200", async () => {
   if (!createdSubmissionId) throw new Error("No submission id");
   const res = await adminClient.patch<Record<string, unknown>>(
     `/api/admin/submissions/${createdSubmissionId}`,
-    { notes: "Test note", dateEcheance: "2026-12-31" }
+    { notes: "Test note", dueDate: "2026-12-31" }
   );
   eq("status", res.status, 200);
 });

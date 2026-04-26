@@ -63,7 +63,7 @@ export async function exportSubmissions(format: "json" | "csv", config: JobConfi
       status: r.status,
       priority: r.priority,
       submittedAt: r.submittedAt.toISOString(),
-      dateEcheance: r.dateEcheance ?? "",
+      dueDate: r.dueDate ?? "",
       notes: r.notes ?? "",
       ...Object.fromEntries(
         Object.entries((r.formData as Record<string, unknown>) ?? {}).map(([k, v]) => [

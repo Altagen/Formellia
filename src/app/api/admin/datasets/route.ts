@@ -10,7 +10,7 @@ const columnDefSchema = z.object({
   source: z.string(),
   label:  z.string().optional(),
   type:   z.enum(["text", "number", "date", "email", "currency", "boolean"]),
-  role:           z.enum(["email", "submittedAt", "status", "priority", "dateEcheance", "amount"]).nullable().optional(),
+  role:           z.enum(["email", "submittedAt", "status", "priority", "dueDate", "amount"]).nullable().optional(),
   currencySymbol: z.string().max(10).optional(),
 });
 

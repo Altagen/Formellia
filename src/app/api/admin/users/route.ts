@@ -108,7 +108,10 @@ export async function POST(req: NextRequest) {
 
       const hashedPassword = await bcrypt.hash(password, 13);
       const id = nanoid();
-      await tx.insert(users).values({ id, username, email: email ?? null, hashedPassword });
+      // First-run: the very first user becomes the global admin.
+      // Subsequent users are created with role=null (scoped via user_form_grants).
+      const role = bootstrapInTx ? "admin" : null;
+      await tx.insert(users).values({ id, username, email: email ?? null, hashedPassword, role });
       return id;
     });
 

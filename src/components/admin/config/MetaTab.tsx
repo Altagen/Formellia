@@ -161,6 +161,17 @@ export function MetaTab({ meta, onChange }: MetaTabProps) {
                   placeholder={m.successTitlePlaceholder}
                 />
               </div>
+
+              <div>
+                <label className={labelClass}>{m.editResponseLabelLabel}</label>
+                <input
+                  type="text"
+                  value={meta.translations?.editResponseLabel ?? ""}
+                  onChange={e => updateTranslation("editResponseLabel", e.target.value)}
+                  className={inputClass}
+                  placeholder={m.editResponseLabelPlaceholder}
+                />
+              </div>
             </div>
 
             <div>

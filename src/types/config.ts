@@ -87,6 +87,7 @@ export interface RepeaterColumn {
   required?: boolean;
   placeholder?: string;
   width?: "sm" | "md" | "lg";
+  validation?: FieldValidation;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -164,7 +165,7 @@ export interface ChartDef {
   /**
    * Which date field to use for groupBy:"date" bucketing.
    * Defaults to sub.submittedAt. Accepts system fields or any formData key.
-   * e.g. "registration_date", "dateEcheance", "submittedAt"
+   * e.g. "registration_date", "dueDate", "submittedAt"
    */
   dateField?: string;
 }
@@ -212,7 +213,7 @@ export interface StatsCardDef {
 export interface TableColumnDef {
   id: string;
   label: string;
-  // Built-ins: "email" | "submittedAt" | "status" | "priority" | "dateEcheance"
+  // Built-ins: "email" | "submittedAt" | "status" | "priority" | "dueDate"
   // Any other string = key in formData JSONB
   source: string;
   width?: string;
@@ -254,7 +255,7 @@ export type WidgetDef =
       id: string;
       title?: string;
       span?: 1 | 2;
-      /** Field to read as deadline date. Defaults to "dateEcheance". Accepts system fields or any formData key. */
+      /** Field to read as deadline date. Defaults to "dueDate". Accepts system fields or any formData key. */
       dateField?: string;
       /** Override default time buckets. maxDays is the upper bound (exclusive) in days from today. */
       buckets?: { label: string; maxDays: number; color?: string }[];
@@ -278,6 +279,14 @@ export interface AdminPage {
   formInstanceId?: string;  // option 3: filter by form instance (id or slug)
   refreshInterval?: number; // auto-refresh in seconds for this page (0 or undefined = disabled)
   interactiveFilter?: boolean; // clicking a chart segment filters all other widgets on the page
+  /**
+   * Page-level flattening: if set, submissions are pre-expanded into one synthetic
+   * row per item of the named repeater field. The repeater item's columns are
+   * merged into the parent formData at the top level, and the repeater field
+   * itself is dropped. Widgets and the table then operate on the flat dataset.
+   * Requires `formInstanceId` to be set.
+   */
+  flattenRepeater?: { fieldId: string };
 }
 
 export interface AdminFeatures {
@@ -435,6 +444,7 @@ export interface AppMetaConfig {
     backButton?: string;
     successTitle?: string;
     successMessage?: string;
+    editResponseLabel?: string;
   };
 }
 

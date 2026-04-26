@@ -39,11 +39,11 @@ export async function GET(
     .select({
       bucket: sql<string>`
         CASE
-          WHEN ${submissions.dateEcheance} IS NULL THEN 'no_deadline'
-          WHEN (${submissions.dateEcheance}::date - CURRENT_DATE) < 0 THEN 'overdue'
-          WHEN (${submissions.dateEcheance}::date - CURRENT_DATE) <= ${red} THEN 'red'
-          WHEN (${submissions.dateEcheance}::date - CURRENT_DATE) <= ${orange} THEN 'orange'
-          WHEN (${submissions.dateEcheance}::date - CURRENT_DATE) <= ${yellow} THEN 'yellow'
+          WHEN ${submissions.dueDate} IS NULL THEN 'no_deadline'
+          WHEN (${submissions.dueDate}::date - CURRENT_DATE) < 0 THEN 'overdue'
+          WHEN (${submissions.dueDate}::date - CURRENT_DATE) <= ${red} THEN 'red'
+          WHEN (${submissions.dueDate}::date - CURRENT_DATE) <= ${orange} THEN 'orange'
+          WHEN (${submissions.dueDate}::date - CURRENT_DATE) <= ${yellow} THEN 'yellow'
           ELSE 'green'
         END
       `.as("bucket"),

@@ -32,8 +32,8 @@ export function externalRecordToSubmission(r: {
         ? "done"
         : "pending") as Submission["status"],
     priority: String(data.priority ?? "none") as Submission["priority"],
-    dateReception: (data.dateReception as string) ?? null,
-    dateEcheance: (data.dateEcheance as string) ?? null,
+    receivedAt: (data.receivedAt as string) ?? null,
+    dueDate: (data.dueDate as string) ?? null,
     notes: (data.notes as string) ?? null,
     assignedToId: null,
     assignedToEmail: null,

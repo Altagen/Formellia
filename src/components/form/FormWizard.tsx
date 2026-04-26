@@ -375,7 +375,7 @@ export function FormWizard({ instanceConfig, submitUrl = "/api/submit", locale }
         printButtonLabel={tr.form.print.printButton}
         closeButtonLabel={tr.form.print.close}
         onClose={() => setPhase({ status: "success", dbSaved: phase.status === "print" ? phase.dbSaved : false })}
-        editButtonLabel={tr.form.editResponse}
+        editButtonLabel={instanceConfig.meta.translations?.editResponseLabel ?? tr.form.editResponse}
         onEdit={() => setPhase({ status: "idle" })}
       />
     );
@@ -427,7 +427,7 @@ export function FormWizard({ instanceConfig, submitUrl = "/api/submit", locale }
           onClick={() => setPhase({ status: "idle" })}
           className="mt-6 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
         >
-          {tr.form.editResponse}
+          {instanceConfig.meta.translations?.editResponseLabel ?? tr.form.editResponse}
         </button>
       </motion.div>
     );

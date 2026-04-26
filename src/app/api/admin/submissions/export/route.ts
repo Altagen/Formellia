@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
     status: r.status,
     priority: r.priority,
     submittedAt: r.submittedAt.toISOString(),
-    dateEcheance: r.dateEcheance ?? "",
+    dueDate: r.dueDate ?? "",
     notes: r.notes ?? "",
     assignedToEmail: r.assignedToEmail ?? "",
     ...Object.fromEntries(

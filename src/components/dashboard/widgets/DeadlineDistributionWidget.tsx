@@ -20,7 +20,7 @@ const DEFAULT_BUCKETS: Bucket[] = [
 interface DeadlineDistributionWidgetProps {
   title?: string;
   submissions: Submission[];
-  /** Defaults to "dateEcheance". Accepts any system field or formData key. */
+  /** Defaults to "dueDate". Accepts any system field or formData key. */
   dateField?: string;
   /** Override default buckets. maxDays is the upper exclusive bound in days from today. */
   buckets?: { label: string; maxDays: number; color?: string }[];
@@ -29,9 +29,9 @@ interface DeadlineDistributionWidgetProps {
 function getFieldDate(sub: Submission, field: string): Date | null {
   let raw: unknown;
   switch (field) {
-    case "dateEcheance":  raw = sub.dateEcheance;  break;
+    case "dueDate":  raw = sub.dueDate;  break;
     case "submittedAt":   raw = sub.submittedAt;   break;
-    case "dateReception": raw = sub.dateReception; break;
+    case "receivedAt": raw = sub.receivedAt; break;
     default: raw = (sub.formData as Record<string, unknown>)?.[field]; break;
   }
   if (raw == null || raw === "") return null;
@@ -42,7 +42,7 @@ function getFieldDate(sub: Submission, field: string): Date | null {
 export function DeadlineDistributionWidget({
   title = "Deadline distribution",
   submissions,
-  dateField = "dateEcheance",
+  dateField = "dueDate",
   buckets: customBuckets,
 }: DeadlineDistributionWidgetProps) {
   const buckets: Bucket[] = customBuckets

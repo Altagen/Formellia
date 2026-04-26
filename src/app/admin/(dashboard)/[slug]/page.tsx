@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { externalRecords } from "@/lib/db/schema";
+import { externalRecords, submissions as submissionsTable } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getFormConfig } from "@/lib/config";
 import { getFormInstance, getFormInstanceById } from "@/lib/db/formInstanceLoader";
@@ -12,6 +12,7 @@ import { DashboardView } from "@/components/dashboard/DashboardView";
 import { CompletionFunnel } from "@/components/dashboard/CompletionFunnel";
 import { PrioritySettingsProvider } from "@/lib/context/PrioritySettingsContext";
 import { DEFAULT_THRESHOLDS } from "@/lib/utils/priority";
+import { flattenRepeaterRows, expandStepsForRepeater } from "@/lib/utils/flattenRepeater";
 import type { StepDef } from "@/types/config";
 import type { Submission } from "@/lib/db/schema";
 
@@ -55,6 +56,20 @@ export default async function AdminDynamicPage({ params }: Props) {
         formSlug = instance.slug;
         instanceThresholds = instance.config.priorityThresholds ?? DEFAULT_THRESHOLDS;
         instanceColorPreset = instance.config.page.branding.colorPreset;
+
+        // flattenRepeater: pre-expand each submission into one row per repeater item.
+        // Treated like an external source so the table renders the synthetic rows
+        // directly instead of round-tripping through the submissions API.
+        if (page.flattenRepeater) {
+          const rows = await db
+            .select()
+            .from(submissionsTable)
+            .where(eq(submissionsTable.formInstanceId, instance.id))
+            .orderBy(desc(submissionsTable.submittedAt));
+          initialSubmissions = flattenRepeaterRows(rows, page.flattenRepeater.fieldId);
+          formSteps = expandStepsForRepeater(formSteps, page.flattenRepeater.fieldId);
+          formInstanceId = undefined;
+        }
       }
     } else {
       // All native submissions — use root form instance for field metadata
@@ -92,7 +107,7 @@ export default async function AdminDynamicPage({ params }: Props) {
           otherWidgets={otherWidgets}
           tableWidget={tableWidget?.type === "submissions_table" ? tableWidget : undefined}
           hasTable={hasTable}
-          isExternalSource={!!page.dataSourceId}
+          isExternalSource={!!page.dataSourceId || !!page.flattenRepeater}
           interactiveFilter={page.interactiveFilter ?? false}
           currentUserEmail={currentUser?.email ?? undefined}
         />

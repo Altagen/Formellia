@@ -2,7 +2,7 @@ export interface ColumnDef {
   source: string;
   label?: string;
   type: "text" | "number" | "date" | "email" | "currency" | "boolean";
-  role?: "email" | "submittedAt" | "status" | "priority" | "dateEcheance" | "amount" | null;
+  role?: "email" | "submittedAt" | "status" | "priority" | "dueDate" | "amount" | null;
   currencySymbol?: string;
 }
 

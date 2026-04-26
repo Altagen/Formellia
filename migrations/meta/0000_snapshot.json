@@ -1604,14 +1604,14 @@
           "notNull": true,
           "default": "'none'"
         },
-        "date_reception": {
-          "name": "date_reception",
+        "received_at": {
+          "name": "received_at",
           "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "date_echeance": {
-          "name": "date_echeance",
+        "due_date": {
+          "name": "due_date",
           "type": "date",
           "primaryKey": false,
           "notNull": false

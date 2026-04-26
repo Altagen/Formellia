@@ -12,7 +12,7 @@ import { isDisposableEmail } from "@/lib/utils/disposableEmails";
 import { formLogger as log } from "@/lib/logger";
 
 // Reserved field IDs that map to DB columns instead of formData JSONB
-const RESERVED_KEYS = new Set(["email", "dateEcheance"]);
+const RESERVED_KEYS = new Set(["email", "dueDate"]);
 
 /**
  * Shared form submission handler.
@@ -61,8 +61,8 @@ export async function handleFormSubmit(
 
     const emailRaw = rawFormData["email"] as string | undefined;
     const email = emailRaw && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw) ? emailRaw : null;
-    const dateEcheance = rawFormData["dateEcheance"] as string | undefined;
-    const dateReception = body.dateReception as string | undefined;
+    const dueDate = rawFormData["dueDate"] as string | undefined;
+    const receivedAt = body.receivedAt as string | undefined;
 
     // Separate formData JSONB payload (everything except reserved keys)
     const formDataPayload: Record<string, unknown> = {};
@@ -78,8 +78,8 @@ export async function handleFormSubmit(
     const schema = buildSubmissionSchema(config.form.steps);
     const parsed = schema.safeParse({
       formData: rawFormData,
-      dateEcheance,
-      dateReception,
+      dueDate,
+      receivedAt,
     });
 
     // ── Disposable email check (only if email provided) ──
@@ -104,8 +104,8 @@ export async function handleFormSubmit(
       email,
       formData: formDataPayload,
       ipHash,
-      dateReception: dateReception ?? null,
-      dateEcheance: dateEcheance ?? null,
+      receivedAt: receivedAt ?? null,
+      dueDate: dueDate ?? null,
       formInstanceId,
     }).returning({ id: submissions.id });
 

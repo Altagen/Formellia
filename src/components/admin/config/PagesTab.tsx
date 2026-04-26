@@ -114,7 +114,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
     { value: "priority",     label: tr.admin.config.columns.builtinPriority },
     { value: "email",        label: tr.admin.config.columns.builtinEmail },
     { value: "submittedAt",  label: tr.admin.config.columns.builtinSubmittedAt },
-    { value: "dateEcheance", label: tr.admin.config.columns.builtinDeadline },
+    { value: "dueDate", label: tr.admin.config.columns.builtinDeadline },
   ];
 
   function dedupFields<T extends { value: string }>(fields: T[]): T[] {
@@ -721,7 +721,7 @@ const BUILTIN_LABELS: Record<string, string> = {
   email:        "Email",
   status:       "Status",
   priority:     "Priority",
-  dateEcheance: "Deadline",
+  dueDate: "Deadline",
   submittedAt:  "Submitted at",
 };
 
@@ -745,7 +745,7 @@ function SubmissionsTableEditor({
   const isExternal = !!dataSourceFields && dataSourceFields.length > 0;
 
   // Reserved builtins — form fields with these IDs are NOT added again to avoid duplicates.
-  const BUILTIN_SOURCES = new Set(["email", "status", "priority", "dateEcheance", "submittedAt"]);
+  const BUILTIN_SOURCES = new Set(["email", "status", "priority", "dueDate", "submittedAt"]);
 
   // Unique form fields (excluding section_header and builtin-shadowed IDs).
   const formFieldColumns = formSteps
@@ -763,7 +763,7 @@ function SubmissionsTableEditor({
         { source: "email",        label: BUILTIN_LABELS.email },
         { source: "status",       label: BUILTIN_LABELS.status },
         { source: "priority",     label: BUILTIN_LABELS.priority },
-        { source: "dateEcheance", label: BUILTIN_LABELS.dateEcheance },
+        { source: "dueDate", label: BUILTIN_LABELS.dueDate },
         ...formFieldColumns,
       ];
 
@@ -775,7 +775,7 @@ function SubmissionsTableEditor({
         { key: "email",        label: BUILTIN_LABELS.email },
         { key: "status",       label: BUILTIN_LABELS.status },
         { key: "priority",     label: BUILTIN_LABELS.priority },
-        { key: "dateEcheance", label: BUILTIN_LABELS.dateEcheance },
+        { key: "dueDate", label: BUILTIN_LABELS.dueDate },
         ...formFieldColumns.map(f => ({ key: f.source, label: f.label })),
       ];
 

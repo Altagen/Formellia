@@ -5,7 +5,7 @@
 export const SUBMISSION_FIELD_LABELS: Record<string, string> = {
   status:          "Statut",
   priority:        "Priority",
-  dateEcheance:    "Due date",
+  dueDate:    "Due date",
   notes:           "Notes",
   assignedToId:    "Assigned to (id)",
   assignedToEmail: "Assigned to",

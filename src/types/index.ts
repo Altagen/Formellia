@@ -39,6 +39,6 @@ export interface WizardState {
   requestType: RequestType | null;
   stepData: Partial<StepFormData>;
   email: string;
-  dateReception: string;
-  dateEcheance: string;
+  receivedAt: string;
+  dueDate: string;
 }

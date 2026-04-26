@@ -21,7 +21,7 @@ const BUILTIN_SOURCE_KEYS = [
   { value: "submittedAt",  key: "builtinSubmittedAt" as const, icon: "📅" },
   { value: "status",       key: "builtinStatus" as const,      icon: "🏷" },
   { value: "priority",     key: "builtinPriority" as const,    icon: "⚡" },
-  { value: "dateEcheance", key: "builtinDeadline" as const,    icon: "⏰" },
+  { value: "dueDate", key: "builtinDeadline" as const,    icon: "⏰" },
 ];
 
 function move<T>(arr: T[], from: number, to: number): T[] {

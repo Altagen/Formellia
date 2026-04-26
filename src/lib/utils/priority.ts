@@ -31,16 +31,16 @@ export interface AutoPriorityResult {
  * no deadline            → none   ""
  */
 export function calcAutoPriority(
-  dateEcheance: string | null | undefined,
+  dueDate: string | null | undefined,
   thresholds: PriorityThresholds = DEFAULT_THRESHOLDS,
 ): AutoPriorityResult {
-  if (!dateEcheance) {
+  if (!dueDate) {
     return { priority: "none", daysLeft: null, label: "" };
   }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const deadline = new Date(dateEcheance);
+  const deadline = new Date(dueDate);
   deadline.setHours(0, 0, 0, 0);
 
   const msLeft = deadline.getTime() - today.getTime();

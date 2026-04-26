@@ -43,7 +43,7 @@ export default function PriorityChart({ submissions }: Props) {
 
   function getEffective(sub: Submission): SubmissionPriority {
     if (sub.priority && sub.priority !== "none") return sub.priority as SubmissionPriority;
-    return calcAutoPriority(sub.dateEcheance, thresholds).priority;
+    return calcAutoPriority(sub.dueDate, thresholds).priority;
   }
 
   const countByPriority = new Map<SubmissionPriority, number>();

@@ -768,14 +768,16 @@ export function AdminSidebar({
 
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-4 h-14 shrink-0 border-b border-border">
-        {logoUrl ? (
-          <Image src={logoUrl} alt={appName} width={28} height={28} unoptimized
-            style={{ width: "28px", height: "28px", objectFit: "contain" }} className="shrink-0" />
-        ) : (
-          <Image src="/formellia-logo-transparent.png" alt={appName} width={28} height={28}
-            style={{ width: "28px", height: "28px" }} className="shrink-0" />
-        )}
-        <span className="font-semibold text-sm tracking-tight flex-1 truncate">{appName}</span>
+        <Link href="/admin" className="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+          {logoUrl ? (
+            <Image src={logoUrl} alt={appName} width={28} height={28} unoptimized
+              style={{ width: "28px", height: "28px", objectFit: "contain" }} className="shrink-0" />
+          ) : (
+            <Image src="/formellia-logo-transparent.png" alt={appName} width={28} height={28}
+              style={{ width: "28px", height: "28px" }} className="shrink-0" />
+          )}
+          <span className="font-semibold text-sm tracking-tight flex-1 truncate">{appName}</span>
+        </Link>
         {role !== "viewer" && (
           <button type="button" onClick={editMode ? () => setEditMode(false) : enterEdit}
             title={editMode ? "Terminer" : tr.admin.config.sidebar.tab}

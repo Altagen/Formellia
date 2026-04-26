@@ -131,6 +131,7 @@ export const fr = {
       sharePrompt: "Partagez ce formulaire pour recevoir des soumissions :",
       selectPage: "Sélectionner la page",
       goToPage: "Aller à la page",
+      repeaterRows: "lignes",
       columns: {
         email: "Email",
         type: "Type",
@@ -664,6 +665,8 @@ export const fr = {
         successTitlePlaceholder: "Ex : Document généré !",
         successMessageLabel: "Message de succès",
         successMessagePlaceholder: "Ex : Votre document est prêt. Supports {{fieldId}}.",
+        editResponseLabelLabel: "Bouton « Modifier ma réponse »",
+        editResponseLabelPlaceholder: "Ex : Soumettre une autre réponse",
       },
       security: {
         honeypotTitle: "Honeypot anti-spam",

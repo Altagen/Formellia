@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, type ReactNode } from "react";
 import type { Submission } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
 import { SubmissionDetail } from "./SubmissionDetail";
@@ -36,12 +36,15 @@ function formatFieldKey(key: string): string {
 const SKIP_KEYS_TABLE = new Set(["id"]);
 const DATE_KEY_RE_TABLE = /date|_at$|timestamp/i;
 
+// Field types that exist for layout/UX only and never produce a value in formData.
+const NON_DATA_FIELD_TYPES = new Set<string>(["section_header", "alert"]);
+
 // Fallback columns — labels are overridden at runtime by useTranslations
 const DEFAULT_COLUMNS: TableColumnDef[] = [
   { id: "c-email",     label: "Email",     source: "email" },
   { id: "c-type",      label: "Type",      source: "requestType" },
   { id: "c-status",    label: "Status",    source: "status" },
-  { id: "c-echeance",  label: "Due date",  source: "dateEcheance" },
+  { id: "c-echeance",  label: "Due date",  source: "dueDate" },
   { id: "c-submitted", label: "Submitted", source: "submittedAt" },
 ];
 
@@ -217,7 +220,7 @@ export function SubmissionsTable({
       switch (sortKey) {
         case "email":       aVal = a.email; bVal = b.email; break;
         case "submittedAt": aVal = a.submittedAt?.getTime() ?? 0; bVal = b.submittedAt?.getTime() ?? 0; break;
-        case "dateEcheance": aVal = a.dateEcheance ?? ""; bVal = b.dateEcheance ?? ""; break;
+        case "dueDate": aVal = a.dueDate ?? ""; bVal = b.dueDate ?? ""; break;
         case "status":      aVal = a.status ?? ""; bVal = b.status ?? ""; break;
         case "priority": {
           const order = ["red","orange","yellow","green","none"];
@@ -284,11 +287,16 @@ export function SubmissionsTable({
         }
       }
     }
+    // Explicit admin.tableColumns wins over auto-generation: it's the curated
+    // shortlist the form author defined, vs. "every field in the form".
+    const configColumns = formConfig?.admin.tableColumns?.filter(c => !c.hidden);
+    if (configColumns && configColumns.length > 0) return configColumns;
+
     if (formSteps && formSteps.length > 0) {
       const cols: TableColumnDef[] = [{ id: "c-email", label: tr.admin.table.columns.email, source: "email" }];
       for (const step of formSteps) {
         for (const field of step.fields) {
-          if (field.type === "section_header") continue;
+          if (NON_DATA_FIELD_TYPES.has(field.type)) continue;
           const source = field.dbKey ?? field.id;
           if (source === "email") continue;
           cols.push({ id: `f-${source}`, label: field.label, source });
@@ -298,19 +306,58 @@ export function SubmissionsTable({
       cols.push({ id: "c-submitted", label: tr.admin.table.columns.submittedAt, source: "submittedAt" });
       return cols;
     }
-    const configColumns = formConfig?.admin.tableColumns ?? DEFAULT_COLUMNS;
-    const visibleColumns = configColumns.filter(c => !c.hidden);
-    return visibleColumns.length > 0 ? visibleColumns : DEFAULT_COLUMNS;
+    return DEFAULT_COLUMNS;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExternalSource, formSteps, formConfig, hiddenColumns, paginated.length]);
 
   const allFields = (formSteps ?? []).flatMap(s => s.fields);
 
-  function resolveFieldValue(source: string, sub: Submission): string {
+  function resolveFieldValue(source: string, sub: Submission): ReactNode {
     const fd = sub.formData as Record<string, unknown>;
     const raw = fd?.[source];
     if (raw == null || raw === "") return "—";
     const field = allFields.find(f => (f.dbKey ?? f.id) === source);
+
+    if (field?.type === "repeater") {
+      let rows: Array<Record<string, string>> = [];
+      if (typeof raw === "string") {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) rows = parsed;
+        } catch { /* fall through to "—" */ }
+      } else if (Array.isArray(raw)) {
+        rows = raw as Array<Record<string, string>>;
+      }
+      if (rows.length === 0) return "—";
+
+      const firstColId = field.repeaterColumns?.[0]?.id;
+      const labels = firstColId
+        ? rows.map(r => r?.[firstColId]).filter((v): v is string => typeof v === "string" && v !== "")
+        : [];
+
+      if (labels.length === 0) {
+        return <span className="text-xs">{rows.length} {tr.admin.table.repeaterRows}</span>;
+      }
+
+      const MAX_PILLS = 2;
+      const shown = labels.slice(0, MAX_PILLS);
+      const extra = labels.length - shown.length;
+      return (
+        <span className="inline-flex flex-wrap items-center gap-1">
+          {shown.map((label, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted text-foreground text-xs max-w-[14rem] truncate"
+              title={label}
+            >
+              {label}
+            </span>
+          ))}
+          {extra > 0 && <span className="text-xs text-muted-foreground">+{extra}</span>}
+        </span>
+      );
+    }
+
     if (field?.options) {
       const opt = field.options.find(o => o.value === String(raw));
       if (opt) return opt.label;
@@ -322,7 +369,7 @@ export function SubmissionsTable({
     if (sub.priority && sub.priority !== "none") {
       return { priority: sub.priority as SubmissionPriority, isOverride: true, label: "" };
     }
-    const auto = calcAutoPriority(sub.dateEcheance, thresholds);
+    const auto = calcAutoPriority(sub.dueDate, thresholds);
     return { ...auto, isOverride: false };
   }
 
@@ -465,11 +512,11 @@ export function SubmissionsTable({
         );
       }
 
-      case "dateEcheance":
-        if (!sub.dateEcheance) return <span className="text-muted-foreground">—</span>;
+      case "dueDate":
+        if (!sub.dueDate) return <span className="text-muted-foreground">—</span>;
         return (
           <span className="flex items-center gap-1.5 text-muted-foreground">
-            {sub.dateEcheance}
+            {sub.dueDate}
             {!isOverride && priorityLabel && (
               <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                 effectivePriority === "red"    ? "bg-red-50 text-red-700" :

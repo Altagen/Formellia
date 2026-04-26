@@ -12,7 +12,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const patchSchema = z.object({
   status: z.string().max(20).optional(),
   priority: z.enum(["none", "yellow", "orange", "red", "green"]).optional(),
-  dateEcheance: z.string().optional().nullable(),
+  dueDate: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   assignedToId:    z.string().max(21).nullable().optional(),
   assignedToEmail: z.string().max(255).nullable().optional(),
@@ -33,7 +33,7 @@ export async function PATCH(
 
   // Fetch submission to know which form it belongs to (needed for requireFormAccess)
   const existing = await db
-    .select({ id: submissions.id, status: submissions.status, priority: submissions.priority, dateEcheance: submissions.dateEcheance, notes: submissions.notes, formInstanceId: submissions.formInstanceId })
+    .select({ id: submissions.id, status: submissions.status, priority: submissions.priority, dueDate: submissions.dueDate, notes: submissions.notes, formInstanceId: submissions.formInstanceId })
     .from(submissions).where(eq(submissions.id, id)).limit(1);
   if (existing.length === 0) {
     return NextResponse.json({ error: "Soumission introuvable" }, { status: 404 });
@@ -65,7 +65,7 @@ export async function PATCH(
   const updates: Record<string, unknown> = {};
   if (parsed.data.status !== undefined) updates.status = parsed.data.status;
   if (parsed.data.priority !== undefined) updates.priority = parsed.data.priority;
-  if (parsed.data.dateEcheance !== undefined) updates.dateEcheance = parsed.data.dateEcheance;
+  if (parsed.data.dueDate !== undefined) updates.dueDate = parsed.data.dueDate;
   if (parsed.data.notes !== undefined) updates.notes = parsed.data.notes;
   if (parsed.data.assignedToId !== undefined) updates.assignedToId = parsed.data.assignedToId;
   if (parsed.data.assignedToEmail !== undefined) updates.assignedToEmail = parsed.data.assignedToEmail;

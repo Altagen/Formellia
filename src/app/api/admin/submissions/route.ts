@@ -9,7 +9,7 @@ import type { SQL } from "drizzle-orm";
 const SORT_COLUMNS = {
   submittedAt: submissions.submittedAt,
   email: submissions.email,
-  dateEcheance: submissions.dateEcheance,
+  dueDate: submissions.dueDate,
   status: submissions.status,
   priority: submissions.priority,
 } as const;

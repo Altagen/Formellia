@@ -31,7 +31,7 @@ export function SubmissionDetail({ submission, onClose, onSaved, formConfig: _fo
   const [localSubmission, setLocalSubmission] = useState<Submission>(submission);
   const [status, setStatus] = useState<SubmissionStatus>((submission.status as SubmissionStatus) ?? "pending");
   const [priority, setPriority] = useState<SubmissionPriority>((submission.priority as SubmissionPriority) ?? "none");
-  const [dateEcheance, setDateEcheance] = useState(submission.dateEcheance ?? "");
+  const [dueDate, setDateEcheance] = useState(submission.dueDate ?? "");
   const [notes, setNotes] = useState(submission.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -70,7 +70,7 @@ export function SubmissionDetail({ submission, onClose, onSaved, formConfig: _fo
   ];
   const formData = submission.formData as Record<string, string>;
   const thresholds = usePrioritySettings();
-  const autoResult = calcAutoPriority(submission.dateEcheance, thresholds);
+  const autoResult = calcAutoPriority(submission.dueDate, thresholds);
   const isOverride = priority !== "none";
   const effectivePriority: SubmissionPriority = isOverride ? priority : autoResult.priority;
 
@@ -81,13 +81,13 @@ export function SubmissionDetail({ submission, onClose, onSaved, formConfig: _fo
       const res = await fetch(`/api/admin/submissions/${submission.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, priority, dateEcheance: dateEcheance || null, notes: notes || null }),
+        body: JSON.stringify({ status, priority, dueDate: dueDate || null, notes: notes || null }),
       });
       if (!res.ok) {
         setError((await res.json()).error ?? tr.admin.detail.errorSave);
         return;
       }
-      onSaved({ ...submission, status, priority, dateEcheance: dateEcheance || null, notes: notes || null });
+      onSaved({ ...submission, status, priority, dueDate: dueDate || null, notes: notes || null });
       // Refresh audit trail
       fetch(`/api/admin/submissions/${submission.id}/events`)
         .then((r) => r.ok ? r.json() : [])
@@ -110,7 +110,7 @@ export function SubmissionDetail({ submission, onClose, onSaved, formConfig: _fo
         for (const field of step.fields) {
           if (field.type === "section_header") continue;
           const key = field.dbKey ?? field.id;
-          if (key === "email" || key === "dateEcheance") continue;
+          if (key === "email" || key === "dueDate") continue;
           const raw = formData[key] ?? null;
           let value = raw;
           if (raw !== null && field.options) {
@@ -164,10 +164,10 @@ export function SubmissionDetail({ submission, onClose, onSaved, formConfig: _fo
                   {new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(submission.submittedAt))}
                 </p>
               </div>
-              {submission.dateReception && (
+              {submission.receivedAt && (
                 <div>
                   <span className="text-xs text-muted-foreground">{tr.admin.detail.receptionDate}</span>
-                  <p className="text-sm text-foreground">{submission.dateReception}</p>
+                  <p className="text-sm text-foreground">{submission.receivedAt}</p>
                 </div>
               )}
             </div>
@@ -240,9 +240,9 @@ export function SubmissionDetail({ submission, onClose, onSaved, formConfig: _fo
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">
                   {tr.admin.detail.deadlineLabel}
-                  {submission.dateEcheance && <span className="ml-1 text-muted-foreground">{tr.admin.detail.deadlineClientHint} {submission.dateEcheance}</span>}
+                  {submission.dueDate && <span className="ml-1 text-muted-foreground">{tr.admin.detail.deadlineClientHint} {submission.dueDate}</span>}
                 </label>
-                <input type="date" value={dateEcheance} onChange={(e) => setDateEcheance(e.target.value)} readOnly={readOnly} className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 read-only:opacity-70 read-only:cursor-default cursor-pointer" />
+                <input type="date" value={dueDate} onChange={(e) => setDateEcheance(e.target.value)} readOnly={readOnly} className="w-full text-sm border border-input rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 read-only:opacity-70 read-only:cursor-default cursor-pointer" />
                 <p className="text-xs text-muted-foreground mt-1">{tr.admin.detail.deadlineHint}</p>
               </div>
 

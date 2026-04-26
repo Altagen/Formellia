@@ -97,7 +97,7 @@ function getSubFieldValue(field: string, sub: Submission): unknown {
     case "status":      return sub.status;
     case "priority":    return sub.priority;
     case "submittedAt": return sub.submittedAt;
-    case "dateEcheance":return sub.dateEcheance;
+    case "dueDate":return sub.dueDate;
     default:            return (sub.formData as Record<string, unknown>)?.[field];
   }
 }
@@ -254,7 +254,7 @@ function computeData(
       const p =
         s.priority && s.priority !== "none"
           ? s.priority
-          : calcAutoPriority(s.dateEcheance, thresholds).priority;
+          : calcAutoPriority(s.dueDate, thresholds).priority;
       counts[p] = (counts[p] ?? 0) + 1;
     }
     return Object.entries(counts).map(([key, value]) => ({

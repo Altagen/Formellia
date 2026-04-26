@@ -4,6 +4,11 @@ import { usePrioritySettings } from "@/lib/context/PrioritySettingsContext";
 import { calcAutoPriority } from "@/lib/utils/priority";
 import { useState } from "react";
 import { useTranslations } from "@/lib/context/LocaleContext";
+import {
+  FileText, Calendar, Clock, AlertTriangle, Zap, CheckCircle,
+  Users, User, Mic, BarChart2, PieChart, TrendingUp,
+  Mail, Tag, Star, Heart, Globe, Inbox,
+} from "lucide-react";
 import { DynamicChart } from "./DynamicChart";
 import { TrafficChartWidget } from "./widgets/TrafficChartWidget";
 import { EmailQualityWidget } from "./widgets/EmailQualityWidget";
@@ -34,7 +39,7 @@ function getFieldValue(field: string, sub: Submission): unknown {
     case "status":      return sub.status;
     case "priority":    return sub.priority;
     case "submittedAt": return sub.submittedAt;
-    case "dateEcheance":return sub.dateEcheance;
+    case "dueDate":return sub.dueDate;
     default:            return (sub.formData as Record<string, unknown>)?.[field];
   }
 }
@@ -158,14 +163,14 @@ function computeStatValue(
     }
     case "count_overdue":
       return submissions.filter(
-        (s) => s.dateEcheance && s.dateEcheance < todayStr && s.status !== "done"
+        (s) => s.dueDate && s.dueDate < todayStr && s.status !== "done"
       ).length;
     case "count_urgent":
       return submissions.filter((s) => {
         const p =
           s.priority && s.priority !== "none"
             ? (s.priority as SubmissionPriority)
-            : calcAutoPriority(s.dateEcheance, thresholds).priority;
+            : calcAutoPriority(s.dueDate, thresholds).priority;
         return p === "red" && s.status !== "done";
       }).length;
     case "count_done":
@@ -251,40 +256,26 @@ const ACCENT_STYLES: Record<string, { bg: string; text: string; value: string }>
   gray:   { bg: "bg-muted",         text: "text-muted-foreground", value: "text-foreground" },
 };
 
-// Lucide-style icon rendered by name via dynamic import fallback (emoji otherwise)
 function IconByName({ name, className }: { name: string; className?: string }) {
-  // Simple SVG icons for the most common stat card icons
   const icons: Record<string, React.ReactNode> = {
-    "file-text": (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    ),
-    "calendar": (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    ),
-    "clock": (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    "alert-triangle": (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-      </svg>
-    ),
-    "zap": (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-    "check-circle": (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
+    "file-text":      <FileText className={className} />,
+    "calendar":       <Calendar className={className} />,
+    "clock":          <Clock className={className} />,
+    "alert-triangle": <AlertTriangle className={className} />,
+    "zap":            <Zap className={className} />,
+    "check-circle":   <CheckCircle className={className} />,
+    "users":          <Users className={className} />,
+    "user":           <User className={className} />,
+    "mic":            <Mic className={className} />,
+    "bar-chart-2":    <BarChart2 className={className} />,
+    "pie-chart":      <PieChart className={className} />,
+    "trending-up":    <TrendingUp className={className} />,
+    "mail":           <Mail className={className} />,
+    "tag":            <Tag className={className} />,
+    "star":           <Star className={className} />,
+    "heart":          <Heart className={className} />,
+    "globe":          <Globe className={className} />,
+    "inbox":          <Inbox className={className} />,
   };
 
   return (icons[name] ?? <span className="text-lg">{name}</span>) as React.ReactElement;

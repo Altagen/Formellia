@@ -34,8 +34,8 @@ export const formDataSchema = z.discriminatedUnion("requestType", [
 export const submissionSchema = z.object({
   email: z.string().email("Invalid email"),
   formData: formDataSchema,
-  dateReception: z.string().optional(),
-  dateEcheance: z.string().optional(),
+  receivedAt: z.string().optional(),
+  dueDate: z.string().optional(),
 });
 
 export type SubmissionInput = z.infer<typeof submissionSchema>;

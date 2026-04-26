@@ -9,7 +9,7 @@ import type { FormFileConfig } from "./src/types/formInstance";
  *
  * Reserved field IDs (extracted by the submit API, not stored in formData JSONB):
  *   "email"        → submissions.email column
- *   "dateEcheance" → submissions.dateEcheance column
+ *   "dueDate" → submissions.dueDate column
  */
 const config: FormFileConfig = {
   version: 1,

@@ -124,16 +124,24 @@ export async function getFormInstance(slug: string): Promise<FormInstance | null
 }
 
 /**
- * Returns a form instance by ID.
+ * Returns a form instance by ID — accepts either a UUID or a slug.
+ * Slugs are useful in config-as-code (YAML), where UUIDs are generated at runtime
+ * and not stable across environments. AdminPage.formInstanceId documents this contract.
  */
-export async function getFormInstanceById(id: string): Promise<FormInstance | null> {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function getFormInstanceById(idOrSlug: string): Promise<FormInstance | null> {
+  if (!UUID_RE.test(idOrSlug)) {
+    return getFormInstance(idOrSlug);
+  }
+
   if (CONFIG_SOURCE === "file") return null;
 
   const { db } = await import("@/lib/db");
   const { formInstances } = await import("@/lib/db/schema");
   const { eq } = await import("drizzle-orm");
 
-  const rows = await db.select().from(formInstances).where(eq(formInstances.id, id)).limit(1);
+  const rows = await db.select().from(formInstances).where(eq(formInstances.id, idOrSlug)).limit(1);
   if (rows.length === 0) return null;
 
   return rowToInstance(rows[0]);

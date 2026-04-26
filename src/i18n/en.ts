@@ -133,6 +133,7 @@ export const en: TranslationKeys = {
       sharePrompt: "Share this form to receive submissions:",
       selectPage: "Select page",
       goToPage: "Go to page",
+      repeaterRows: "rows",
       columns: {
         email: "Email",
         type: "Type",
@@ -666,6 +667,8 @@ export const en: TranslationKeys = {
         successTitlePlaceholder: "E.g.: Document ready!",
         successMessageLabel: "Success message",
         successMessagePlaceholder: "E.g.: Your document is ready. Supports {{fieldId}}.",
+        editResponseLabelLabel: "\"Edit my response\" button",
+        editResponseLabelPlaceholder: "E.g.: Submit another response",
       },
       security: {
         honeypotTitle: "Anti-spam honeypot",

@@ -75,7 +75,7 @@ export function inferColumnRole(colName: string, type: ColumnDef["type"]): Colum
   if (lower.includes("date") || lower.includes("since") || lower.includes("created") || lower.endsWith("_at")) return "submittedAt";
   if (lower === "status" || lower.includes("status")) return "status";
   if (lower === "priority") return "priority";
-  if (lower.includes("echeance") || lower.includes("deadline") || lower.includes("due")) return "dateEcheance";
+  if (lower.includes("echeance") || lower.includes("deadline") || lower.includes("due")) return "dueDate";
   if (type === "currency" || lower.includes("amount") || lower.includes("spent") || lower.includes("revenue") || lower.includes("price")) return "amount";
   return null;
 }

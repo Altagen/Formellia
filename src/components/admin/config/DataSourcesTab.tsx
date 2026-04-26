@@ -132,7 +132,7 @@ function inferColRole(colName: string, type: ColumnDef["type"]): ColumnDef["role
   // Status: exact match only (not compound like "Email Subscription Status")
   if (lower === "status") return "status";
   if (lower === "priority") return "priority";
-  if (lower.includes("echeance") || lower.includes("deadline") || lower.includes("due")) return "dateEcheance";
+  if (lower.includes("echeance") || lower.includes("deadline") || lower.includes("due")) return "dueDate";
   if (type === "currency") return "amount";
   return null;
 }
@@ -216,7 +216,7 @@ function SchemaTable({ defs, onChange }: SchemaTableProps) {
     { value: "submittedAt",  label: ds.schemaRoleDate,     hint: ds.schemaHintDate },
     { value: "status",       label: ds.schemaRoleStatus,   hint: ds.schemaHintStatus },
     { value: "priority",     label: ds.schemaRolePriority, hint: ds.schemaHintPriority },
-    { value: "dateEcheance", label: ds.schemaRoleDeadline, hint: ds.schemaHintDeadline },
+    { value: "dueDate", label: ds.schemaRoleDeadline, hint: ds.schemaHintDeadline },
     { value: "amount",       label: ds.schemaRoleAmount,   hint: ds.schemaHintAmount },
   ];
 
@@ -381,7 +381,7 @@ function SchemaEditor({ datasetId, columnDefs: initial, onSaved, onClose }: Sche
       const roleLabels: Record<string, string> = {
         email: ds.schemaRoleEmail, submittedAt: ds.schemaRoleDate,
         status: ds.schemaRoleStatus, priority: ds.schemaRolePriority,
-        dateEcheance: ds.schemaRoleDeadline, amount: ds.schemaRoleAmount,
+        dueDate: ds.schemaRoleDeadline, amount: ds.schemaRoleAmount,
       };
       setError(ds.schemaDuplicateRole.replace("{role}", roleLabels[dupRole] ?? dupRole));
       return;
@@ -580,7 +580,7 @@ export function DataSourcesTab() {
         const roleLabels: Record<string, string> = {
           email: ds.schemaRoleEmail, submittedAt: ds.schemaRoleDate,
           status: ds.schemaRoleStatus, priority: ds.schemaRolePriority,
-          dateEcheance: ds.schemaRoleDeadline, amount: ds.schemaRoleAmount,
+          dueDate: ds.schemaRoleDeadline, amount: ds.schemaRoleAmount,
         };
         setFormError(ds.schemaDuplicateRole.replace("{role}", roleLabels[dupRole] ?? dupRole));
         return;

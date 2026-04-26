@@ -269,7 +269,7 @@ function DashboardFiltersServer({
 
         {/* ── Filters ── */}
         {(() => {
-          const BUILTIN = new Set(["email", "status", "priority", "submittedAt", "dateEcheance"]);
+          const BUILTIN = new Set(["email", "status", "priority", "submittedAt", "dueDate"]);
           const allStepFields = (formSteps ?? []).flatMap(s => s.fields).filter(fld => fld.type !== "section_header");
           // If searchFields configured, use it; otherwise default to email+status+priority + all step fields
           const activeKeys: string[] = searchFields
@@ -666,7 +666,7 @@ function DashboardFiltersClient({ submissions: initialSubmissions, formConfig, f
       email: tr.admin.table.columns.email,
       status: tr.admin.table.columns.status,
       priority: tr.admin.table.columns.priority,
-      dateEcheance: tr.admin.table.columns.echeance,
+      dueDate: tr.admin.table.columns.echeance,
       submittedAt: tr.admin.table.columns.submittedAt,
     };
     if (isExternalSource) {
@@ -723,7 +723,7 @@ function DashboardFiltersClient({ submissions: initialSubmissions, formConfig, f
     if (source === "email") return "email-autocomplete";
     if (source === "status") return "status-select";
     if (source === "priority") return "priority-select";
-    if (source === "dateEcheance") return "date";
+    if (source === "dueDate") return "date";
     if (isExternalSource) {
       if (DATE_KEY_RE.test(source)) return "date";
       const unique = externalFieldOptions[source];
@@ -759,8 +759,8 @@ function DashboardFiltersClient({ submissions: initialSubmissions, formConfig, f
         } else if (source === "priority") {
           if (!(sub.priority ?? "").toLowerCase().includes(q) &&
               !(priorityLabels[sub.priority ?? "none"] ?? "").toLowerCase().includes(q)) return false;
-        } else if (source === "dateEcheance") {
-          if ((sub.dateEcheance ?? "") !== query) return false;
+        } else if (source === "dueDate") {
+          if ((sub.dueDate ?? "") !== query) return false;
         } else {
           const fd = sub.formData as Record<string, unknown>;
           if (isExternalSource) {
@@ -797,10 +797,10 @@ function DashboardFiltersClient({ submissions: initialSubmissions, formConfig, f
 
   const todayStr = toDateString(new Date());
   const filteredStats = useMemo(() => ({
-    overdue: filtered.filter(s => s.dateEcheance && s.dateEcheance < todayStr && s.status !== "done").length,
+    overdue: filtered.filter(s => s.dueDate && s.dueDate < todayStr && s.status !== "done").length,
     done:    filtered.filter(s => s.status === "done").length,
     urgent:  filtered.filter(s => {
-      const p = s.priority && s.priority !== "none" ? s.priority : calcAutoPriority(s.dateEcheance, thresholds).priority;
+      const p = s.priority && s.priority !== "none" ? s.priority : calcAutoPriority(s.dueDate, thresholds).priority;
       return p === "red" && s.status !== "done";
     }).length,
   }), [filtered, todayStr, thresholds]);
@@ -837,7 +837,7 @@ function DashboardFiltersClient({ submissions: initialSubmissions, formConfig, f
         });
       }
     }
-    headerKeys.push("status", "priority", "dateEcheance", "submittedAt");
+    headerKeys.push("status", "priority", "dueDate", "submittedAt");
     headerLabels.push(tr.admin.table.columns.status, tr.admin.table.columns.priority, tr.admin.table.columns.echeance, tr.admin.table.columns.submittedAt);
     const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const rows = filtered.map(sub => {
@@ -846,7 +846,7 @@ function DashboardFiltersClient({ submissions: initialSubmissions, formConfig, f
         if (key === "email") return escape(sub.email ?? "");
         if (key === "status") return escape(statusLabels[sub.status ?? ""] ?? sub.status ?? "");
         if (key === "priority") return escape(priorityLabels[sub.priority ?? "none"] ?? "");
-        if (key === "dateEcheance") return escape(sub.dateEcheance ?? "");
+        if (key === "dueDate") return escape(sub.dueDate ?? "");
         if (key === "submittedAt") return escape(new Date(sub.submittedAt).toLocaleString());
         return escape(String(fd?.[key] ?? ""));
       }).join(",");
@@ -1173,7 +1173,7 @@ function EmailSubmissionsList({ submissions, onUpdate, formConfig, formSteps }: 
         <tbody>
           {submissions.map(sub => {
             const fd = sub.formData as Record<string, string>;
-            const autoInfo = calcAutoPriority(sub.dateEcheance, thresholds);
+            const autoInfo = calcAutoPriority(sub.dueDate, thresholds);
             let typeLabel = fd?.requestType ?? "—";
             if (formSteps) {
               const allFields = formSteps.flatMap(s => s.fields);
@@ -1188,9 +1188,9 @@ function EmailSubmissionsList({ submissions, onUpdate, formConfig, formSteps }: 
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{statusLabels[sub.status ?? "pending"] ?? sub.status}</td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {sub.dateEcheance ? (
+                  {sub.dueDate ? (
                     <span className="flex items-center gap-1.5">
-                      {sub.dateEcheance}
+                      {sub.dueDate}
                       {autoInfo.label && sub.priority === "none" && (
                         <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
                           autoInfo.priority === "red" ? "bg-red-50 text-red-700" :

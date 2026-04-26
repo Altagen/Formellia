@@ -57,6 +57,7 @@ function CellInput({
     );
   }
 
+  const v = col.validation;
   return (
     <input
       type={col.type === "number" ? "number" : col.type === "date" ? "date" : "text"}
@@ -64,6 +65,11 @@ function CellInput({
       onChange={e => onChange(e.target.value)}
       placeholder={col.placeholder}
       className={base}
+      maxLength={col.type === "text" ? v?.maxLength : undefined}
+      minLength={col.type === "text" ? v?.minLength : undefined}
+      min={col.type === "number" ? v?.min : undefined}
+      max={col.type === "number" ? v?.max : undefined}
+      pattern={col.type === "text" && v?.pattern ? v.pattern : undefined}
     />
   );
 }
