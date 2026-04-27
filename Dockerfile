@@ -25,6 +25,14 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Strip the npm/npx CLI bundled in node:alpine. The standalone Next.js
+# server runs with `node server.js` and never needs npm at runtime, so we
+# drop the toolchain to shrink the image and remove the upstream HIGH/CRITICAL
+# CVEs that npm's bundled deps (tar, minimatch, glob, cross-spawn) carry.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/bin/npm \
+           /usr/local/bin/npx
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
