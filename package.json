@@ -97,6 +97,7 @@
   },
   "overrides": {
     "vite": "^8.0.10",
-    "dompurify": "^3.4.1"
+    "dompurify": "^3.4.1",
+    "cross-spawn": "^7.0.6"
   }
 }
