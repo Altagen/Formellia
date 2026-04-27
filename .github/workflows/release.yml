@@ -65,6 +65,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # limit-severities-for-sarif is required: without it, trivy-action sets
+      # TRIVY_SEVERITY=UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL for the SARIF report
+      # while keeping exit-code: 1, so the gate fails on any finding regardless
+      # of `severity:`. With it, both the SARIF and the exit-code obey the
+      # CRITICAL,HIGH filter.
       - name: Run Trivy on published image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -74,6 +79,7 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: 1
           ignore-unfixed: true
+          limit-severities-for-sarif: true
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
