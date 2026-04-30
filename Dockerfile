@@ -44,6 +44,10 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Drizzle reads migrations/meta/_journal.json at runtime (fs, not import), so
+# Next's standalone tracer doesn't include the folder — must be COPY'd explicitly.
+COPY --from=builder --chown=nextjs:nodejs /app/migrations ./migrations
+
 USER nextjs
 
 EXPOSE 3000

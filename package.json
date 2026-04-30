@@ -1,6 +1,6 @@
 {
   "name": "formellia",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "engines": {
     "node": ">=22",
@@ -54,11 +54,11 @@
     "framer-motion": "latest",
     "geist": "^1.7.0",
     "html-to-image": "^1.11.13",
-    "isomorphic-dompurify": "^3.3.0",
+    "isomorphic-dompurify": "^3.10.0",
     "js-yaml": "^4.1.1",
     "lucia": "^3",
-    "lucide-react": "^0.577.0",
-    "nanoid": "^5.1.6",
+    "lucide-react": "^1.14.0",
+    "nanoid": "^5.1.9",
     "next": "^15.5.15",
     "next-themes": "^0.4.6",
     "node-cron": "^3.0.3",
@@ -77,7 +77,7 @@
     "zod": "latest"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.0",
+    "@commitlint/cli": "^20.5.2",
     "@commitlint/config-conventional": "^20.5.0",
     "@tailwindcss/postcss": "latest",
     "@types/adm-zip": "^0.5.8",
