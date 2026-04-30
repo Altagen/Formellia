@@ -27,15 +27,32 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    # Bind both IPv4 and IPv6 explicitly. Without the [::] entries, Podman
+    # only forwards IPv4 even when the network has an IPv6 subnet, which
+    # silently breaks 5G clients (Happy Eyeballs hangs on dead v6).
     ports:
-      - "80:80"
-      - "443:443"
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
+      - "[::]:80:80"
+      - "[::]:443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
       - app
+
+# Dual-stack network. Podman's auto-created network is IPv4-only by default,
+# which means containers can't be reached on IPv6 even if the host has it.
+# Required for any deployment that publishes AAAA DNS records.
+networks:
+  default:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 10.89.0.0/24
+        - subnet: fd00:dead:beef::/64
 
 volumes:
   postgres_data:
