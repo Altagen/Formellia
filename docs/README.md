@@ -12,6 +12,8 @@ source on every visit.
   steps, field types, dashboard widgets.
 - [email-setup.md](./email-setup.md) — providers, environment variables,
   domain verification, local testing.
+- [deployment.md](./deployment.md) — production VPS checklist: env vars,
+  compose, ufw, IPv6, QUIC tuning, GHCR auth, smoke tests.
 - [examples/](./examples/) — ready-to-use YAML files (forms + dashboards).
 
 ## Conventions

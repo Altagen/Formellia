@@ -8,6 +8,8 @@ import {
   FileText, Calendar, Clock, AlertTriangle, Zap, CheckCircle,
   Users, User, Mic, BarChart2, PieChart, TrendingUp,
   Mail, Tag, Star, Heart, Globe, Inbox,
+  Gauge, Timer, Hash, Percent, Award, Target, Activity,
+  TrendingDown, Database, Server, Shield, Lock, Key,
 } from "lucide-react";
 import { DynamicChart } from "./DynamicChart";
 import { TrafficChartWidget } from "./widgets/TrafficChartWidget";
@@ -270,15 +272,37 @@ function IconByName({ name, className }: { name: string; className?: string }) {
     "bar-chart-2":    <BarChart2 className={className} />,
     "pie-chart":      <PieChart className={className} />,
     "trending-up":    <TrendingUp className={className} />,
+    "trending-down":  <TrendingDown className={className} />,
     "mail":           <Mail className={className} />,
     "tag":            <Tag className={className} />,
     "star":           <Star className={className} />,
     "heart":          <Heart className={className} />,
     "globe":          <Globe className={className} />,
     "inbox":          <Inbox className={className} />,
+    "gauge":          <Gauge className={className} />,
+    "timer":          <Timer className={className} />,
+    "hash":           <Hash className={className} />,
+    "percent":        <Percent className={className} />,
+    "award":          <Award className={className} />,
+    "target":         <Target className={className} />,
+    "activity":       <Activity className={className} />,
+    "database":       <Database className={className} />,
+    "server":         <Server className={className} />,
+    "shield":         <Shield className={className} />,
+    "lock":           <Lock className={className} />,
+    "key":            <Key className={className} />,
   };
 
-  return (icons[name] ?? <span className="text-lg">{name}</span>) as React.ReactElement;
+  // Unknown name: render a neutral placeholder instead of leaking the raw
+  // string into the UI (was a confusing UX — looked like a typo with no
+  // hint that the name was rejected).
+  if (!icons[name]) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`[IconByName] unknown icon "${name}". Available: ${Object.keys(icons).sort().join(", ")}`);
+    }
+    return <Tag className={className} /> as React.ReactElement;
+  }
+  return icons[name] as React.ReactElement;
 }
 
 const PREFIX_SYMBOLS = ["$", "£", "¥", "₩", "₹", "₿", "¢"];

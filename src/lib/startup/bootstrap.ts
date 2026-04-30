@@ -6,6 +6,33 @@ import { startupLogger as log } from "@/lib/logger";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { resolve } from "node:path";
 
+const DB_WAIT_MAX_ATTEMPTS = 30;
+const DB_WAIT_DELAY_MS = 2000;
+
+// Retry the first DB query until the server answers. Compose orchestrators
+// (notably podman-compose) don't always honour `depends_on: service_healthy`,
+// and DNS for the `db` container name can take a few seconds to propagate.
+// Crashing on the first failure makes the whole stack flap; a bounded wait
+// is the resilient default regardless of orchestrator.
+async function waitForDb(): Promise<void> {
+  const { db } = await import("@/lib/db");
+  const { sql } = await import("drizzle-orm");
+  for (let attempt = 1; attempt <= DB_WAIT_MAX_ATTEMPTS; attempt++) {
+    try {
+      await db.execute(sql`SELECT 1`);
+      if (attempt > 1) log.info({ attempt }, "[bootstrap] DB ready");
+      return;
+    } catch (err) {
+      if (attempt === DB_WAIT_MAX_ATTEMPTS) {
+        log.fatal({ err, attempts: attempt }, "[bootstrap] DB unreachable after max attempts");
+        throw err;
+      }
+      log.info({ attempt, maxAttempts: DB_WAIT_MAX_ATTEMPTS }, "[bootstrap] Waiting for DB...");
+      await new Promise((r) => setTimeout(r, DB_WAIT_DELAY_MS));
+    }
+  }
+}
+
 /**
  * Main startup bootstrap — runs once per process via src/instrumentation.ts.
  *
@@ -37,6 +64,7 @@ export async function runStartupBootstrap(): Promise<void> {
   // Idempotent: no-op when already up to date (~2-5 ms).
   // Throws on failure → process crashes → Docker restarts → visible in logs.
   // Advisory lock prevents concurrent migrations if two instances start simultaneously.
+  await waitForDb();
   {
     const { db } = await import("@/lib/db");
     const { schemaMeta } = await import("@/lib/db/schema");

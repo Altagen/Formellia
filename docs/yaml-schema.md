@@ -353,3 +353,21 @@ admin:
 
 All accept `span: 1 | 2` (1 = half width, 2 = full width) except
 `stats_card`, which always takes 1/4 of a row.
+
+### Available icon names
+
+`icon` fields (page sidebar, `stats_card.statsConfig.icon`) accept a
+fixed set of names. Anything outside this list renders a placeholder
+in the UI and a `console.warn` in dev builds — it doesn't accept the
+full Lucide library to keep the runtime bundle small.
+
+`activity` · `alert-triangle` · `award` · `bar-chart-2` · `calendar` ·
+`check-circle` · `clock` · `database` · `file-text` · `gauge` ·
+`globe` · `hash` · `heart` · `inbox` · `key` · `lock` · `mail` ·
+`mic` · `percent` · `pie-chart` · `server` · `shield` · `star` ·
+`tag` · `target` · `timer` · `trending-down` · `trending-up` ·
+`user` · `users` · `zap`
+
+To add new ones, extend the `icons` map in
+`src/components/dashboard/DynamicWidget.tsx` and import the matching
+component from `lucide-react`.
