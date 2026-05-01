@@ -159,11 +159,49 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4
 
-      - name: Build image (no push)
+      - name: Build image (load locally so we can boot it)
         uses: docker/build-push-action@v7
         with:
           context: .
           push: false
-          load: false
+          load: true
+          tags: formellia:smoke
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Boot the image with throwaway env and verify Next listens on dual-stack.
+      # Next binds the port BEFORE the instrumentation hook runs, so the LISTEN
+      # appears within ~1s even though bootstrap retries the (absent) DB.
+      # We only check IPv6: HOSTNAME="::" makes Node listen on [::]:3000 with
+      # IPV6_V6ONLY=0 default, so v4 traffic comes in via v4-mapped-v6 on the
+      # same socket — a single LISTEN is enough to prove dual-stack works.
+      - name: Boot image and assert dual-stack listener
+        run: |
+          docker run -d --name smoke \
+            -e ENCRYPTION_KEY=$(openssl rand -hex 32) \
+            -e AUTH_SECRET=$(openssl rand -base64 32) \
+            -e DATABASE_URL=postgres://x:x@nowhere:5432/x \
+            formellia:smoke
+
+          # Give Next a few seconds to print "Ready".
+          for i in $(seq 1 20); do
+            if docker logs smoke 2>&1 | grep -q "Ready in"; then break; fi
+            sleep 1
+          done
+
+          # /proc/net/tcp6 column 4 == "0A" means LISTEN; column 2 == hex addr:port.
+          # Port 3000 = 0x0BB8. We expect a row "0...0:0BB8".
+          if ! docker exec smoke sh -c \
+            "awk 'NR>1 && \$4==\"0A\" && \$2 ~ /:0BB8\$/' /proc/net/tcp6 | grep -q ."; then
+            echo "::error::Image is not listening on [::]:3000 — Next is not bound dual-stack."
+            echo "--- container logs ---"
+            docker logs smoke
+            echo "--- /proc/net/tcp6 ---"
+            docker exec smoke cat /proc/net/tcp6 || true
+            exit 1
+          fi
+          echo "✓ Image listens on [::]:3000 (dual-stack)"
+
+      - name: Cleanup smoke container
+        if: always()
+        run: docker rm -f smoke || true
