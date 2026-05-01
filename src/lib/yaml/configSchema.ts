@@ -31,7 +31,9 @@ function scanForSecrets(value: unknown, path = ""): string[] {
   const violations: string[] = [];
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
     const fullPath = path ? `${path}.${k}` : k;
-    if (SECRET_KEY_RE.test(k)) violations.push(fullPath);
+    // Only flag secret-looking keys when the value is a string. Boolean/number
+    // values (e.g. `enforcePasswordPolicy: true`) are config flags, not secrets.
+    if (SECRET_KEY_RE.test(k) && typeof v === "string") violations.push(fullPath);
     violations.push(...scanForSecrets(v, fullPath));
   }
   return violations;
