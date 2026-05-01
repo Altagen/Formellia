@@ -53,6 +53,11 @@ USER nextjs
 EXPOSE 3000
 
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+# Bind dual-stack (IPv6 + IPv4-mapped IPv6) so the server is reachable on both
+# protocols inside a podman/docker network with `enable_ipv6: true`. With only
+# `0.0.0.0`, the v6 AAAA record returned by aardvark-dns for the service name
+# points to a port nothing is listening on, breaking Caddy → app on dual-stack
+# networks. Linux defaults `IPV6_V6ONLY=0`, so `::` accepts v4 connections too.
+ENV HOSTNAME="::"
 
 CMD ["node", "server.js"]
