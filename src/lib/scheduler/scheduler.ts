@@ -1,4 +1,4 @@
-import cron from "node-cron";
+import cron, { type ScheduledTask } from "node-cron";
 import { db } from "@/lib/db";
 import { scheduledJobs } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -18,7 +18,7 @@ export function computeNextRun(schedule: string): Date {
 }
 
 let initialized = false;
-const activeTasks = new Map<string, cron.ScheduledTask>();
+const activeTasks = new Map<string, ScheduledTask>();
 
 export async function initScheduler(): Promise<void> {
   if (initialized) return;
