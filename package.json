@@ -78,7 +78,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.2",
-    "@commitlint/config-conventional": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.3",
     "@tailwindcss/postcss": "latest",
     "@types/adm-zip": "^0.5.8",
     "@types/node": "latest",
