@@ -1622,6 +1622,7 @@ export const en: TranslationKeys = {
         externalSources: "External sources",
         filterFormOnly: "Filters submissions of this form only.",
         filterExternalOnly: "Widgets will display data from this external source.",
+        filterAllForms: "⚠ Shows submissions from every form. Pick a form above to scope this page.",
         interactiveFilterLabel: "Interactive filtering",
         interactiveFilterDesc: "Clicking a chart segment filters all widgets on the page.",
         interactiveFilterActive: "Active filter:",

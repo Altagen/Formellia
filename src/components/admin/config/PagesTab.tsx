@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Star, X, Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "@/lib/context/LocaleContext";
+import { stepsForPage } from "@/lib/dashboard/scopedFields";
 
 interface PagesTabProps {
   pages: AdminPage[];
@@ -212,24 +213,17 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expandedPageId, expandedPageDsId]);
 
-  const allFields = formSteps.flatMap(s => s.fields).filter(f => f.type !== "section_header");
-
-  // Native field values for filter dropdowns (status/priority constants + form select/radio options)
-  const nativeFieldValues: Record<string, string[]> = {
-    status:   ["pending", "in_progress", "done", "waiting_user"],
-    priority: ["none", "yellow", "orange", "red", "green"],
-    ...Object.fromEntries(
-      allFields
-        .filter(f => (f.type === "select" || f.type === "radio") && f.options)
-        .map(f => [f.dbKey ?? f.id, f.options!.map(o => o.value)])
-    ),
-  };
-  const groupByOptions = [
-    { value: "date",     label: w.groupDate },
-    { value: "status",   label: w.groupStatus },
-    { value: "priority", label: w.groupPriority },
-    ...allFields.map(f => ({ value: f.dbKey ?? f.id, label: f.label })),
-  ];
+  function nativeFieldValuesFor(steps: StepDef[]): Record<string, string[]> {
+    return {
+      status:   ["pending", "in_progress", "done", "waiting_user"],
+      priority: ["none", "yellow", "orange", "red", "green"],
+      ...Object.fromEntries(
+        steps.flatMap(s => s.fields)
+          .filter(f => (f.type === "select" || f.type === "radio") && f.options)
+          .map(f => [f.dbKey ?? f.id, f.options!.map(o => o.value)])
+      ),
+    };
+  }
 
   function addPage() {
     if (pages.length >= 10) return;
@@ -392,7 +386,13 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
           const dsFields = page.dataSourceId ? (dataSourceFields[page.dataSourceId] ?? []) : [];
           const isExternal = !!page.dataSourceId && dsFields.length > 0;
           const dsFieldValues = isExternal ? (dataSourceFieldValues[page.dataSourceId!] ?? {}) : {};
-          // Build groupBy options: dataset fields when external, form fields otherwise
+          const isAllSubmissions = !page.formInstanceId && !page.dataSourceId;
+          // Native form fields scoped to THIS page's form (or all forms for an
+          // "all submissions" page) — drives the column/filter pickers below.
+          const pageFormSteps = stepsForPage(page, formInstances, formSteps);
+          const pageNativeFields = pageFormSteps.flatMap(s => s.fields).filter(f => f.type !== "section_header");
+          const pageNativeFieldValues = nativeFieldValuesFor(pageFormSteps);
+          // Build groupBy options: dataset fields when external, scoped form fields otherwise
           const builtinKeys = new Set(["date", "status"]);
           const pageGroupByOptions = isExternal
             ? [
@@ -400,7 +400,12 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                 { value: "status", label: w.groupStatus },
                 ...dsFields.filter(k => !builtinKeys.has(k)).map(k => ({ value: k, label: formatFieldKey(k) })),
               ]
-            : groupByOptions;
+            : [
+                { value: "date",     label: w.groupDate },
+                { value: "status",   label: w.groupStatus },
+                { value: "priority", label: w.groupPriority },
+                ...pageNativeFields.map(f => ({ value: f.dbKey ?? f.id, label: f.label })),
+              ];
 
           return (
             <div key={page.id} className={cn("rounded-xl border transition-all", isPageExpanded ? "border-primary/50 ring-1 ring-primary/20" : "border-border")}>
@@ -522,6 +527,11 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                         {p.filterExternalOnly}
                       </span>
                     )}
+                    {isAllSubmissions && (
+                      <span className="text-xs text-amber-600 font-medium">
+                        {p.filterAllForms}
+                      </span>
+                    )}
                   </div>
 
                   {/* Interactive filter toggle */}
@@ -610,9 +620,9 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                                       widget={widget}
                                       availableFields={dedupFields(isExternal
                                         ? dsFields.map(k => ({ value: k, label: formatFieldKey(k) }))
-                                        : [...NATIVE_BUILTIN_FIELDS, ...formSteps.flatMap(s => s.fields).filter(f => f.type !== "section_header").map(f => ({ value: f.dbKey ?? f.id, label: f.label }))]
+                                        : [...NATIVE_BUILTIN_FIELDS, ...pageNativeFields.map(f => ({ value: f.dbKey ?? f.id, label: f.label }))]
                                       )}
-                                      fieldValues={isExternal ? dsFieldValues : nativeFieldValues}
+                                      fieldValues={isExternal ? dsFieldValues : pageNativeFieldValues}
                                       p={p}
                                       onChange={patch => updateWidget(page.id, widget.id, patch as Partial<WidgetDef>)}
                                     />
@@ -622,9 +632,9 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                                       widget={widget}
                                       availableFields={dedupFields(isExternal
                                         ? dsFields.map(k => ({ value: k, label: formatFieldKey(k) }))
-                                        : [...NATIVE_BUILTIN_FIELDS, ...formSteps.flatMap(s => s.fields).filter(f => f.type !== "section_header").map(f => ({ value: f.dbKey ?? f.id, label: f.label }))]
+                                        : [...NATIVE_BUILTIN_FIELDS, ...pageNativeFields.map(f => ({ value: f.dbKey ?? f.id, label: f.label }))]
                                       )}
-                                      fieldValues={isExternal ? dsFieldValues : nativeFieldValues}
+                                      fieldValues={isExternal ? dsFieldValues : pageNativeFieldValues}
                                       p={p}
                                       onChange={patch => updateWidget(page.id, widget.id, patch as Partial<WidgetDef>)}
                                     />
@@ -646,7 +656,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                                   {widget.type === "submissions_table" && (
                                     <SubmissionsTableEditor
                                       widget={widget}
-                                      formSteps={formSteps}
+                                      formSteps={pageFormSteps}
                                       tableColumns={tableColumns}
                                       onChangeColumns={onChangeColumns}
                                       dataSourceFields={dsFields.length > 0 ? dsFields : undefined}
@@ -665,7 +675,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                                         >
                                           {(isExternal
                                             ? dsFields.map(k => ({ value: k, label: formatFieldKey(k) }))
-                                            : dedupFields([...NATIVE_BUILTIN_FIELDS, ...formSteps.flatMap(s => s.fields).filter(f => f.type !== "section_header").map(f => ({ value: f.dbKey ?? f.id, label: f.label }))])
+                                            : dedupFields([...NATIVE_BUILTIN_FIELDS, ...pageNativeFields.map(f => ({ value: f.dbKey ?? f.id, label: f.label }))])
                                           ).map(opt => (
                                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                                           ))}
