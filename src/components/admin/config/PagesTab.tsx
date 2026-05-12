@@ -548,6 +548,20 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                     </div>
                   </label>
 
+                  {/* Completion funnel toggle */}
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={page.showCompletionFunnel !== false}
+                      onChange={e => updatePage(page.id, { showCompletionFunnel: e.target.checked })}
+                      className="w-4 h-4 rounded border-border accent-primary"
+                    />
+                    <div>
+                      <span className="text-xs font-medium text-foreground">{p.funnelToggleLabel}</span>
+                      <span className="text-xs text-muted-foreground ml-1.5">{p.funnelToggleDesc}</span>
+                    </div>
+                  </label>
+
                   {/* Widgets list */}
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">{p.widgetsOnPage}</p>

@@ -334,6 +334,7 @@ admin:
       formInstanceId: "/"         # filter on this form (id or slug)
       refreshInterval: 60         # auto-refresh in seconds (0 = off)
       interactiveFilter: false    # clicking a segment filters the page
+      showCompletionFunnel: true  # default true; set false to hide the step funnel
       widgets:
         - { type: "stats_card", id: "...", statsConfig: { ... } }
         - { type: "chart",      id: "...", title: "...", span: 2, chartConfig: { ... } }
