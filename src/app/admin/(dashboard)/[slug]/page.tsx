@@ -112,7 +112,7 @@ export default async function AdminDynamicPage({ params }: Props) {
           currentUserEmail={currentUser?.email ?? undefined}
         />
 
-        {formSlug && <CompletionFunnel formSlug={formSlug} />}
+        {formSlug && page.showCompletionFunnel !== false && <CompletionFunnel formSlug={formSlug} />}
       </div>
     </PrioritySettingsProvider>
   );
