@@ -14,8 +14,10 @@ import { listFormInstances, saveFormInstance, createFormInstance } from "@/lib/d
 import { yamlConfigSchema } from "@/lib/yaml/configSchema";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";
 import { getProtectedSlugs } from "@/lib/security/protectedSlugs";
+import { mergeAdminPages, mergeTableColumns } from "@/lib/admin/mergeAdminConfig";
 import cron from "node-cron";
 import type { FormInstanceConfig } from "@/types/formInstance";
+import type { AdminPage, TableColumnDef } from "@/types/config";
 
 type RestoreSection = "forms" | "scheduledJobs" | "datasets" | "admin" | "app";
 
@@ -109,17 +111,27 @@ export async function restoreFromObject(
   }
 
   // ── admin config ───────────────────────────────────────
+  // In "append" mode, `admin.pages` and `admin.tableColumns` are upserted by `id`
+  // so a partial import only touches what it carries — re-importing one page no
+  // longer wipes the rest. "replace" keeps the wholesale-replace semantics.
+  // `branding`/`features` are singletons → replaced in both modes when present.
   if (shouldRestore("admin") && incoming.admin && isConfigEditable()) {
     try {
       const current = await getFormConfig();
       const inAdmin = incoming.admin as Record<string, unknown>;
       const updated = { ...current, admin: { ...current.admin } };
-      if (inAdmin.pages        !== undefined) updated.admin.pages        = inAdmin.pages        as typeof updated.admin.pages;
-      if (inAdmin.tableColumns !== undefined) updated.admin.tableColumns = inAdmin.tableColumns as typeof updated.admin.tableColumns;
-      if (inAdmin.branding     !== undefined) updated.admin.branding     = inAdmin.branding     as typeof updated.admin.branding;
-      if (inAdmin.features     !== undefined) updated.admin.features     = inAdmin.features     as typeof updated.admin.features;
+      if (inAdmin.pages !== undefined) {
+        if (!Array.isArray(inAdmin.pages)) throw new Error("admin.pages must be an array");
+        updated.admin.pages = mergeAdminPages(current.admin.pages ?? [], inAdmin.pages as AdminPage[], mode);
+      }
+      if (inAdmin.tableColumns !== undefined) {
+        if (!Array.isArray(inAdmin.tableColumns)) throw new Error("admin.tableColumns must be an array");
+        updated.admin.tableColumns = mergeTableColumns(current.admin.tableColumns ?? [], inAdmin.tableColumns as TableColumnDef[], mode);
+      }
+      if (inAdmin.branding !== undefined) updated.admin.branding = inAdmin.branding as typeof updated.admin.branding;
+      if (inAdmin.features !== undefined) updated.admin.features = inAdmin.features as typeof updated.admin.features;
       await saveFormConfig(updated);
-      results.admin = { success: true };
+      results.admin = { success: true, mode };
     } catch (e: unknown) {
       results.admin = { error: e instanceof Error ? e.message : "Erreur" };
     }
