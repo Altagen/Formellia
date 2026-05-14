@@ -279,6 +279,9 @@ export interface AdminPage {
   formInstanceId?: string;  // option 3: filter by form instance (id or slug)
   refreshInterval?: number; // auto-refresh in seconds for this page (0 or undefined = disabled)
   interactiveFilter?: boolean; // clicking a chart segment filters all other widgets on the page
+  /** Step-by-step completion funnel shown below the widgets. Defaults to true; set false
+   *  on pages where a step funnel isn't meaningful (e.g. feedback/retex forms). */
+  showCompletionFunnel?: boolean;
   /**
    * Page-level flattening: if set, submissions are pre-expanded into one synthetic
    * row per item of the named repeater field. The repeater item's columns are

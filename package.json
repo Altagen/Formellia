@@ -1,6 +1,6 @@
 {
   "name": "formellia",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "engines": {
     "node": ">=22",
@@ -24,8 +24,8 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1037.0",
-    "@aws-sdk/lib-storage": "^3.1037.0",
+    "@aws-sdk/client-s3": "^3.1045.0",
+    "@aws-sdk/lib-storage": "^3.1045.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
@@ -54,11 +54,11 @@
     "framer-motion": "latest",
     "geist": "^1.7.0",
     "html-to-image": "^1.11.13",
-    "isomorphic-dompurify": "^3.10.0",
+    "isomorphic-dompurify": "^3.12.0",
     "js-yaml": "^4.1.1",
     "lucia": "^3",
     "lucide-react": "^1.14.0",
-    "nanoid": "^5.1.9",
+    "nanoid": "^5.1.11",
     "next": "^16.2.6",
     "next-themes": "^0.4.6",
     "node-cron": "^4.2.1",
@@ -68,7 +68,7 @@
     "radix-ui": "^1.4.3",
     "react": "^19",
     "react-dom": "^19",
-    "react-is": "^19.2.5",
+    "react-is": "^19.2.6",
     "react-markdown": "^10.1.0",
     "recharts": "latest",
     "sonner": "^2.0.7",
@@ -77,8 +77,8 @@
     "zod": "latest"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.2",
-    "@commitlint/config-conventional": "^20.5.0",
+    "@commitlint/cli": "^21.0.0",
+    "@commitlint/config-conventional": "^21.0.1",
     "@tailwindcss/postcss": "latest",
     "@types/adm-zip": "^0.5.8",
     "@types/node": "latest",
