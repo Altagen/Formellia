@@ -1,4 +1,4 @@
-import { pgTable, varchar, jsonb, timestamp, uuid, date, text, integer, smallint, boolean, index, check } from "drizzle-orm/pg-core";
+import { pgTable, varchar, jsonb, timestamp, uuid, date, text, integer, smallint, boolean, index, uniqueIndex, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type { SidebarLayout } from "@/types/sidebarLayout";
 
@@ -29,6 +29,11 @@ export const submissions = pgTable("submissions", {
   assignedToId:    varchar("assigned_to_id",    { length: 21 }).references(() => users.id, { onDelete: "set null" }),
   assignedToEmail: varchar("assigned_to_email", { length: 255 }),
   formInstanceId: uuid("form_instance_id").references(() => formInstances.id, { onDelete: "cascade" }),
+  // Soft-exclude from every DataPool — keeps the submission and its data intact
+  // but makes it invisible to the aggregation queries. The per-pool exclusion
+  // table lives next to dataPools below for the narrower "block this address
+  // for that one audience" case.
+  excludedFromDataPools: boolean("excluded_from_data_pools").notNull().default(false),
 }, (t) => [
   index("idx_submissions_form_instance_id").on(t.formInstanceId),
   index("idx_submissions_status_priority").on(t.status, t.priority),
@@ -352,6 +357,68 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
   index("idx_wh_delivery_status_retry").on(t.status, t.nextRetryAt),
   index("idx_wh_delivery_submission").on(t.submissionId),
 ]);
+
+// ─────────────────────────────────────────────────────────
+// DataPools — read-time deduplicated views over submission fields
+// ─────────────────────────────────────────────────────────
+//
+// A DataPool exposes one distinct value of `keyField` per matching submission,
+// optionally enriched with `additionalFields`. Rows are computed on read
+// (see src/lib/datapools/compute.ts) — there is no materialisation, so a
+// fresh submission propagates immediately and a deleted one disappears.
+//
+// Three places where a value can be hidden:
+//   - the submission row itself sets `excludedFromDataPools = true` → drops
+//     it from every pool at once (operator: "block this person across the
+//     board");
+//   - the `data_pool_exclusions` table holds `(poolId, value)` rows that
+//     mask one specific value from one specific pool (operator: "exclude
+//     alice@example.com from the 1st-edition audience but keep her in
+//     others");
+//   - the submission is hard-deleted from `submissions` — same outcome,
+//     less reversible.
+
+export const dataPools = pgTable("data_pools", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  slug:             varchar("slug",       { length: 100 }).notNull().unique(),
+  name:             varchar("name",       { length: 255 }).notNull(),
+  description:      text("description"),
+  // The form-field id whose distinct values populate the pool (e.g. "email").
+  keyField:         varchar("key_field",  { length: 100 }).notNull(),
+  // Other field ids carried alongside each entry, e.g. ["firstName", "lastName"].
+  additionalFields: jsonb("additional_fields").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  createdAt:        timestamp("created_at").defaultNow().notNull(),
+  updatedAt:        timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const dataPoolSources = pgTable("data_pool_sources", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  dataPoolId:     uuid("data_pool_id").notNull().references(() => dataPools.id, { onDelete: "cascade" }),
+  formInstanceId: uuid("form_instance_id").notNull().references(() => formInstances.id, { onDelete: "cascade" }),
+  createdAt:      timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_dps_data_pool_id").on(t.dataPoolId),
+  index("idx_dps_form_instance_id").on(t.formInstanceId),
+  // (pool, form) is the natural key — one form can only source a pool once.
+  uniqueIndex("uniq_dps_pool_form").on(t.dataPoolId, t.formInstanceId),
+]);
+
+export const dataPoolExclusions = pgTable("data_pool_exclusions", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  dataPoolId:       uuid("data_pool_id").notNull().references(() => dataPools.id, { onDelete: "cascade" }),
+  // The literal value to mask (compared case-insensitive in the lib for emails).
+  keyValue:         varchar("key_value", { length: 255 }).notNull(),
+  reason:           text("reason"),
+  excludedByUserId: varchar("excluded_by_user_id", { length: 21 }).references(() => users.id, { onDelete: "set null" }),
+  excludedAt:       timestamp("excluded_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_dpe_data_pool_id").on(t.dataPoolId),
+  uniqueIndex("uniq_dpe_pool_value").on(t.dataPoolId, t.keyValue),
+]);
+
+export type DataPool = typeof dataPools.$inferSelect;
+export type DataPoolSource = typeof dataPoolSources.$inferSelect;
+export type DataPoolExclusion = typeof dataPoolExclusions.$inferSelect;
 
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type CustomCaCert = typeof customCaCerts.$inferSelect;

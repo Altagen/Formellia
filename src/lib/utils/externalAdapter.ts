@@ -39,5 +39,6 @@ export function externalRecordToSubmission(r: {
     assignedToEmail: null,
     ipHash: null,
     formInstanceId: null,
+    excludedFromDataPools: false,
   };
 }
