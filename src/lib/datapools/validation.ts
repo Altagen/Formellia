@@ -35,11 +35,11 @@ export const updateDataPoolSchema = z.object({
     .optional(),
 });
 
-export const addExclusionSchema = z.object({
-  keyValue: z.string().min(1).max(255),
+export const addSubmissionExclusionSchema = z.object({
+  submissionId: z.string().uuid("submissionId doit être un UUID"),
   reason: z.string().max(500).nullable().optional(),
 });
 
 export type CreateDataPoolInput = z.infer<typeof createDataPoolSchema>;
 export type UpdateDataPoolInput = z.infer<typeof updateDataPoolSchema>;
-export type AddExclusionInput = z.infer<typeof addExclusionSchema>;
+export type AddSubmissionExclusionInput = z.infer<typeof addSubmissionExclusionSchema>;

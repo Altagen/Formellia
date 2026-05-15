@@ -1,15 +1,20 @@
 import { db } from "@/lib/db";
-import { dataPools, dataPoolSources, dataPoolExclusions } from "@/lib/db/schema";
+import { dataPools, dataPoolSources, dataPoolSubmissionExclusions } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
-import type { DataPool, DataPoolSource, DataPoolExclusion } from "@/lib/db/schema";
+import type { DataPool, DataPoolSource, DataPoolSubmissionExclusion } from "@/lib/db/schema";
 import type { DataPoolWithMeta } from "./types";
-import type { CreateDataPoolInput, UpdateDataPoolInput, AddExclusionInput } from "./validation";
+import type {
+  CreateDataPoolInput,
+  UpdateDataPoolInput,
+  AddSubmissionExclusionInput,
+} from "./validation";
 
 /**
  * Storage layer for DataPool entities. The aggregation of submissions into
  * deduplicated entries lives in `./compute.ts`; this file only deals with the
  * three tables that describe a pool — what it is (`data_pools`), what feeds it
- * (`data_pool_sources`), and what's masked from it (`data_pool_exclusions`).
+ * (`data_pool_sources`), and what's masked from it
+ * (`data_pool_submission_exclusions`, by FK).
  */
 
 export async function listDataPools(): Promise<DataPool[]> {
@@ -21,7 +26,10 @@ export async function getDataPool(id: string): Promise<DataPoolWithMeta | null> 
   if (!pool) return null;
   const [sources, exclusions] = await Promise.all([
     db.select().from(dataPoolSources).where(eq(dataPoolSources.dataPoolId, id)),
-    db.select().from(dataPoolExclusions).where(eq(dataPoolExclusions.dataPoolId, id)),
+    db
+      .select()
+      .from(dataPoolSubmissionExclusions)
+      .where(eq(dataPoolSubmissionExclusions.dataPoolId, id)),
   ]);
   return { ...pool, sources, exclusions };
 }
@@ -56,7 +64,10 @@ export async function createDataPool(input: CreateDataPoolInput): Promise<DataPo
  * source list is **replaced** to match exactly (idempotent — same set in =
  * no DB change). Omit `sources` to leave the existing list alone.
  */
-export async function updateDataPool(id: string, patch: UpdateDataPoolInput): Promise<DataPoolWithMeta | null> {
+export async function updateDataPool(
+  id: string,
+  patch: UpdateDataPoolInput,
+): Promise<DataPoolWithMeta | null> {
   const existing = await getDataPool(id);
   if (!existing) return null;
 
@@ -97,37 +108,45 @@ export async function deleteDataPool(id: string): Promise<boolean> {
   return result.length > 0;
 }
 
-// ─── Exclusions ────────────────────────────────────────────────────────────
+// ─── Exclusions (FK-based, per submission) ────────────────────────────────
 
-export async function addDataPoolExclusion(
+export async function addSubmissionExclusion(
   poolId: string,
-  input: AddExclusionInput,
+  input: AddSubmissionExclusionInput,
   excludedByUserId: string | null,
-): Promise<DataPoolExclusion> {
-  // upsert so re-adding the same value is idempotent (refreshes the reason / actor)
+): Promise<DataPoolSubmissionExclusion> {
+  // upsert so re-adding the same submission is idempotent (refreshes reason / actor)
   const [row] = await db
-    .insert(dataPoolExclusions)
+    .insert(dataPoolSubmissionExclusions)
     .values({
       dataPoolId: poolId,
-      keyValue: input.keyValue,
+      submissionId: input.submissionId,
       reason: input.reason ?? null,
       excludedByUserId,
     })
     .onConflictDoUpdate({
-      target: [dataPoolExclusions.dataPoolId, dataPoolExclusions.keyValue],
+      target: [dataPoolSubmissionExclusions.dataPoolId, dataPoolSubmissionExclusions.submissionId],
       set: { reason: input.reason ?? null, excludedByUserId, excludedAt: new Date() },
     })
     .returning();
   return row;
 }
 
-export async function removeDataPoolExclusion(poolId: string, keyValue: string): Promise<boolean> {
+export async function removeSubmissionExclusion(
+  poolId: string,
+  submissionId: string,
+): Promise<boolean> {
   const result = await db
-    .delete(dataPoolExclusions)
-    .where(and(eq(dataPoolExclusions.dataPoolId, poolId), eq(dataPoolExclusions.keyValue, keyValue)))
-    .returning({ id: dataPoolExclusions.id });
+    .delete(dataPoolSubmissionExclusions)
+    .where(
+      and(
+        eq(dataPoolSubmissionExclusions.dataPoolId, poolId),
+        eq(dataPoolSubmissionExclusions.submissionId, submissionId),
+      ),
+    )
+    .returning({ id: dataPoolSubmissionExclusions.id });
   return result.length > 0;
 }
 
 // Re-exports kept in this file so callers only import from one place.
-export type { DataPool, DataPoolSource, DataPoolExclusion };
+export type { DataPool, DataPoolSource, DataPoolSubmissionExclusion };

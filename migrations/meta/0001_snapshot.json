@@ -1,5 +1,5 @@
 {
-  "id": "ceb7f2ab-50d9-4e97-96c3-722940c050f5",
+  "id": "ef832721-8720-46c0-9a8a-0c26e2bdc7d3",
   "prevId": "0d99c052-8dd4-4147-8ca5-70fb93a6894d",
   "version": "7",
   "dialect": "postgresql",
@@ -473,121 +473,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.data_pool_exclusions": {
-      "name": "data_pool_exclusions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "data_pool_id": {
-          "name": "data_pool_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key_value": {
-          "name": "key_value",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "excluded_by_user_id": {
-          "name": "excluded_by_user_id",
-          "type": "varchar(21)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "excluded_at": {
-          "name": "excluded_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "idx_dpe_data_pool_id": {
-          "name": "idx_dpe_data_pool_id",
-          "columns": [
-            {
-              "expression": "data_pool_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "uniq_dpe_pool_value": {
-          "name": "uniq_dpe_pool_value",
-          "columns": [
-            {
-              "expression": "data_pool_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "key_value",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "data_pool_exclusions_data_pool_id_data_pools_id_fk": {
-          "name": "data_pool_exclusions_data_pool_id_data_pools_id_fk",
-          "tableFrom": "data_pool_exclusions",
-          "tableTo": "data_pools",
-          "columnsFrom": [
-            "data_pool_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "data_pool_exclusions_excluded_by_user_id_users_id_fk": {
-          "name": "data_pool_exclusions_excluded_by_user_id_users_id_fk",
-          "tableFrom": "data_pool_exclusions",
-          "tableTo": "users",
-          "columnsFrom": [
-            "excluded_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.data_pool_sources": {
       "name": "data_pool_sources",
       "schema": "",
@@ -697,6 +582,149 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.data_pool_submission_exclusions": {
+      "name": "data_pool_submission_exclusions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "data_pool_id": {
+          "name": "data_pool_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submission_id": {
+          "name": "submission_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "excluded_by_user_id": {
+          "name": "excluded_by_user_id",
+          "type": "varchar(21)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "excluded_at": {
+          "name": "excluded_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_dpse_data_pool_id": {
+          "name": "idx_dpse_data_pool_id",
+          "columns": [
+            {
+              "expression": "data_pool_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_dpse_submission_id": {
+          "name": "idx_dpse_submission_id",
+          "columns": [
+            {
+              "expression": "submission_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "uniq_dpse_pool_submission": {
+          "name": "uniq_dpse_pool_submission",
+          "columns": [
+            {
+              "expression": "data_pool_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "submission_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "data_pool_submission_exclusions_data_pool_id_data_pools_id_fk": {
+          "name": "data_pool_submission_exclusions_data_pool_id_data_pools_id_fk",
+          "tableFrom": "data_pool_submission_exclusions",
+          "tableTo": "data_pools",
+          "columnsFrom": [
+            "data_pool_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "data_pool_submission_exclusions_submission_id_submissions_id_fk": {
+          "name": "data_pool_submission_exclusions_submission_id_submissions_id_fk",
+          "tableFrom": "data_pool_submission_exclusions",
+          "tableTo": "submissions",
+          "columnsFrom": [
+            "submission_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "data_pool_submission_exclusions_excluded_by_user_id_users_id_fk": {
+          "name": "data_pool_submission_exclusions_excluded_by_user_id_users_id_fk",
+          "tableFrom": "data_pool_submission_exclusions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "excluded_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

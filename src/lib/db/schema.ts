@@ -369,14 +369,18 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
 //
 // Three places where a value can be hidden:
 //   - the submission row itself sets `excludedFromDataPools = true` → drops
-//     it from every pool at once (operator: "block this person across the
-//     board");
-//   - the `data_pool_exclusions` table holds `(poolId, value)` rows that
-//     mask one specific value from one specific pool (operator: "exclude
-//     alice@example.com from the 1st-edition audience but keep her in
-//     others");
+//     it from every pool at once ("block this person from all my audiences");
+//   - a `data_pool_submission_exclusions(poolId, submissionId)` row masks one
+//     specific submission from one specific pool ("exclude alice's edition-5
+//     submission from the 1st-edition audience, but keep her in others");
 //   - the submission is hard-deleted from `submissions` — same outcome,
 //     less reversible.
+//
+// We deliberately do NOT keep a hashed suppression list keyed by email value.
+// That pattern is only legally required for direct marketing (GDPR Art. 21)
+// and the 0.3.0 broadcasts are operational comms (Art. 17 territory only —
+// see project_newsletter_future_groundwork.md for the planned upgrade path
+// when a real newsletter feature ships later).
 
 export const dataPools = pgTable("data_pools", {
   id:               uuid("id").primaryKey().defaultRandom(),
@@ -403,22 +407,28 @@ export const dataPoolSources = pgTable("data_pool_sources", {
   uniqueIndex("uniq_dps_pool_form").on(t.dataPoolId, t.formInstanceId),
 ]);
 
-export const dataPoolExclusions = pgTable("data_pool_exclusions", {
+// Per-pool exclusion: which specific submissions are hidden from which pool.
+// FK-only, no PII duplicated — the submission is the single source of truth
+// for the email value. If the submission is hard-deleted (Art. 17 erasure),
+// the exclusion cascades away too; if the same person re-submits, the new
+// submission has a new id and re-enters the pool — which is a fresh act of
+// consent under GDPR doctrine.
+export const dataPoolSubmissionExclusions = pgTable("data_pool_submission_exclusions", {
   id:               uuid("id").primaryKey().defaultRandom(),
   dataPoolId:       uuid("data_pool_id").notNull().references(() => dataPools.id, { onDelete: "cascade" }),
-  // The literal value to mask (compared case-insensitive in the lib for emails).
-  keyValue:         varchar("key_value", { length: 255 }).notNull(),
+  submissionId:     uuid("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
   reason:           text("reason"),
   excludedByUserId: varchar("excluded_by_user_id", { length: 21 }).references(() => users.id, { onDelete: "set null" }),
   excludedAt:       timestamp("excluded_at").defaultNow().notNull(),
 }, (t) => [
-  index("idx_dpe_data_pool_id").on(t.dataPoolId),
-  uniqueIndex("uniq_dpe_pool_value").on(t.dataPoolId, t.keyValue),
+  index("idx_dpse_data_pool_id").on(t.dataPoolId),
+  index("idx_dpse_submission_id").on(t.submissionId),
+  uniqueIndex("uniq_dpse_pool_submission").on(t.dataPoolId, t.submissionId),
 ]);
 
 export type DataPool = typeof dataPools.$inferSelect;
 export type DataPoolSource = typeof dataPoolSources.$inferSelect;
-export type DataPoolExclusion = typeof dataPoolExclusions.$inferSelect;
+export type DataPoolSubmissionExclusion = typeof dataPoolSubmissionExclusions.$inferSelect;
 
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type CustomCaCert = typeof customCaCerts.$inferSelect;

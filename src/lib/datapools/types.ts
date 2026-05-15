@@ -1,4 +1,4 @@
-import type { DataPool, DataPoolSource, DataPoolExclusion } from "@/lib/db/schema";
+import type { DataPool, DataPoolSource, DataPoolSubmissionExclusion } from "@/lib/db/schema";
 
 /**
  * One row of a DataPool's computed view — a single deduplicated key value plus
@@ -10,6 +10,8 @@ export interface DataPoolEntry {
   key: string;
   /** Other fields requested on the pool, taken from the most recent submission. */
   additional: Record<string, string>;
+  /** The submission this entry was last sourced from (id of the most recent matching row). */
+  sourceSubmissionId: string;
   /** The form instance the latest contributing submission came from. */
   sourceFormInstanceId: string;
   /** Submission timestamp of the latest contributing submission. */
@@ -19,7 +21,7 @@ export interface DataPoolEntry {
 /** Pool + its sources + its exclusions, hydrated together. */
 export interface DataPoolWithMeta extends DataPool {
   sources: DataPoolSource[];
-  exclusions: DataPoolExclusion[];
+  exclusions: DataPoolSubmissionExclusion[];
 }
 
 export interface DataPoolPreview {
