@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
-import { dataPools, dataPoolSources, dataPoolSubmissionExclusions } from "@/lib/db/schema";
+import { dataPools, dataPoolSources } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { dedupKeysAcrossLists } from "./dedup";
 import type { DataPoolEntry, DataPoolPreview } from "./types";
 
 interface ComputeOptions {
@@ -132,16 +133,5 @@ export async function getDataPoolKeys(poolId: string): Promise<string[]> {
  */
 export async function getMergedDataPoolKeys(poolIds: string[]): Promise<string[]> {
   const lists = await Promise.all(poolIds.map((id) => getDataPoolKeys(id)));
-  const seen = new Set<string>();
-  const merged: string[] = [];
-  for (const list of lists) {
-    for (const key of list) {
-      const k = key.toLowerCase();
-      if (!seen.has(k)) {
-        seen.add(k);
-        merged.push(key);
-      }
-    }
-  }
-  return merged;
+  return dedupKeysAcrossLists(lists);
 }
