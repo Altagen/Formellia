@@ -12,6 +12,7 @@ import {
   Settings2, LogOut,
   LayoutDashboard, Inbox, BarChart2, FileText, Info, Globe, User, ClipboardList,
   Link2, ChevronDown, ChevronRight, Pencil, Plus, Trash2, Check, X, FolderPlus,
+  Database,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -1011,6 +1012,14 @@ export function AdminSidebar({
               className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
                 isActive("/admin/global") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
               <Globe className="w-4 h-4 shrink-0" /><span>{tr.admin.nav.globalView}</span>
+            </Link>
+          )}
+
+          {role !== "viewer" && role !== "agent" && (
+            <Link href="/admin/datapools" onClick={onClose}
+              className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive("/admin/datapools") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
+              <Database className="w-4 h-4 shrink-0" /><span>DataPools</span>
             </Link>
           )}
 
