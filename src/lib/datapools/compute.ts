@@ -1,8 +1,35 @@
 import { db } from "@/lib/db";
 import { dataPools, dataPoolSources } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, type SQL } from "drizzle-orm";
 import { dedupKeysAcrossLists } from "./dedup";
 import type { DataPoolEntry, DataPoolPreview } from "./types";
+
+/**
+ * Several form fields are hoisted out of the JSONB `form_data` into dedicated
+ * columns on `submissions` when a submission is created (see the form submit
+ * API). For these well-known ids the data lives ONLY in the column, not the
+ * JSON — so the DataPool aggregation must read from the column directly.
+ * Everything else still falls through to `form_data->>keyField`.
+ */
+const EXTRACTED_COLUMNS: Record<string, string> = {
+  email:       "email",
+  dueDate:     "due_date",
+  receivedAt:  "received_at",
+  status:      "status",
+  priority:    "priority",
+  submittedAt: "submitted_at",
+};
+
+function keyFieldExpr(keyField: string): SQL {
+  const column = EXTRACTED_COLUMNS[keyField];
+  // COALESCE both the dedicated column (when applicable) and the JSON path so
+  // we transparently support extracted fields, custom fields, and historic
+  // submissions that may have had the value in either place.
+  if (column) {
+    return sql.raw(`COALESCE(s.form_data->>'${keyField}', s.${column}::text)`);
+  }
+  return sql.raw(`s.form_data->>'${keyField}'`);
+}
 
 interface ComputeOptions {
   /** Paginated slice — applied AFTER all filtering. */
@@ -60,35 +87,52 @@ export async function getDataPoolEntries(
   // makes that row the most recent contributing submission. Empty / null keys
   // are rejected at the WHERE clause so the pool is always materially useful.
   // The LEFT JOIN + IS NULL filter masks submissions excluded from THIS pool.
+  // Window functions compute first-seen / submission-count across the partition
+  // BEFORE DISTINCT ON drops the duplicates, so the picked row carries the full
+  // history of that key.
+  const keyExpr = keyFieldExpr(pool.keyField);
   const result = await db.execute<{
     submission_id: string;
     key_value: string;
+    extracted_email: string | null;
     form_data: Record<string, unknown>;
     submitted_at: Date;
     form_instance_id: string;
+    first_submitted_at: Date;
+    submission_count: number;
   }>(sql`
-    SELECT DISTINCT ON (LOWER(s.form_data->>${pool.keyField}))
-      s.id                          AS submission_id,
-      s.form_data->>${pool.keyField} AS key_value,
-      s.form_data                   AS form_data,
+    SELECT DISTINCT ON (LOWER(${keyExpr}))
+      s.id          AS submission_id,
+      ${keyExpr}    AS key_value,
+      s.email       AS extracted_email,
+      s.form_data   AS form_data,
       s.submitted_at,
-      s.form_instance_id
+      s.form_instance_id,
+      MIN(s.submitted_at) OVER (PARTITION BY LOWER(${keyExpr})) AS first_submitted_at,
+      COUNT(*)            OVER (PARTITION BY LOWER(${keyExpr})) AS submission_count
     FROM submissions s
     LEFT JOIN data_pool_submission_exclusions e
       ON e.submission_id = s.id AND e.data_pool_id = ${poolId}::uuid
     WHERE s.form_instance_id IN (${idList})
       AND s.excluded_from_data_pools = false
       AND e.id IS NULL
-      AND s.form_data->>${pool.keyField} IS NOT NULL
-      AND s.form_data->>${pool.keyField} <> ''
-    ORDER BY LOWER(s.form_data->>${pool.keyField}), s.submitted_at DESC
+      AND ${keyExpr} IS NOT NULL
+      AND ${keyExpr} <> ''
+    ORDER BY LOWER(${keyExpr}), s.submitted_at DESC
   `);
 
   let entries: DataPoolEntry[] = result.rows.map((row) => {
     const additional: Record<string, string> = {};
     for (const field of pool.additionalFields) {
-      const v = row.form_data[field];
-      additional[field] = v == null ? "" : String(v);
+      // Same hoisting trick: if the operator picked an extracted field as an
+      // additional column, surface the dedicated column value when the JSON is
+      // empty. `email` is the typical case.
+      const fromJson = row.form_data[field];
+      let value: unknown = fromJson;
+      if ((value == null || value === "") && field === "email") {
+        value = row.extracted_email;
+      }
+      additional[field] = value == null ? "" : String(value);
     }
     return {
       key: String(row.key_value),
@@ -96,6 +140,8 @@ export async function getDataPoolEntries(
       sourceSubmissionId: row.submission_id,
       sourceFormInstanceId: row.form_instance_id,
       lastSubmittedAt: row.submitted_at,
+      firstSubmittedAt: row.first_submitted_at,
+      submissionCount: Number(row.submission_count),
     };
   });
 

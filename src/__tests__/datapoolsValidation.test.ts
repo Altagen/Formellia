@@ -3,6 +3,7 @@ import {
   createDataPoolSchema,
   updateDataPoolSchema,
   addSubmissionExclusionSchema,
+  yamlDataPoolSchema,
 } from "@/lib/datapools/validation";
 
 const validUuid = "01234567-89ab-4def-8123-456789abcdef";
@@ -69,6 +70,37 @@ describe("updateDataPoolSchema", () => {
 
   it("rejects sources: [] (a pool with zero sources is meaningless)", () => {
     expect(updateDataPoolSchema.safeParse({ sources: [] }).success).toBe(false);
+  });
+});
+
+describe("yamlDataPoolSchema (backup/restore format)", () => {
+  const ok = {
+    slug: "subscribers",
+    name: "Abonnés",
+    keyField: "email",
+    additionalFields: ["firstName"],
+    sources: [{ formSlug: "inscription" }],
+  };
+
+  it("accepts a well-formed pool keyed by form slug", () => {
+    expect(yamlDataPoolSchema.safeParse(ok).success).toBe(true);
+  });
+
+  it("rejects sources missing formSlug (no formInstanceId allowed in YAML)", () => {
+    const bad = { ...ok, sources: [{ formInstanceId: "01234567-89ab-4def-8123-456789abcdef" }] };
+    expect(yamlDataPoolSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("requires at least one source", () => {
+    expect(yamlDataPoolSchema.safeParse({ ...ok, sources: [] }).success).toBe(false);
+  });
+
+  it("accepts a null description", () => {
+    expect(yamlDataPoolSchema.safeParse({ ...ok, description: null }).success).toBe(true);
+  });
+
+  it("rejects a slug with spaces", () => {
+    expect(yamlDataPoolSchema.safeParse({ ...ok, slug: "my pool" }).success).toBe(false);
   });
 });
 

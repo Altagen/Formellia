@@ -16,6 +16,10 @@ export interface DataPoolEntry {
   sourceFormInstanceId: string;
   /** Submission timestamp of the latest contributing submission. */
   lastSubmittedAt: Date;
+  /** Submission timestamp of the FIRST submission that contributed this key. */
+  firstSubmittedAt: Date;
+  /** Total number of submissions across all sources that match this key (before dedup). */
+  submissionCount: number;
 }
 
 /** Pool + its sources + its exclusions, hydrated together. */

@@ -19,8 +19,8 @@ export const createDataPoolSchema = z.object({
   keyField: fieldIdSchema,
   additionalFields: z.array(fieldIdSchema).max(20).default([]),
   sources: z
-    .array(z.object({ formInstanceId: z.string().uuid("formInstanceId doit être un UUID") }))
-    .min(1, "au moins un formulaire source"),
+    .array(z.object({ formInstanceId: z.string().uuid("formInstanceId must be a UUID") }))
+    .min(1, "at least one source form is required"),
 });
 
 export const updateDataPoolSchema = z.object({
@@ -36,10 +36,29 @@ export const updateDataPoolSchema = z.object({
 });
 
 export const addSubmissionExclusionSchema = z.object({
-  submissionId: z.string().uuid("submissionId doit être un UUID"),
+  submissionId: z.string().uuid("submissionId must be a UUID"),
   reason: z.string().max(500).nullable().optional(),
+});
+
+/**
+ * Schema for a single pool inside the backup/restore YAML. Differs from the
+ * runtime `createDataPoolSchema` in one way: sources are referenced by form
+ * **slug** (portable across deployments), not by `formInstanceId` UUID
+ * (deployment-specific). The restore handler resolves the slugs against the
+ * forms that already exist after the `forms` section has been imported.
+ */
+export const yamlDataPoolSchema = z.object({
+  slug: slugSchema,
+  name: z.string().min(1).max(255),
+  description: z.string().max(2000).nullable().optional(),
+  keyField: fieldIdSchema,
+  additionalFields: z.array(fieldIdSchema).max(20).default([]),
+  sources: z
+    .array(z.object({ formSlug: z.string().min(1) }))
+    .min(1, "au moins un formulaire source"),
 });
 
 export type CreateDataPoolInput = z.infer<typeof createDataPoolSchema>;
 export type UpdateDataPoolInput = z.infer<typeof updateDataPoolSchema>;
 export type AddSubmissionExclusionInput = z.infer<typeof addSubmissionExclusionSchema>;
+export type YamlDataPool = z.infer<typeof yamlDataPoolSchema>;
