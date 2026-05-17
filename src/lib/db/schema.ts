@@ -55,6 +55,8 @@ export const users = pgTable("users", {
   recoveryCodes: jsonb("recovery_codes").$type<string[]>(),
   /** Per-user sidebar customization: favorites, pinned forms, custom links, categories. */
   sidebarLayout: jsonb("sidebar_layout").$type<SidebarLayout>(),
+  /** Per-user toggle for the collapsed (icons-only) admin sidebar. */
+  sidebarCollapsed: boolean("sidebar_collapsed").notNull().default(false),
 });
 
 export const sessions = pgTable("sessions", {

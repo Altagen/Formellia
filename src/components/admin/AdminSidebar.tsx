@@ -12,8 +12,9 @@ import {
   Settings2, LogOut,
   LayoutDashboard, Inbox, BarChart2, FileText, Info, Globe, User, ClipboardList,
   Link2, ChevronDown, ChevronRight, Pencil, Plus, Trash2, Check, X, FolderPlus,
-  Database, Mail,
+  Database, Mail, ChevronsLeft, ChevronsRight,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   DndContext, DragOverlay, MouseSensor, TouchSensor, KeyboardSensor,
@@ -310,13 +311,14 @@ interface AdminSidebarProps {
   features?: AdminFeatures;
   branding?: AdminBrandingConfig;
   initialSidebarLayout?: SidebarLayout | null;
+  initialSidebarCollapsed?: boolean;
   pinnedFormMeta?: { id: string; name: string; slug: string }[];
   onClose?: () => void;
 }
 
 export function AdminSidebar({
   userEmail, pages = [], features, branding,
-  initialSidebarLayout, pinnedFormMeta = [], onClose,
+  initialSidebarLayout, initialSidebarCollapsed = false, pinnedFormMeta = [], onClose,
 }: AdminSidebarProps) {
   const pathname = usePathname();
   const { themeMode } = useUserPreferences();
@@ -337,6 +339,24 @@ export function AdminSidebar({
 
   // View UI state
   const [viewCollapsed, setViewCollapsed] = useState<Record<string, boolean>>({});
+
+  // Whole-sidebar collapsed mode (icons-only). Hydrated from the user row, then
+  // mirrored on click + persisted to /api/admin/account/preferences. Per-user,
+  // not localStorage — survives device changes.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(initialSidebarCollapsed);
+  const toggleCollapsed = useCallback(async () => {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    try {
+      await fetch("/api/admin/account/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sidebarCollapsed: next }),
+      });
+    } catch {
+      // Silent — the optimistic toggle stays for this session even if persist fails.
+    }
+  }, [sidebarCollapsed]);
 
   // Pre-drag snapshot for cancel/revert
   const preDragLayoutRef = useRef<SidebarLayout | null>(null);
@@ -764,6 +784,124 @@ export function AdminSidebar({
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  // Icon-only collapsed view — short-circuits the full sidebar. Hides the
+  // pinned categories and the edit-mode entirely (operators expand the
+  // sidebar to reorganise). Main nav links and the user/logout actions
+  // become Tooltip-wrapped icon buttons.
+  if (sidebarCollapsed) {
+    const iconLinkBase = "flex items-center justify-center w-9 h-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors";
+    const iconLinkActive = "bg-accent text-accent-foreground";
+    return (
+      <TooltipProvider delayDuration={120}>
+        <aside className="flex flex-col w-14 shrink-0 h-screen border-r border-border bg-card overflow-hidden items-center">
+          {/* Brand (logo only) */}
+          <Link href="/admin" className="flex items-center justify-center h-14 w-full shrink-0 border-b border-border hover:opacity-80 transition-opacity">
+            {logoUrl ? (
+              <Image src={logoUrl} alt={appName} width={28} height={28} unoptimized
+                style={{ width: "28px", height: "28px", objectFit: "contain" }} />
+            ) : (
+              <Image src="/formellia-logo-transparent.png" alt={appName} width={28} height={28}
+                style={{ width: "28px", height: "28px" }} />
+            )}
+          </Link>
+
+          {/* Main nav — icons with tooltips */}
+          <nav className="flex-1 w-full overflow-y-auto py-2 flex flex-col items-center gap-1">
+            {features?.globalView && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/admin/global" onClick={onClose} aria-label={tr.admin.nav.globalView}
+                    className={cn(iconLinkBase, isActive("/admin/global") && iconLinkActive)}>
+                    <Globe className="w-4 h-4" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{tr.admin.nav.globalView}</TooltipContent>
+              </Tooltip>
+            )}
+            {role !== "viewer" && role !== "agent" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/admin/datapools" onClick={onClose} aria-label="DataPools"
+                    className={cn(iconLinkBase, isActive("/admin/datapools") && iconLinkActive)}>
+                    <Database className="w-4 h-4" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">DataPools</TooltipContent>
+              </Tooltip>
+            )}
+            {role !== "viewer" && role !== "agent" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/admin/email/broadcasts" onClick={onClose} aria-label={tr.admin.email.navLabel}
+                    className={cn(iconLinkBase, isActive("/admin/email") && iconLinkActive)}>
+                    <Mail className="w-4 h-4" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{tr.admin.email.navLabel}</TooltipContent>
+              </Tooltip>
+            )}
+            {role !== "viewer" && role !== "agent" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/admin/configuration" onClick={onClose} aria-label={tr.admin.nav.configuration}
+                    className={cn(iconLinkBase, isActive("/admin/configuration") && iconLinkActive)}>
+                    <Settings2 className="w-4 h-4" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{tr.admin.nav.configuration}</TooltipContent>
+              </Tooltip>
+            )}
+            {features?.auditLog && role !== "viewer" && role !== "agent" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/admin/audit" onClick={onClose} aria-label={tr.admin.nav.auditLog}
+                    className={cn(iconLinkBase, isActive("/admin/audit") && iconLinkActive)}>
+                    <ClipboardList className="w-4 h-4" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{tr.admin.nav.auditLog}</TooltipContent>
+              </Tooltip>
+            )}
+          </nav>
+
+          {/* Bottom — profile, logout, expand */}
+          <div className="border-t border-border w-full py-2 flex flex-col items-center gap-1 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/admin/profile" onClick={onClose} aria-label={tr.admin.nav.profile}
+                  className={cn(iconLinkBase, "relative", isActive("/admin/profile") && iconLinkActive)}>
+                  <User className="w-4 h-4" />
+                  {(!hasEmail || !hasRecoveryCodes) && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-orange-500" />}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">{tr.admin.nav.profile}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <form action="/api/auth/logout" method="POST">
+                  <button type="submit" aria-label={tr.admin.nav.logout}
+                    className={cn(iconLinkBase, "text-destructive hover:bg-destructive/10")}>
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </form>
+              </TooltipTrigger>
+              <TooltipContent side="right">{tr.admin.nav.logout}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onClick={toggleCollapsed} aria-label={tr.admin.nav.expand}
+                  className={iconLinkBase}>
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{tr.admin.nav.expand}</TooltipContent>
+            </Tooltip>
+          </div>
+        </aside>
+      </TooltipProvider>
+    );
+  }
+
   return (
     <aside className="flex flex-col w-56 shrink-0 h-screen border-r border-border bg-card overflow-hidden">
 
@@ -1066,6 +1204,10 @@ export function AdminSidebar({
             <LogOut className="w-4 h-4" /><span>{tr.admin.nav.logout}</span>
           </button>
         </form>
+        <button type="button" onClick={toggleCollapsed}
+          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer">
+          <ChevronsLeft className="w-4 h-4" /><span>{tr.admin.nav.collapse}</span>
+        </button>
       </div>
     </aside>
   );

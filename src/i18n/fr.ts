@@ -82,6 +82,8 @@ export const fr = {
       auditLog: "Journal d'audit",
       profile: "Mon compte",
       logout: "Déconnexion",
+      collapse: "Réduire la barre latérale",
+      expand: "Étendre la barre latérale",
     },
     dashboard: {
       allSubmissionsBanner: "Cette page mélange les soumissions de tous les formulaires. Liez-la à un formulaire spécifique (ou à une source externe) dans Admin → Configuration → Pages pour la cibler.",

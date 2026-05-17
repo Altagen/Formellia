@@ -22,11 +22,12 @@ interface AdminShellProps {
   initialColorPreset: string;
   initialLocale: Locale;
   initialSidebarLayout?: SidebarLayout | null;
+  initialSidebarCollapsed?: boolean;
   pinnedFormMeta?: { id: string; name: string; slug: string }[];
   children: React.ReactNode;
 }
 
-export function AdminShell({ userEmail, pages, features, branding, initialThemeMode, initialColorPreset, initialLocale, initialSidebarLayout, pinnedFormMeta, children }: AdminShellProps) {
+export function AdminShell({ userEmail, pages, features, branding, initialThemeMode, initialColorPreset, initialLocale, initialSidebarLayout, initialSidebarCollapsed = false, pinnedFormMeta, children }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const appName = branding?.appName || "Formellia";
   const { hasEmail, hasRecoveryCodes } = useUserCtx();
@@ -97,6 +98,7 @@ export function AdminShell({ userEmail, pages, features, branding, initialThemeM
             features={features}
             branding={branding}
             initialSidebarLayout={initialSidebarLayout}
+            initialSidebarCollapsed={initialSidebarCollapsed}
             pinnedFormMeta={pinnedFormMeta}
             onClose={() => setSidebarOpen(false)}
           />

@@ -84,6 +84,8 @@ export const en: TranslationKeys = {
       auditLog: "Audit log",
       profile: "My account",
       logout: "Log out",
+      collapse: "Collapse sidebar",
+      expand: "Expand sidebar",
     },
     dashboard: {
       allSubmissionsBanner: "This page mixes submissions from every form. Bind it to a specific form (or external source) in Admin → Configuration → Pages to scope it.",
