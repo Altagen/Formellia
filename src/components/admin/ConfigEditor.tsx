@@ -7,6 +7,7 @@ import type { FormConfig } from "@/types/config";
 import type { FormInstance } from "@/types/formInstance";
 import { FormsTab } from "@/components/admin/config/FormsTab";
 import { ViewsTab } from "@/components/admin/config/ViewsTab";
+import { DataPoolsTab } from "@/components/admin/config/DataPoolsTab";
 import { DangerZoneTab } from "@/components/admin/config/DangerZoneTab";
 import { DataSourcesTab } from "@/components/admin/config/DataSourcesTab";
 import { ScheduledJobsTab } from "@/components/admin/config/ScheduledJobsTab";
@@ -25,7 +26,7 @@ interface ConfigEditorProps {
   initialTab?: string;
 }
 
-const ALL_TAB_IDS = ["general", "forms", "pages", "sources", "taches", "backup", "danger", "administration"] as const;
+const ALL_TAB_IDS = ["general", "forms", "pages", "datapools", "sources", "taches", "backup", "danger", "administration"] as const;
 type TabId = (typeof ALL_TAB_IDS)[number];
 
 export function ConfigEditor({ config, formInstances = [], admins = [], initialTab }: ConfigEditorProps) {
@@ -46,6 +47,7 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
       { id: "forms" as const, label: cfg.tabs.forms },
       { id: "pages" as const, label: cfg.tabs.views },
       ...(adminOnly ? [
+        { id: "datapools" as const,      label: cfg.tabs.dataPools },
         { id: "general" as const,        label: cfg.tabs.general },
         { id: "sources" as const,        label: cfg.tabs.sources },
         { id: "taches" as const,         label: cfg.tabs.jobs },
@@ -261,12 +263,16 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
             formSteps={visibleFormInstances.flatMap(inst => inst.config?.form?.steps ?? [])}
             formInstances={visibleFormInstances}
             features={draft.admin.features}
-            exclusionReasons={draft.admin.exclusionReasons}
             onChangeViews={(views) => setDraft({ ...draft, admin: { ...draft.admin, views } })}
             onChangeDefault={(defaultView) => setDraft({ ...draft, admin: { ...draft.admin, defaultView } })}
             tableColumns={draft.admin.tableColumns}
             onChangeColumns={(tableColumns) => setDraft({ ...draft, admin: { ...draft.admin, tableColumns } })}
             onChangeFeatures={(features) => setDraft({ ...draft, admin: { ...draft.admin, features } })}
+          />
+        )}
+        {activeTab === "datapools" && (
+          <DataPoolsTab
+            exclusionReasons={draft.admin.exclusionReasons}
             onChangeExclusionReasons={(exclusionReasons) => setDraft({ ...draft, admin: { ...draft.admin, exclusionReasons } })}
           />
         )}
