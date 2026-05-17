@@ -20,7 +20,7 @@ import type { FormInstance } from "@/types/formInstance";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Star, X, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Star, X, Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import { stepsForPage } from "@/lib/dashboard/scopedFields";
 
@@ -186,6 +186,24 @@ export function ViewsTab({ views: pages, defaultView: defaultPage, tableColumns,
 
   const [expandedPageId, setExpandedPageId] = useState<string | null>(pages[0]?.id ?? null);
   const [expandedWidgetId, setExpandedWidgetId] = useState<string | null>(null);
+
+  // Sync the selected view with `location.hash` so refresh + bookmark + back-button
+  // preserve which view the operator was editing. Hash format: #view-<id>. Hash
+  // is the right URL slice for this: it doesn't trigger a navigation event and
+  // doesn't conflict with the configuration tab's existing `?tab=` query param.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const m = window.location.hash.match(/^#view-(.+)$/);
+    if (m && pages.some(pg => pg.id === m[1])) setExpandedPageId(m[1]);
+    // Intentionally mount-only — we don't want the hash to drive subsequent
+    // re-renders, only seed the initial state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const next = expandedPageId ? `#view-${expandedPageId}` : window.location.pathname + window.location.search;
+    history.replaceState(null, "", next);
+  }, [expandedPageId]);
   const [datasets, setDatasets] = useState<ExternalDataset[]>([]);
   // Cache of dataset field keys by dataSourceId
   const [dataSourceFields, setDataSourceFields] = useState<Record<string, string[]>>({});
@@ -407,111 +425,143 @@ export function ViewsTab({ views: pages, defaultView: defaultPage, tableColumns,
         />
       </div>
 
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">{p.dashboardViews}</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            {p.dashboardViewsDesc}
-            {pages.length >= 10 && <span className="text-destructive ml-1">{p.maxViews}</span>}
-          </p>
-        </div>
-        <Button type="button" size="sm" onClick={addView} disabled={pages.length >= 10} className="gap-1.5 shrink-0">
-          <Plus className="w-4 h-4" />
-          {p.addView}
-        </Button>
-      </div>
+      {/* Master/detail layout: rail on the left (scope), editor on the right.
+          The rail-only view scales down nicely on mobile — when a view is
+          selected, the rail hides and the editor takes the full width with a
+          "Back" button to return. */}
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] border border-border rounded-xl bg-card overflow-hidden min-h-[480px]">
 
-{pages.length === 0 && (
-        <div className="text-center py-10 border-2 border-dashed rounded-xl text-sm text-muted-foreground">
-          {p.noViewsYet}
-        </div>
-      )}
+        {/* ── Rail ───────────────────────────────────────────────────────── */}
+        <aside className={cn("md:border-r border-border flex-col", expandedPageId ? "hidden md:flex" : "flex")}>
+          <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border shrink-0">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-foreground truncate">{p.dashboardViews}</h2>
+              {pages.length >= 10 && (
+                <p className="text-xs text-destructive mt-0.5">{p.maxViews}</p>
+              )}
+            </div>
+            <Button type="button" size="sm" onClick={addView} disabled={pages.length >= 10} className="gap-1.5 shrink-0">
+              <Plus className="w-3.5 h-3.5" />
+              {p.addView}
+            </Button>
+          </div>
 
-      <div className="space-y-2">
-        {pages.map((page, i) => {
-          const isPageExpanded = expandedPageId === page.id;
-          const isDefault = defaultPage === page.slug;
-          const dsFields = page.dataSourceId ? (dataSourceFields[page.dataSourceId] ?? []) : [];
-          const isExternal = !!page.dataSourceId && dsFields.length > 0;
-          const dsFieldValues = isExternal ? (dataSourceFieldValues[page.dataSourceId!] ?? {}) : {};
-          const isAllSubmissions = !page.formInstanceId && !page.dataSourceId && !page.dataPoolId;
-          const isPoolSource     = !!page.dataPoolId;
-          // Native form fields scoped to THIS page's form (or all forms for an
-          // "all submissions" page) — drives the column/filter pickers below.
-          // For pool-bound pages, synthesise a single step from the pool's
-          // keyField + additionalFields so the pickers don't fall back to
-          // every form's fields (which would collide on duplicate ids).
-          const boundPool = isPoolSource ? pools.find(po => po.id === page.dataPoolId) : undefined;
-          const pageFormSteps: StepDef[] = boundPool
-            ? [{
-                id: "pool-fields",
-                title: boundPool.name,
-                fields: [
-                  { id: boundPool.keyField, type: "text", label: boundPool.keyField, required: false },
-                  ...boundPool.additionalFields
-                    // De-dup defensively: if the pool config ever has keyField
-                    // inside additionalFields too, the synthetic step would
-                    // double-list it.
-                    .filter(f => f !== boundPool.keyField)
-                    .map(f => ({ id: f, type: "text" as const, label: f, required: false })),
-                ],
-              }]
-            : stepsForPage(page, formInstances, formSteps);
-          const pageNativeFields = pageFormSteps.flatMap(s => s.fields).filter(f => f.type !== "section_header");
-          const pageNativeFieldValues = nativeFieldValuesFor(pageFormSteps);
-          // Build groupBy options: dataset fields when external, scoped form fields otherwise
-          const builtinKeys = new Set(["date", "status"]);
-          const pageGroupByOptions = isExternal
-            ? [
-                { value: "date",   label: "Date" },
-                { value: "status", label: w.groupStatus },
-                ...dsFields.filter(k => !builtinKeys.has(k)).map(k => ({ value: k, label: formatFieldKey(k) })),
-              ]
-            : [
-                { value: "date",     label: w.groupDate },
-                { value: "status",   label: w.groupStatus },
-                { value: "priority", label: w.groupPriority },
-                ...pageNativeFields.map(f => ({ value: f.dbKey ?? f.id, label: f.label })),
-              ];
+          {pages.length === 0 ? (
+            <div className="flex-1 p-8 text-center text-xs text-muted-foreground">
+              {p.noViewsYet}
+            </div>
+          ) : (
+            <ul className="flex-1 overflow-y-auto p-2 space-y-1">
+              {pages.map((page, i) => {
+                const isSelected = expandedPageId === page.id;
+                const isDefault  = defaultPage === page.slug;
+                return (
+                  <li key={page.id} data-view-id={page.id}>
+                    <div className={cn(
+                      "group flex items-stretch rounded-md transition-colors",
+                      isSelected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-accent/50"
+                    )}>
+                      <div className="flex flex-col justify-center gap-0.5 pl-1.5 py-1 shrink-0">
+                        <button type="button" onClick={() => movePage(page.id, "up")} disabled={i === 0}
+                          className={cn("w-5 h-4 flex items-center justify-center rounded hover:text-foreground hover:bg-accent disabled:opacity-20 transition-colors", isSelected ? "text-primary/60" : "text-muted-foreground")}>
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button type="button" onClick={() => movePage(page.id, "down")} disabled={i === pages.length - 1}
+                          className={cn("w-5 h-4 flex items-center justify-center rounded hover:text-foreground hover:bg-accent disabled:opacity-20 transition-colors", isSelected ? "text-primary/60" : "text-muted-foreground")}>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <button type="button" onClick={() => { setExpandedPageId(isSelected ? null : page.id); setExpandedWidgetId(null); }}
+                        className="flex-1 min-w-0 text-left px-2 py-2">
+                        <p className={cn("text-sm font-medium truncate", isSelected && "text-primary")}>{page.title}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">/admin/{page.slug} · {page.widgets.length} widget{page.widgets.length !== 1 ? "s" : ""}</p>
+                      </button>
+                      <div className="flex items-center gap-0.5 pr-1.5 shrink-0">
+                        {isDefault ? (
+                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium" title={p.defaultLabel}>★</span>
+                        ) : (
+                          <button type="button" onClick={() => onChangeDefault(page.slug)} title={p.setDefault}
+                            className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-amber-500 hover:bg-accent opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity">
+                            <Star className="w-3 h-3" />
+                          </button>
+                        )}
+                        <button type="button" onClick={() => deletePage(page.id)} disabled={pages.length <= 1} title={p.delete}
+                          className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-20 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-          return (
-            <div key={page.id} data-view-id={page.id} className={cn("rounded-xl border transition-all", isPageExpanded ? "border-primary/50 ring-1 ring-primary/20" : "border-border")}>
-              {/* Page header */}
-              <div className={cn("flex items-center gap-2 px-3 py-2.5 rounded-t-xl transition-colors", isPageExpanded && "bg-primary/[0.04]")}>
-                <div className="flex flex-col gap-0.5 shrink-0">
-                  <button type="button" onClick={() => movePage(page.id, "up")} disabled={i === 0}
-                    className={cn("w-6 h-6 flex items-center justify-center rounded hover:text-foreground hover:bg-accent disabled:opacity-20 transition-colors", isPageExpanded ? "text-primary/60" : "text-muted-foreground")}>
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  </button>
-                  <button type="button" onClick={() => movePage(page.id, "down")} disabled={i === pages.length - 1}
-                    className={cn("w-6 h-6 flex items-center justify-center rounded hover:text-foreground hover:bg-accent disabled:opacity-20 transition-colors", isPageExpanded ? "text-primary/60" : "text-muted-foreground")}>
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
+          <div className="px-3 py-2 border-t border-border shrink-0">
+            <p className="text-[11px] text-muted-foreground leading-snug">{p.dashboardViewsDesc}</p>
+          </div>
+        </aside>
+
+        {/* ── Detail (editor for the selected view) ──────────────────────── */}
+        <section className={cn("min-w-0 overflow-y-auto", expandedPageId ? "block" : "hidden md:block")}>
+          {(() => {
+            const page = pages.find(pg => pg.id === expandedPageId);
+            if (!page) {
+              return (
+                <div className="h-full flex items-center justify-center p-12 text-center text-sm text-muted-foreground">
+                  {p.viewsNoSelection}
                 </div>
+              );
+            }
+            // Derived data scoped to the selected view only — same logic as the
+            // pre-master/detail code, but computed once instead of per-page.
+            const dsFields = page.dataSourceId ? (dataSourceFields[page.dataSourceId] ?? []) : [];
+            const isExternal = !!page.dataSourceId && dsFields.length > 0;
+            const dsFieldValues = isExternal ? (dataSourceFieldValues[page.dataSourceId!] ?? {}) : {};
+            const isAllSubmissions = !page.formInstanceId && !page.dataSourceId && !page.dataPoolId;
+            const isPoolSource     = !!page.dataPoolId;
+            // For pool-bound views, synthesise a single step from the pool's
+            // keyField + additionalFields so the pickers don't fall back to
+            // every form's fields (which would collide on duplicate ids).
+            const boundPool = isPoolSource ? pools.find(po => po.id === page.dataPoolId) : undefined;
+            const pageFormSteps: StepDef[] = boundPool
+              ? [{
+                  id: "pool-fields",
+                  title: boundPool.name,
+                  fields: [
+                    { id: boundPool.keyField, type: "text", label: boundPool.keyField, required: false },
+                    ...boundPool.additionalFields
+                      .filter(f => f !== boundPool.keyField)
+                      .map(f => ({ id: f, type: "text" as const, label: f, required: false })),
+                  ],
+                }]
+              : stepsForPage(page, formInstances, formSteps);
+            const pageNativeFields = pageFormSteps.flatMap(s => s.fields).filter(f => f.type !== "section_header");
+            const pageNativeFieldValues = nativeFieldValuesFor(pageFormSteps);
+            const builtinKeys = new Set(["date", "status"]);
+            const pageGroupByOptions = isExternal
+              ? [
+                  { value: "date",   label: "Date" },
+                  { value: "status", label: w.groupStatus },
+                  ...dsFields.filter(k => !builtinKeys.has(k)).map(k => ({ value: k, label: formatFieldKey(k) })),
+                ]
+              : [
+                  { value: "date",     label: w.groupDate },
+                  { value: "status",   label: w.groupStatus },
+                  { value: "priority", label: w.groupPriority },
+                  ...pageNativeFields.map(f => ({ value: f.dbKey ?? f.id, label: f.label })),
+                ];
 
-                <button type="button" onClick={() => { setExpandedPageId(isPageExpanded ? null : page.id); setExpandedWidgetId(null); }} className="flex-1 min-w-0 text-left">
-                  <p className={cn("text-sm font-medium truncate", isPageExpanded ? "text-primary" : "text-foreground")}>{page.title}</p>
-                  <p className="text-xs text-muted-foreground font-mono">/admin/{page.slug} · {page.widgets.length} widget{page.widgets.length !== 1 ? "s" : ""}</p>
+            return (
+              <div data-view-id={page.id}>
+                {/* Mobile back button — returns to the rail */}
+                <button type="button" onClick={() => { setExpandedPageId(null); setExpandedWidgetId(null); }}
+                  className="md:hidden flex items-center gap-1.5 w-full px-4 py-2 text-sm text-muted-foreground border-b border-border hover:text-foreground hover:bg-accent/30 transition-colors">
+                  <ChevronLeft className="w-4 h-4" />
+                  {p.viewsBackToList}
                 </button>
 
-                {isDefault && (
-                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium shrink-0">{p.defaultLabel}</span>
-                )}
-                {!isDefault && (
-                  <button type="button" onClick={() => onChangeDefault(page.slug)} title={p.setDefault}
-                    className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-amber-500 hover:bg-accent transition-colors shrink-0">
-                    <Star className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <button type="button" onClick={() => deletePage(page.id)} disabled={pages.length <= 1}
-                  className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-20 transition-colors shrink-0">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Expanded page editor */}
-              {isPageExpanded && (
-                <div className="border-t border-border/60 px-4 py-4 space-y-4 bg-muted/20 rounded-b-xl">
+                <div className="px-4 py-4 space-y-4">
                   {/* Title + slug */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -818,10 +868,10 @@ export function ViewsTab({ views: pages, defaultView: defaultPage, tableColumns,
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })()}
+        </section>
       </div>
     </div>
   );

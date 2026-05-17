@@ -1857,6 +1857,8 @@ export const fr = {
         dashboardViews: "Vues du dashboard admin",
         dashboardViewsDesc: "Chaque vue apparaît dans la navigation. Vous pouvez y mettre les widgets de votre choix.",
         maxViews: "Maximum 10 vues atteint.",
+        viewsNoSelection: "Sélectionnez une vue à gauche pour l'éditer.",
+        viewsBackToList: "Retour aux vues",
         autoRefresh: "Rafraîchissement auto",
         refreshDisabled: "Désactivé",
         refreshEvery30s: "Toutes les 30 secondes",
