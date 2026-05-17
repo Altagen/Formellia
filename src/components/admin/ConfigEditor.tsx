@@ -110,12 +110,17 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
         return false;
       }
       if (opts.reload) {
-        // Hard reload preserves the current tab via querystring — `router.replace`
-        // doesn't always flush before `location.reload` under Next 16 + Turbopack.
+        // Hard reload — preserves the current tab and uses a cache-buster
+        // querystring so the browser actually re-fetches instead of serving
+        // the prior /admin/configuration HTML from disk cache. Without this
+        // the operator sees stale views (the destructive PUT lands, the DB
+        // is correct, but the reloaded page shows the pre-delete state and
+        // a Ctrl+Shift+R is needed to get a fresh response).
         if (toastId) toast.dismiss(toastId);
         sessionStorage.setItem("config-just-saved", "1");
         const url = new URL(window.location.href);
         url.searchParams.set("tab", activeTab);
+        url.searchParams.set("_r", String(Date.now()));
         window.location.replace(url.toString());
       } else {
         // Refresh the layout server components (admin sidebar, etc.) without
@@ -135,8 +140,11 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
   }, [cfg, activeTab, router]);
 
   const handleSave = useCallback(() => {
-    void persistDraft(draft, { reload: true, toastLabel: cfg.toasts.saving });
-  }, [draft, cfg, persistDraft]);
+    // Use the ref, not the closure-captured draft — fast successive actions
+    // (Add view + immediate Save) would otherwise PUT a stale snapshot from
+    // the render where this callback was last instantiated.
+    void persistDraft(draftRef.current, { reload: true, toastLabel: cfg.toasts.saving });
+  }, [cfg, persistDraft]);
 
   // Keep a ref to the latest draft so consecutive instant commits in the same
   // event handler all build from the freshest state (setDraft is async, so the
