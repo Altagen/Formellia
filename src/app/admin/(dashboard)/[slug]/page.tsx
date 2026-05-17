@@ -37,9 +37,58 @@ export default async function AdminDynamicPage({ params }: Props) {
   let initialSubmissions: Submission[] | undefined;
   let instanceThresholds = DEFAULT_THRESHOLDS;
   let instanceColorPreset: string | undefined;
+  let orphanedPoolId: string | undefined;
 
   if (needsData) {
-    if (page.dataSourceId) {
+    if (page.dataPoolId) {
+      // DataPool source: compute the deduplicated entries server-side and
+      // synthesise Submission-shaped rows so the existing widgets render
+      // unchanged. Each entry's key + additional fields become formData;
+      // lastSubmittedAt becomes submittedAt; submissionCount + firstSubmittedAt
+      // travel through formData so widgets can expose them as columns.
+      const { getDataPool } = await import("@/lib/datapools/crud");
+      const { getDataPoolEntries } = await import("@/lib/datapools/compute");
+      const pool = await getDataPool(page.dataPoolId);
+      if (!pool) {
+        // Page references a deleted/missing pool. Surface a banner so the
+        // operator knows to fix the source binding instead of seeing an
+        // empty page silently.
+        orphanedPoolId = page.dataPoolId;
+      } else {
+        const { entries } = await getDataPoolEntries(page.dataPoolId);
+        initialSubmissions = entries.map(e => ({
+          id:              e.sourceSubmissionId,
+          formInstanceId:  e.sourceFormInstanceId,
+          email:           pool.keyField === "email" ? e.key : (e.additional.email ?? null),
+          formData:        { [pool.keyField]: e.key, ...e.additional, _submissionCount: e.submissionCount, _firstSubmittedAt: e.firstSubmittedAt.toISOString() },
+          submittedAt:     e.lastSubmittedAt,
+          createdAt:       e.firstSubmittedAt,
+          updatedAt:       e.lastSubmittedAt,
+          ipHash:          null,
+          status:          null,
+          priority:        null,
+          dueDate:         null,
+          receivedAt:      null,
+          assignedToId:    null,
+          excludedFromDataPools: false,
+        }) as unknown as Submission);
+
+        // Synthesise a single-step formSteps so column pickers + table headers
+        // see the pool's keyField + additionalFields. Pool entries never have
+        // urgency/dueDate, so step metadata stays minimal.
+        formSteps = [{
+          id:    "pool-fields",
+          title: pool.name,
+          fields: [
+            { id: pool.keyField, type: "text", label: pool.keyField, required: false },
+            ...pool.additionalFields.map(f => ({
+              id: f, type: "text" as const, label: f, required: false,
+            })),
+          ],
+        }];
+        formInstanceId = undefined;          // table widget hits initialSubmissions directly
+      }
+    } else if (page.dataSourceId) {
       // External dataset: fetch all records server-side (used for both charts and table)
       const records = await db
         .select()
@@ -96,7 +145,7 @@ export default async function AdminDynamicPage({ params }: Props) {
   // banner so the operator sees at a glance that the table mixes submissions
   // from every form — a behaviour the page editor warns about but that's
   // easy to forget once the page is saved and being viewed day-to-day.
-  const isAllSubmissionsMode = !page.formInstanceId && !page.dataSourceId && !page.flattenRepeater;
+  const isAllSubmissionsMode = !page.formInstanceId && !page.dataSourceId && !page.dataPoolId && !page.flattenRepeater;
   const tr = getTranslations(config.locale);
 
   return (
@@ -111,6 +160,11 @@ export default async function AdminDynamicPage({ params }: Props) {
             ⚠ {tr.admin.dashboard.allSubmissionsBanner}
           </div>
         )}
+        {orphanedPoolId && (
+          <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-900 dark:text-red-200">
+            ⚠ {tr.admin.dashboard.orphanPoolBanner.replace("{id}", orphanedPoolId)}
+          </div>
+        )}
 
         <DashboardView
           formInstanceId={formInstanceId}
@@ -122,7 +176,7 @@ export default async function AdminDynamicPage({ params }: Props) {
           otherWidgets={otherWidgets}
           tableWidget={tableWidget?.type === "submissions_table" ? tableWidget : undefined}
           hasTable={hasTable}
-          isExternalSource={!!page.dataSourceId || !!page.flattenRepeater}
+          isExternalSource={!!page.dataSourceId || !!page.flattenRepeater || !!page.dataPoolId}
           interactiveFilter={page.interactiveFilter ?? false}
           currentUserEmail={currentUser?.email ?? undefined}
         />

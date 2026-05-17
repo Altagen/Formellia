@@ -87,6 +87,7 @@ export const en: TranslationKeys = {
     },
     dashboard: {
       allSubmissionsBanner: "This page mixes submissions from every form. Bind it to a specific form (or external source) in Admin → Configuration → Pages to scope it.",
+      orphanPoolBanner: "The DataPool bound to this page ({id}) no longer exists. Change the source in Admin → Configuration → Pages.",
     },
     datapool: {
       navLabel: "DataPools",
@@ -1870,9 +1871,11 @@ export const en: TranslationKeys = {
         sourceLabel: "Source:",
         allSubmissions: "All submissions",
         byForm: "By form",
+        byDataPool: "By DataPool",
         externalSources: "External sources",
         filterFormOnly: "Filters submissions of this form only.",
         filterExternalOnly: "Widgets will display data from this external source.",
+        filterPoolOnly: "Deduplicated view — pool entries feed the widgets.",
         filterAllForms: "⚠ Shows submissions from every form. Pick a form above to scope this page.",
         funnelToggleLabel: "Completion funnel",
         funnelToggleDesc: "Shows the step-by-step completion rate below the widgets.",

@@ -85,6 +85,7 @@ export const fr = {
     },
     dashboard: {
       allSubmissionsBanner: "Cette page mélange les soumissions de tous les formulaires. Liez-la à un formulaire spécifique (ou à une source externe) dans Admin → Configuration → Pages pour la cibler.",
+      orphanPoolBanner: "La DataPool source de cette page ({id}) n'existe plus. Modifiez la source dans Admin → Configuration → Pages.",
     },
     datapool: {
       navLabel: "DataPools",
@@ -1878,9 +1879,11 @@ export const fr = {
         sourceLabel: "Source :",
         allSubmissions: "Toutes les soumissions",
         byForm: "Par formulaire",
+        byDataPool: "Par DataPool",
         externalSources: "Sources externes",
         filterFormOnly: "Filtre les soumissions de ce formulaire uniquement.",
         filterExternalOnly: "Les widgets afficheront les données de cette source externe.",
+        filterPoolOnly: "Vue dédupliquée — les entries du pool alimentent les widgets.",
         filterAllForms: "⚠ Affiche les soumissions de tous les formulaires. Choisissez un formulaire ci-dessus pour cloisonner.",
         funnelToggleLabel: "Funnel de complétion",
         funnelToggleDesc: "Affiche le taux d'avancement étape par étape sous les widgets.",

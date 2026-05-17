@@ -191,11 +191,18 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
   const [dataSourceFields, setDataSourceFields] = useState<Record<string, string[]>>({});
   // Cache of unique values per field per dataSourceId
   const [dataSourceFieldValues, setDataSourceFieldValues] = useState<Record<string, Record<string, string[]>>>({});
+  // DataPools available as a page source (option 4 alongside form / dataset / all).
+  // Shape kept minimal — only what the source dropdown + editor metadata needs.
+  const [pools, setPools] = useState<Array<{ id: string; slug: string; name: string }>>([]);
 
   useEffect(() => {
     fetch("/api/admin/datasets")
       .then(r => r.ok ? r.json() : [])
       .then(setDatasets)
+      .catch(() => {});
+    fetch("/api/admin/datapools")
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: Array<{ id: string; slug: string; name: string }>) => setPools(rows))
       .catch(() => {});
   }, []);
 
@@ -417,7 +424,8 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
           const dsFields = page.dataSourceId ? (dataSourceFields[page.dataSourceId] ?? []) : [];
           const isExternal = !!page.dataSourceId && dsFields.length > 0;
           const dsFieldValues = isExternal ? (dataSourceFieldValues[page.dataSourceId!] ?? {}) : {};
-          const isAllSubmissions = !page.formInstanceId && !page.dataSourceId;
+          const isAllSubmissions = !page.formInstanceId && !page.dataSourceId && !page.dataPoolId;
+          const isPoolSource     = !!page.dataPoolId;
           // Native form fields scoped to THIS page's form (or all forms for an
           // "all submissions" page) — drives the column/filter pickers below.
           const pageFormSteps = stepsForPage(page, formInstances, formSteps);
@@ -509,23 +517,27 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                     </div>
                   </div>
 
-                  {/* Data source selector (3 options: all native, external dataset, form instance) */}
+                  {/* Data source selector (4 options: all native, form, DataPool, external dataset) */}
                   <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
                     <label className="text-xs font-medium text-muted-foreground shrink-0">{p.sourceLabel}</label>
                     <select
                       value={
-                        page.formInstanceId
-                          ? `form:${page.formInstanceId}`
-                          : page.dataSourceId ?? ""
+                        page.formInstanceId   ? `form:${page.formInstanceId}` :
+                        page.dataPoolId       ? `pool:${page.dataPoolId}`     :
+                                                page.dataSourceId ?? ""
                       }
                       onChange={e => {
                         const v = e.target.value;
+                        // Clear the other source fields so only one is set at a time —
+                        // server renderer + restoreFromYaml both assume mutual exclusion.
                         if (v === "") {
-                          updatePage(page.id, { dataSourceId: undefined, formInstanceId: undefined });
+                          updatePage(page.id, { dataSourceId: undefined, formInstanceId: undefined, dataPoolId: undefined });
                         } else if (v.startsWith("form:")) {
-                          updatePage(page.id, { dataSourceId: undefined, formInstanceId: v.slice(5) });
+                          updatePage(page.id, { dataSourceId: undefined, formInstanceId: v.slice(5),  dataPoolId: undefined });
+                        } else if (v.startsWith("pool:")) {
+                          updatePage(page.id, { dataSourceId: undefined, formInstanceId: undefined,   dataPoolId: v.slice(5) });
                         } else {
-                          updatePage(page.id, { dataSourceId: v, formInstanceId: undefined });
+                          updatePage(page.id, { dataSourceId: v,         formInstanceId: undefined,   dataPoolId: undefined });
                         }
                       }}
                       className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-[3px] focus:ring-ring/50"
@@ -536,6 +548,15 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                           {formInstances.map(inst => (
                             <option key={inst.id} value={`form:${inst.id}`}>
                               {inst.name} ({inst.slug === "/" ? "/" : `/${inst.slug}`})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {pools.length > 0 && (
+                        <optgroup label={p.byDataPool}>
+                          {pools.map(pool => (
+                            <option key={pool.id} value={`pool:${pool.id}`}>
+                              {pool.name} (/{pool.slug})
                             </option>
                           ))}
                         </optgroup>
@@ -556,6 +577,11 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                     {page.dataSourceId && !page.formInstanceId && (
                       <span className="text-xs text-muted-foreground">
                         {p.filterExternalOnly}
+                      </span>
+                    )}
+                    {isPoolSource && (
+                      <span className="text-xs text-muted-foreground">
+                        {p.filterPoolOnly}
                       </span>
                     )}
                     {isAllSubmissions && (
@@ -746,14 +772,19 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                         </button>
                       ))}
                     </div>
-                    {/* Analytics widgets — only useful when page is scoped to a form instance */}
+                    {/* Analytics widgets — funnel/urgency rely on form-specific notions */}
+                    {/* (step navigation, urgency column, dueDate) that DataPool entries */}
+                    {/* don't carry. We hide them when the page is bound to a pool. */}
                     <div className="flex flex-wrap gap-2">
                       <span className="text-xs text-muted-foreground self-center">{w.analyticsGroup} :</span>
-                      {(["traffic_chart", "email_quality", "urgency_distribution", "funnel_chart"] as WidgetDef["type"][]).map(type => (
-                        <button key={type} type="button" onClick={() => addWidget(page.id, type)}
+                      {(isPoolSource
+                        ? ["traffic_chart", "email_quality"]
+                        : ["traffic_chart", "email_quality", "urgency_distribution", "funnel_chart"]
+                      ).map(type => (
+                        <button key={type} type="button" onClick={() => addWidget(page.id, type as WidgetDef["type"])}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-blue-300 dark:border-blue-800 text-xs text-blue-600 dark:text-blue-400 hover:border-blue-500 transition-colors">
                           <Plus className="w-3 h-3" />
-                          {WIDGET_TYPE_LABELS[type]}
+                          {WIDGET_TYPE_LABELS[type as WidgetDef["type"]]}
                         </button>
                       ))}
                     </div>

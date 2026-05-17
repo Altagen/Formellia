@@ -277,6 +277,15 @@ export interface AdminPage {
   widgets: WidgetDef[];
   dataSourceId?: string;    // option 2: external dataset
   formInstanceId?: string;  // option 3: filter by form instance (id or slug)
+  /**
+   * option 4: bind the page to a DataPool. Pool entries (deduplicated emails
+   * + their additional fields) become synthetic submission rows feeding the
+   * widgets. Mutually exclusive with `dataSourceId` and `formInstanceId` —
+   * only one source per page. Widgets that require form-specific concepts
+   * (step funnel, urgency/deadline columns) are filtered out from the page
+   * editor when this is set.
+   */
+  dataPoolId?: string;
   refreshInterval?: number; // auto-refresh in seconds for this page (0 or undefined = disabled)
   interactiveFilter?: boolean; // clicking a chart segment filters all other widgets on the page
   /** Step-by-step completion funnel shown below the widgets. Defaults to true; set false
