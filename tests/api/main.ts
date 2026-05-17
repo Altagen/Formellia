@@ -2519,13 +2519,29 @@ test("ROOTPAGE-10", "Toggle takes effect immediately, no cache delay", async () 
   // Sequence: ensure false → POST "/" must 409 → PATCH true → POST "/"
   // must 201 → DELETE the created form → PATCH back to false → POST "/"
   // must 409 again. No sleeps, no restarts.
+
+  // The framework's `ensureFormInstancesSeeded` re-creates a "/" form from
+  // form.config.ts whenever form_instances is empty (which happens after
+  // ROOTPAGE-08 deletes the test "/" form and the next GET / triggers the
+  // root layout). That would make the POST below return 409 (slug already
+  // in use) instead of 201, masking the regression we want to detect.
+  // Delete any leftover "/" form right before the toggle-driven asserts.
+  async function deleteRootIfPresent() {
+    const forms = await adminClient.get<Array<Record<string, unknown>>>("/api/admin/forms");
+    const list = Array.isArray(forms.body) ? forms.body : [];
+    const root = list.find(f => f.slug === "/");
+    if (root) await adminClient.delete(`/api/admin/forms/${root.id as string}`);
+  }
+
   await adminClient.patch("/api/admin/app-config", { useCustomRoot: false });
+  await deleteRootIfPresent();
   const before = await adminClient.post<Record<string, unknown>>("/api/admin/forms", {
     slug: "/", name: "Probe (should reject)",
   });
   eq("status before toggle", before.status, 409);
 
   await adminClient.patch("/api/admin/app-config", { useCustomRoot: true });
+  await deleteRootIfPresent();
   const after = await adminClient.post<Record<string, unknown>>("/api/admin/forms", {
     slug: "/", name: "Probe (should accept)",
   });
@@ -2534,6 +2550,7 @@ test("ROOTPAGE-10", "Toggle takes effect immediately, no cache delay", async () 
 
   await adminClient.delete(`/api/admin/forms/${probeId}`);
   await adminClient.patch("/api/admin/app-config", { useCustomRoot: false });
+  await deleteRootIfPresent();
 
   const restored = await adminClient.post<Record<string, unknown>>("/api/admin/forms", {
     slug: "/", name: "Probe (should reject again)",

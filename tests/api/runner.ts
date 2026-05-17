@@ -36,8 +36,11 @@ export function notEq(label: string, actual: unknown, notExpected: unknown) {
 }
 
 export async function runAll(filter = ""): Promise<boolean> {
-  const prefix = filter.toUpperCase();
-  const suite = registry.filter(t => !prefix || t.id.toUpperCase().startsWith(prefix));
+  // Accept a comma-separated list of prefixes: `--filter AUTH,ROOTPAGE`.
+  const prefixes = filter.toUpperCase().split(",").map(s => s.trim()).filter(Boolean);
+  const suite = registry.filter(t =>
+    prefixes.length === 0 || prefixes.some(p => t.id.toUpperCase().startsWith(p))
+  );
 
   console.log(`\n  Running ${suite.length} test(s)…\n`);
 
