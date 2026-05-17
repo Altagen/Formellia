@@ -84,14 +84,14 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
         const data = await res.json().catch(() => ({}));
         toast.error(data.error ?? cfg.toasts.errorStatus.replace("{status}", String(res.status)), { id: toastId });
       } else {
-        toast.success(cfg.toasts.saved, { id: toastId });
-        // router.refresh() alone proved unreliable in Next.js 16 dev with
-        // Turbopack for layout-level changes (e.g. the sidebar's pages list
-        // didn't update without a hard reload). A short delay lets the toast
-        // appear, then we hard-reload so layout + sidebar always reflect the
-        // new state. The operator already committed by clicking Save —
-        // there's no draft state at risk.
-        setTimeout(() => window.location.reload(), 400);
+        // Hard reload so the sidebar's pages list, source dropdowns and any
+        // other layout-level surface always picks up the new state. We
+        // intentionally don't show a "saved" toast — the reload itself is
+        // the unambiguous feedback, and a setTimeout-deferred reload proved
+        // flaky under Next.js 16 + Turbopack (HMR didn't always propagate
+        // the deferred timer to the operator's tab).
+        toast.dismiss(toastId);
+        window.location.reload();
       }
     } catch {
       toast.error(cfg.toasts.networkError, { id: toastId });
