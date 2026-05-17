@@ -1845,6 +1845,8 @@ export const en: TranslationKeys = {
         maxViews: "Maximum of 10 views reached.",
         viewsNoSelection: "Select a view on the left to edit it.",
         viewsBackToList: "Back to views",
+        deleteConfirmTitle: "Delete this view?",
+        deleteConfirmDesc: "\"{title}\" will be removed permanently. Widgets and column configuration attached to it are lost.",
         autoRefresh: "Auto-refresh",
         refreshDisabled: "Disabled",
         refreshEvery30s: "Every 30 seconds",

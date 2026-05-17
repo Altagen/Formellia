@@ -1854,6 +1854,8 @@ export const fr = {
         maxViews: "Maximum 10 vues atteint.",
         viewsNoSelection: "Sélectionnez une vue à gauche pour l'éditer.",
         viewsBackToList: "Retour aux vues",
+        deleteConfirmTitle: "Supprimer cette vue ?",
+        deleteConfirmDesc: "« {title} » sera supprimée définitivement. Les widgets et la configuration de colonnes qui lui sont attachés sont perdus.",
         autoRefresh: "Rafraîchissement auto",
         refreshDisabled: "Désactivé",
         refreshEvery30s: "Toutes les 30 secondes",

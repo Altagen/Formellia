@@ -85,40 +85,66 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
 
   const isDirty = JSON.stringify(draft) !== JSON.stringify(config);
 
-  const handleSave = useCallback(async () => {
+  // Persist a specific draft snapshot — used both by the explicit Save button
+  // (text-field edits) and by per-action instant saves (add/delete/move view,
+  // toggle feature, set default). When `reload` is true we replace the URL so
+  // the layout (admin sidebar) rehydrates from DB; when false we only refresh
+  // server components in place — keeps action latency under ~200ms.
+  const persistDraft = useCallback(async (
+    next: FormConfig,
+    opts: { reload?: boolean; toastLabel?: string } = {},
+  ): Promise<boolean> => {
     setSaving(true);
-    const toastId = toast.loading(cfg.toasts.saving);
+    const toastId = opts.toastLabel ? toast.loading(opts.toastLabel) : null;
     try {
       const res = await fetch("/api/admin/config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft),
+        body: JSON.stringify(next),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(data.error ?? cfg.toasts.errorStatus.replace("{status}", String(res.status)), { id: toastId });
-      } else {
-        // Hard reload so the sidebar's views list, source dropdowns and any
-        // other layout-level surface always picks up the new state.
-        //
-        // Why we set the URL ourselves: `router.replace("?tab=…")` doesn't
-        // always flush the address bar before `location.reload()` fires under
-        // Next 16 + Turbopack, so the reload would land on `/admin/configuration`
-        // bare and validInitial would fall back to "forms". Building the URL
-        // from the live `activeTab` state and calling `location.replace` makes
-        // the navigation atomic.
-        toast.dismiss(toastId);
+        const msg = data.error ?? cfg.toasts.errorStatus.replace("{status}", String(res.status));
+        if (toastId) toast.error(msg, { id: toastId });
+        else        toast.error(msg);
+        return false;
+      }
+      if (opts.reload) {
+        // Hard reload preserves the current tab via querystring — `router.replace`
+        // doesn't always flush before `location.reload` under Next 16 + Turbopack.
+        if (toastId) toast.dismiss(toastId);
         sessionStorage.setItem("config-just-saved", "1");
         const url = new URL(window.location.href);
         url.searchParams.set("tab", activeTab);
         window.location.replace(url.toString());
+      } else {
+        // Refresh the layout server components (admin sidebar, etc.) without
+        // a full reload so the action stays snappy.
+        if (toastId) toast.dismiss(toastId);
+        router.refresh();
       }
+      return true;
     } catch {
-      toast.error(cfg.toasts.networkError, { id: toastId });
+      const msg = cfg.toasts.networkError;
+      if (toastId) toast.error(msg, { id: toastId });
+      else        toast.error(msg);
+      return false;
     } finally {
       setSaving(false);
     }
-  }, [draft, cfg, activeTab]);
+  }, [cfg, activeTab, router]);
+
+  const handleSave = useCallback(() => {
+    void persistDraft(draft, { reload: true, toastLabel: cfg.toasts.saving });
+  }, [draft, cfg, persistDraft]);
+
+  // Commit a structural change (add/delete view, move, toggle, set default)
+  // and persist instantly. The caller passes the new draft computed from the
+  // current one so the optimistic UI update + server save are coupled.
+  const commitAction = useCallback((next: FormConfig) => {
+    setDraft(next);
+    void persistDraft(next, { reload: false });
+  }, [persistDraft]);
 
   const handleExport = useCallback(async () => {
     try {
@@ -264,10 +290,11 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
             formInstances={visibleFormInstances}
             features={draft.admin.features}
             onChangeViews={(views) => setDraft({ ...draft, admin: { ...draft.admin, views } })}
-            onChangeDefault={(defaultView) => setDraft({ ...draft, admin: { ...draft.admin, defaultView } })}
             tableColumns={draft.admin.tableColumns}
             onChangeColumns={(tableColumns) => setDraft({ ...draft, admin: { ...draft.admin, tableColumns } })}
-            onChangeFeatures={(features) => setDraft({ ...draft, admin: { ...draft.admin, features } })}
+            commitViews={(views) => commitAction({ ...draft, admin: { ...draft.admin, views } })}
+            commitDefault={(defaultView) => commitAction({ ...draft, admin: { ...draft.admin, defaultView } })}
+            commitFeatures={(features) => commitAction({ ...draft, admin: { ...draft.admin, features } })}
           />
         )}
         {activeTab === "datapools" && (

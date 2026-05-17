@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Star, X, Eye, EyeOff } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import { stepsForPage } from "@/lib/dashboard/scopedFields";
 
@@ -31,10 +32,16 @@ interface ViewsTabProps {
   formSteps: StepDef[];
   formInstances?: FormInstance[];
   features?: AdminFeatures;
+  /** Update the draft (no save). Used by text-field editors that still
+   *  rely on the explicit Save button to avoid one PUT per keystroke. */
   onChangeViews: (pages: AdminView[]) => void;
-  onChangeDefault: (slug: string | undefined) => void;
   onChangeColumns: (cols: TableColumnDef[]) => void;
-  onChangeFeatures: (f: AdminFeatures) => void;
+  /** Update the draft AND persist instantly. Used by action buttons
+   *  (add/delete/move view, set default, toggle feature) so the admin
+   *  sidebar reflects the change without the operator clicking Save. */
+  commitViews:   (pages: AdminView[]) => void;
+  commitDefault: (slug: string | undefined) => void;
+  commitFeatures: (f: AdminFeatures) => void;
 }
 
 const WIDGET_TYPE_ICONS: Record<WidgetDef["type"], string> = {
@@ -76,7 +83,11 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40) || "page";
 }
 
-export function ViewsTab({ views: pages, defaultView: defaultPage, tableColumns, formSteps, formInstances = [], features, onChangeViews, onChangeDefault, onChangeColumns, onChangeFeatures }: ViewsTabProps) {
+export function ViewsTab({
+  views: pages, defaultView: defaultPage, tableColumns, formSteps, formInstances = [], features,
+  onChangeViews, onChangeColumns,
+  commitViews, commitDefault, commitFeatures,
+}: ViewsTabProps) {
   const tr = useTranslations();
   const p = tr.admin.config.views;
   const w = tr.admin.config.widgets;
@@ -253,15 +264,20 @@ export function ViewsTab({ views: pages, defaultView: defaultPage, tableColumns,
     };
   }
 
+  // Pending delete confirmation — set when the operator clicks the trash icon
+  // and cleared on confirm/cancel. We keep title + id so the dialog can name
+  // the view that's about to be removed.
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+
   function addView() {
     if (pages.length >= 10) return;
     const id = `p-${Date.now()}`;
     const newPage: AdminView = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
-    onChangeViews([...pages, newPage]);
+    // Instant save: parent commits to DB + refreshes the admin sidebar so the
+    // new view appears in the nav without an explicit Save step.
+    commitViews([...pages, newPage]);
     setExpandedPageId(id);
     setExpandedWidgetId(null);
-    // Scroll the newly created page into view once React paints it. rAF
-    // lets the new <div data-view-id> appear in the DOM before we look it up.
     if (typeof window !== "undefined") {
       requestAnimationFrame(() => {
         const el = document.querySelector(`[data-view-id="${id}"]`);
@@ -271,27 +287,41 @@ export function ViewsTab({ views: pages, defaultView: defaultPage, tableColumns,
   }
 
   function updatePage(id: string, patch: Partial<AdminView>) {
+    // Text-field edits stay in draft until the operator clicks Save —
+    // committing per-keystroke would PUT the whole config dozens of times.
     onChangeViews(pages.map(pg => pg.id === id ? { ...pg, ...patch } : pg));
   }
 
-  function deletePage(id: string) {
+  function confirmDeletePage(id: string) {
+    const target = pages.find(pg => pg.id === id);
+    if (!target || pages.length <= 1) return;
+    setPendingDelete({ id, title: target.title });
+  }
+
+  function doDeletePage() {
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
     const remaining = pages.filter(pg => pg.id !== id);
-    onChangeViews(remaining);
-    if (defaultPage === pages.find(pg => pg.id === id)?.slug) {
-      onChangeDefault(remaining[0]?.slug);
-    }
+    const wasDefault = defaultPage === pages.find(pg => pg.id === id)?.slug;
     if (expandedPageId === id) {
       setExpandedPageId(remaining[0]?.id ?? null);
       setExpandedWidgetId(null);
     }
+    setPendingDelete(null);
+    // Instant save: drop the view and re-anchor `defaultView` if needed in a
+    // single PUT so the admin sidebar reflects the deletion immediately.
+    if (wasDefault) {
+      commitDefault(remaining[0]?.slug);
+    }
+    commitViews(remaining);
   }
 
   function movePage(id: string, dir: "up" | "down") {
     const i = pages.findIndex(pg => pg.id === id);
     if (dir === "up" && i > 0) {
-      const copy = [...pages]; [copy[i-1], copy[i]] = [copy[i], copy[i-1]]; onChangeViews(copy);
+      const copy = [...pages]; [copy[i-1], copy[i]] = [copy[i], copy[i-1]]; commitViews(copy);
     } else if (dir === "down" && i < pages.length - 1) {
-      const copy = [...pages]; [copy[i], copy[i+1]] = [copy[i+1], copy[i]]; onChangeViews(copy);
+      const copy = [...pages]; [copy[i], copy[i+1]] = [copy[i+1], copy[i]]; commitViews(copy);
     }
   }
 
@@ -387,7 +417,7 @@ export function ViewsTab({ views: pages, defaultView: defaultPage, tableColumns,
                   type="button"
                   role="switch"
                   aria-checked={enabled}
-                  onClick={() => onChangeFeatures({ ...features, [key]: !enabled })}
+                  onClick={() => commitFeatures({ ...features, [key]: !enabled })}
                   className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring/50 mt-0.5 ${
                     enabled ? "bg-blue-600" : "bg-muted"
                   }`}
@@ -461,12 +491,12 @@ export function ViewsTab({ views: pages, defaultView: defaultPage, tableColumns,
                         {isDefault ? (
                           <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium" title={p.defaultLabel}>★</span>
                         ) : (
-                          <button type="button" onClick={() => onChangeDefault(page.slug)} title={p.setDefault}
+                          <button type="button" onClick={() => commitDefault(page.slug)} title={p.setDefault}
                             className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-amber-500 hover:bg-accent opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity">
                             <Star className="w-3 h-3" />
                           </button>
                         )}
-                        <button type="button" onClick={() => deletePage(page.id)} disabled={pages.length <= 1} title={p.delete}
+                        <button type="button" onClick={() => confirmDeletePage(page.id)} disabled={pages.length <= 1} title={p.delete}
                           className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-20 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity">
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -854,6 +884,17 @@ export function ViewsTab({ views: pages, defaultView: defaultPage, tableColumns,
           })()}
         </section>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title={p.deleteConfirmTitle}
+        description={p.deleteConfirmDesc.replace("{title}", pendingDelete?.title ?? "")}
+        confirmLabel={p.delete}
+        cancelLabel={p.cancel}
+        destructive
+        onConfirm={doDeletePage}
+      />
     </div>
   );
 }
