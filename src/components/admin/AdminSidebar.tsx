@@ -794,8 +794,9 @@ export function AdminSidebar({
     return (
       <TooltipProvider delayDuration={120}>
         <aside className="flex flex-col w-14 shrink-0 h-screen border-r border-border bg-card overflow-hidden items-center">
-          {/* Brand (logo only) */}
-          <Link href="/admin" className="flex items-center justify-center h-14 w-full shrink-0 border-b border-border hover:opacity-80 transition-opacity">
+          {/* Brand + expand: brand on top, expand button right below to make
+              re-opening the sidebar obvious in the collapsed state. */}
+          <Link href="/admin" className="flex items-center justify-center h-12 w-full shrink-0 hover:opacity-80 transition-opacity">
             {logoUrl ? (
               <Image src={logoUrl} alt={appName} width={28} height={28} unoptimized
                 style={{ width: "28px", height: "28px", objectFit: "contain" }} />
@@ -804,6 +805,16 @@ export function AdminSidebar({
                 style={{ width: "28px", height: "28px" }} />
             )}
           </Link>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" onClick={toggleCollapsed} aria-label={tr.admin.nav.expand}
+                className="flex items-center justify-center w-9 h-9 mb-2 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors">
+                <ChevronsRight className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{tr.admin.nav.expand}</TooltipContent>
+          </Tooltip>
+          <div className="w-8 border-b border-border" />
 
           {/* Main nav — icons with tooltips */}
           <nav className="flex-1 w-full overflow-y-auto py-2 flex flex-col items-center gap-1">
@@ -886,15 +897,6 @@ export function AdminSidebar({
                 </form>
               </TooltipTrigger>
               <TooltipContent side="right">{tr.admin.nav.logout}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" onClick={toggleCollapsed} aria-label={tr.admin.nav.expand}
-                  className={iconLinkBase}>
-                  <ChevronsRight className="w-4 h-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">{tr.admin.nav.expand}</TooltipContent>
             </Tooltip>
           </div>
         </aside>
