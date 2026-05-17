@@ -925,6 +925,10 @@ export function AdminSidebar({
             {editMode ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
           </button>
         )}
+        <button type="button" onClick={toggleCollapsed} title={tr.admin.nav.collapse}
+          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors shrink-0">
+          <ChevronsLeft className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* ── Edit mode ─────────────────────────────────────────────────────── */}
@@ -1204,10 +1208,6 @@ export function AdminSidebar({
             <LogOut className="w-4 h-4" /><span>{tr.admin.nav.logout}</span>
           </button>
         </form>
-        <button type="button" onClick={toggleCollapsed}
-          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer">
-          <ChevronsLeft className="w-4 h-4" /><span>{tr.admin.nav.collapse}</span>
-        </button>
       </div>
     </aside>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { FormConfig } from "@/types/config";
@@ -58,6 +58,18 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
 
   const [draft, setDraft] = useState<FormConfig>(() => JSON.parse(JSON.stringify(config)));
 
+  // Confirmation toast across the post-save full reload. Sonner can't survive
+  // location.replace(), so we stash a flag in sessionStorage and surface it on
+  // remount — that way the operator sees the "saved" feedback even though the
+  // page reloads (needed for the sidebar to pick up the new state).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (sessionStorage.getItem("config-just-saved") === "1") {
+      sessionStorage.removeItem("config-just-saved");
+      toast.success(cfg.toasts.saved, { duration: 1500 });
+    }
+  }, [cfg.toasts.saved]);
+
   const validInitial = (ALL_TAB_IDS.includes(initialTab as TabId) && (role === "admin" || ["forms", "pages"].includes(initialTab as string)))
     ? (initialTab as TabId)
     : "forms";
@@ -84,21 +96,27 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
         const data = await res.json().catch(() => ({}));
         toast.error(data.error ?? cfg.toasts.errorStatus.replace("{status}", String(res.status)), { id: toastId });
       } else {
-        // Hard reload so the sidebar's pages list, source dropdowns and any
-        // other layout-level surface always picks up the new state. We
-        // intentionally don't show a "saved" toast — the reload itself is
-        // the unambiguous feedback, and a setTimeout-deferred reload proved
-        // flaky under Next.js 16 + Turbopack (HMR didn't always propagate
-        // the deferred timer to the operator's tab).
+        // Hard reload so the sidebar's views list, source dropdowns and any
+        // other layout-level surface always picks up the new state.
+        //
+        // Why we set the URL ourselves: `router.replace("?tab=…")` doesn't
+        // always flush the address bar before `location.reload()` fires under
+        // Next 16 + Turbopack, so the reload would land on `/admin/configuration`
+        // bare and validInitial would fall back to "forms". Building the URL
+        // from the live `activeTab` state and calling `location.replace` makes
+        // the navigation atomic.
         toast.dismiss(toastId);
-        window.location.reload();
+        sessionStorage.setItem("config-just-saved", "1");
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", activeTab);
+        window.location.replace(url.toString());
       }
     } catch {
       toast.error(cfg.toasts.networkError, { id: toastId });
     } finally {
       setSaving(false);
     }
-  }, [draft, cfg]);
+  }, [draft, cfg, activeTab]);
 
   const handleExport = useCallback(async () => {
     try {
