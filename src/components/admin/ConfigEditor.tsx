@@ -209,8 +209,9 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
         </div>
       </div>
 
-      {/* Tab content */}
-      <div>
+      {/* Tab content — pb-24 reserves space below for the floating save FAB
+          (h-9 button + bottom-6 offset) so it never overlaps the last field. */}
+      <div className="pb-24">
         {activeTab === "general" && (
           <div className="space-y-6">
             <AdminBrandingTab
