@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import type {
-  AdminPage,
+  AdminView,
   AdminFeatures,
   WidgetDef,
   StepDef,
@@ -25,14 +25,14 @@ import { useTranslations } from "@/lib/context/LocaleContext";
 import { stepsForPage } from "@/lib/dashboard/scopedFields";
 
 interface PagesTabProps {
-  pages: AdminPage[];
+  pages: AdminView[];
   defaultPage: string | undefined;
   tableColumns: TableColumnDef[];
   formSteps: StepDef[];
   formInstances?: FormInstance[];
   features?: AdminFeatures;
   exclusionReasons?: string[];
-  onChangePages: (pages: AdminPage[]) => void;
+  onChangePages: (pages: AdminView[]) => void;
   onChangeDefault: (slug: string | undefined) => void;
   onChangeColumns: (cols: TableColumnDef[]) => void;
   onChangeFeatures: (f: AdminFeatures) => void;
@@ -240,7 +240,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
   function addPage() {
     if (pages.length >= 10) return;
     const id = `p-${Date.now()}`;
-    const newPage: AdminPage = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
+    const newPage: AdminView = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
     onChangePages([...pages, newPage]);
     setExpandedPageId(id);
     setExpandedWidgetId(null);
@@ -254,7 +254,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
     }
   }
 
-  function updatePage(id: string, patch: Partial<AdminPage>) {
+  function updatePage(id: string, patch: Partial<AdminView>) {
     onChangePages(pages.map(pg => pg.id === id ? { ...pg, ...patch } : pg));
   }
 
@@ -355,7 +355,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
               desc: p.auditLogDesc,
             },
             {
-              key: "autoCreateDashboardPageOnFormCreate" as const,
+              key: "autoCreateDashboardViewOnFormCreate" as const,
               label: p.autoCreatePageLabel,
               desc: p.autoCreatePageDesc,
             },
@@ -383,7 +383,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
           })}
         </div>
 
-        {features?.autoCreateDashboardPageOnFormCreate && (
+        {features?.autoCreateDashboardViewOnFormCreate && (
           <div className="mt-4 pt-4 border-t border-border">
             <BackfillButton label={p.autoCreatePageBackfillBtn} done={p.autoCreatePageBackfillDone} />
           </div>

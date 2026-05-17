@@ -14,17 +14,17 @@ import { listFormInstances, saveFormInstance, createFormInstance } from "@/lib/d
 import { yamlConfigSchema } from "@/lib/yaml/configSchema";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";
 import { getProtectedSlugs } from "@/lib/security/protectedSlugs";
-import { mergeAdminPages, mergeTableColumns } from "@/lib/admin/mergeAdminConfig";
+import { mergeAdminViews, mergeTableColumns } from "@/lib/admin/mergeAdminConfig";
 import { yamlDataPoolSchema } from "@/lib/datapools/validation";
 import {
   getDataPoolBySlug,
   createDataPool,
   updateDataPool,
 } from "@/lib/datapools/crud";
-import { backfillAutoPages } from "@/lib/admin/autoFormPage";
+import { backfillAutoViews } from "@/lib/admin/autoFormPage";
 import cron from "node-cron";
 import type { FormInstanceConfig } from "@/types/formInstance";
-import type { AdminPage, TableColumnDef } from "@/types/config";
+import type { AdminView, TableColumnDef } from "@/types/config";
 
 type RestoreSection = "forms" | "scheduledJobs" | "datasets" | "admin" | "app" | "dataPools";
 
@@ -118,7 +118,7 @@ export async function restoreFromObject(
   }
 
   // ── admin config ───────────────────────────────────────
-  // In "append" mode, `admin.pages` and `admin.tableColumns` are upserted by `id`
+  // In "append" mode, `admin.views` and `admin.tableColumns` are upserted by `id`
   // so a partial import only touches what it carries — re-importing one page no
   // longer wipes the rest. "replace" keeps the wholesale-replace semantics.
   // `branding`/`features` are singletons → replaced in both modes when present.
@@ -127,13 +127,12 @@ export async function restoreFromObject(
       const current = await getFormConfig();
       const inAdmin = incoming.admin as Record<string, unknown>;
       const updated = { ...current, admin: { ...current.admin } };
-      // Forward-compat with 0.3.0 YAML format: accept `admin.views` as a
-      // synonym for `admin.pages`. When both are present `views` wins
-      // (canonical post-rename). The full TS rename ships in Phase 3.
-      const pagesPayload = inAdmin.views ?? inAdmin.pages;
-      if (pagesPayload !== undefined) {
-        if (!Array.isArray(pagesPayload)) throw new Error("admin.views must be an array");
-        updated.admin.pages = mergeAdminPages(current.admin.pages ?? [], pagesPayload as AdminPage[], mode);
+      // 0.3.0 fwd-compat: accept the legacy `admin.pages` key from older YAML
+      // backups. `views` wins when both are present (canonical).
+      const viewsPayload = inAdmin.views ?? inAdmin.pages;
+      if (viewsPayload !== undefined) {
+        if (!Array.isArray(viewsPayload)) throw new Error("admin.views must be an array");
+        updated.admin.views = mergeAdminViews(current.admin.views ?? [], viewsPayload as AdminView[], mode);
       }
       if (inAdmin.tableColumns !== undefined) {
         if (!Array.isArray(inAdmin.tableColumns)) throw new Error("admin.tableColumns must be an array");
@@ -154,13 +153,13 @@ export async function restoreFromObject(
       await saveFormConfig(updated);
       results.admin = { success: true, mode };
 
-      // If the restore turned `autoCreateDashboardPageOnFormCreate` on, run a
+      // If the restore turned `autoCreateDashboardViewOnFormCreate` on, run a
       // backfill so the operator gets the missing pages immediately — no need
       // to re-trigger the button manually. The helper is idempotent and a
       // no-op when the toggle remained off.
-      if (updated.admin.features?.autoCreateDashboardPageOnFormCreate) {
+      if (updated.admin.features?.autoCreateDashboardViewOnFormCreate) {
         try {
-          const bf = await backfillAutoPages(actor);
+          const bf = await backfillAutoViews(actor);
           if (bf.created.length > 0) {
             results.adminAutoPagesBackfill = { created: bf.created, skipped: bf.skipped.length };
           }

@@ -8,7 +8,7 @@ import {
   deleteFormInstance,
   listFormInstances,
 } from "@/lib/db/formInstanceLoader";
-import { removeAutoPageForForm } from "@/lib/admin/autoFormPage";
+import { removeAutoViewForForm } from "@/lib/admin/autoFormPage";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { isReservedSlug } from "@/lib/config/reservedSlugs";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";
@@ -128,7 +128,7 @@ export async function DELETE(
   // are left alone — the operator decides what to do with them.
   let autoPagesRemoved = 0;
   try {
-    autoPagesRemoved = await removeAutoPageForForm(id);
+    autoPagesRemoved = await removeAutoViewForForm(id);
   } catch {
     /* ignore — form already deleted */
   }

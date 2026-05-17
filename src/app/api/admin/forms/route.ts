@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { getAccessibleFormIds } from "@/lib/auth/permissions";
 import { listFormInstances, createFormInstance } from "@/lib/db/formInstanceLoader";
-import { ensureAutoPageForForm } from "@/lib/admin/autoFormPage";
+import { ensureAutoViewForForm } from "@/lib/admin/autoFormPage";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { isReservedSlug } from "@/lib/config/reservedSlugs";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
   // convenience layer that the admin can always recreate from the backfill
   // button. We swallow + log so the API response stays a clean 201.
   try {
-    const created = await ensureAutoPageForForm({ id: instance.id, slug: instance.slug, name: instance.name });
+    const created = await ensureAutoViewForForm({ id: instance.id, slug: instance.slug, name: instance.name });
     if (created) {
       logAdminEvent({
         userId:    actor?.id    ?? null,

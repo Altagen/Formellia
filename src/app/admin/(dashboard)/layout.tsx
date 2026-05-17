@@ -97,7 +97,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         )}
         <AdminShell
           userEmail={user.email ?? ""}
-          pages={config.admin.pages}
+          pages={config.admin.views}
           features={config.admin.features}
           branding={config.admin.branding}
           initialThemeMode={user.themeMode}

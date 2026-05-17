@@ -8,14 +8,14 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { UserPreferencesProvider } from "@/lib/context/UserPreferencesContext";
 import { useUserCtx } from "@/lib/context/UserRoleContext";
 import { useTranslations } from "@/lib/context/LocaleContext";
-import type { AdminPage, AdminFeatures, AdminBrandingConfig } from "@/types/config";
+import type { AdminView, AdminFeatures, AdminBrandingConfig } from "@/types/config";
 import type { ThemeMode } from "@/types/config";
 import type { Locale } from "@/i18n";
 import type { SidebarLayout } from "@/types/sidebarLayout";
 
 interface AdminShellProps {
   userEmail: string;
-  pages: AdminPage[];
+  pages: AdminView[];
   features?: AdminFeatures;
   branding?: AdminBrandingConfig;
   initialThemeMode: ThemeMode;

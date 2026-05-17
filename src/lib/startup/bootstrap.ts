@@ -166,12 +166,12 @@ export async function runStartupBootstrap(): Promise<void> {
   }
 
   // ── 6. Auto-pages backfill ─────────────────────────────
-  // No-op when `admin.features.autoCreateDashboardPageOnFormCreate` is off.
+  // No-op when `admin.features.autoCreateDashboardViewOnFormCreate` is off.
   // Runs idempotently after the YAML form upserts so any new form created in
   // step 3 lands on the dashboard without an extra round-trip.
   try {
-    const { backfillAutoPages } = await import("@/lib/admin/autoFormPage");
-    const result = await backfillAutoPages();
+    const { backfillAutoViews } = await import("@/lib/admin/autoFormPage");
+    const result = await backfillAutoViews();
     if (result.created.length > 0) {
       log.info({ created: result.created, skipped: result.skipped.length }, "Auto-pages backfilled");
     }

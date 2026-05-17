@@ -1,4 +1,4 @@
-import type { AdminPage, StepDef } from "@/types/config";
+import type { AdminView, StepDef } from "@/types/config";
 import type { FormInstance } from "@/types/formInstance";
 import { expandStepsForRepeater } from "@/lib/utils/flattenRepeater";
 
@@ -16,7 +16,7 @@ import { expandStepsForRepeater } from "@/lib/utils/flattenRepeater";
  * their fields come from the dataset's column definitions.
  */
 export function stepsForPage(
-  page: Pick<AdminPage, "formInstanceId" | "flattenRepeater">,
+  page: Pick<AdminView, "formInstanceId" | "flattenRepeater">,
   formInstances: FormInstance[],
   allFormsSteps: StepDef[],
 ): StepDef[] {

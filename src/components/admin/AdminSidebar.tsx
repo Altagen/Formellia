@@ -27,7 +27,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { AdminPage, AdminFeatures, AdminBrandingConfig } from "@/types/config";
+import type { AdminView, AdminFeatures, AdminBrandingConfig } from "@/types/config";
 import type { SidebarLayout, SidebarCustomLink, SidebarCategory } from "@/types/sidebarLayout";
 import type { FormInstance } from "@/types/formInstance";
 
@@ -229,7 +229,7 @@ function SortableCatBlock(props: SortableCatBlockProps) {
 // ── Edit: add item panel ──────────────────────────────────────────────────────
 
 function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, onAddLink, onClose, inputClass }: {
-  availablePages: AdminPage[];
+  availablePages: AdminView[];
   availableForms: FormInstance[];
   onAddPage: (id: string) => void;
   onAddForm: (id: string) => void;
@@ -306,7 +306,7 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
 
 interface AdminSidebarProps {
   userEmail: string;
-  pages: AdminPage[];
+  pages: AdminView[];
   features?: AdminFeatures;
   branding?: AdminBrandingConfig;
   initialSidebarLayout?: SidebarLayout | null;
@@ -730,13 +730,13 @@ export function AdminSidebar({
 
   /** Build ordered item list for view mode (a category). */
   function buildViewItems(cat: SidebarCategory): Array<
-    | { type: "page"; item: AdminPage }
+    | { type: "page"; item: AdminView }
     | { type: "form"; item: { id: string; name: string; slug: string } }
     | { type: "link"; item: SidebarCustomLink }
   > {
     const order = getItemOrder(cat);
     const result: Array<
-      | { type: "page"; item: AdminPage }
+      | { type: "page"; item: AdminView }
       | { type: "form"; item: { id: string; name: string; slug: string } }
       | { type: "link"; item: SidebarCustomLink }
     > = [];

@@ -126,7 +126,7 @@ export async function getFormInstance(slug: string): Promise<FormInstance | null
 /**
  * Returns a form instance by ID — accepts either a UUID or a slug.
  * Slugs are useful in config-as-code (YAML), where UUIDs are generated at runtime
- * and not stable across environments. AdminPage.formInstanceId documents this contract.
+ * and not stable across environments. AdminView.formInstanceId documents this contract.
  */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

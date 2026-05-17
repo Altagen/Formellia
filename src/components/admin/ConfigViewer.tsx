@@ -112,7 +112,7 @@ export function ConfigViewer({ config, rootInstance }: ConfigViewerProps) {
           <dl className="space-y-2">
             <div>
               <dt className="text-xs text-muted-foreground">{cv.widgets}</dt>
-              <dd className="text-sm text-foreground font-medium">{config.admin.pages.reduce((acc, p) => acc + p.widgets.length, 0)}</dd>
+              <dd className="text-sm text-foreground font-medium">{config.admin.views.reduce((acc, p) => acc + p.widgets.length, 0)}</dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">{cv.tableColumns}</dt>
@@ -120,7 +120,7 @@ export function ConfigViewer({ config, rootInstance }: ConfigViewerProps) {
             </div>
           </dl>
           <div className="mt-3 space-y-1">
-            {config.admin.pages.map((p) => (
+            {config.admin.views.map((p) => (
               <div key={p.id} className="flex items-center gap-2 text-xs">
                 <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">/admin/{p.slug}</span>
                 <span className="text-muted-foreground truncate">{p.title} · {cv.widgetCount.replace("{n}", String(p.widgets.length))}</span>

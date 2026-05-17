@@ -57,27 +57,25 @@ async function readFromDb(): Promise<FormConfig | null> {
 }
 
 /**
- * Forward-compat: 0.3.0 prepares the storage layer to accept `admin.views`
- * as a synonym for `admin.pages`. The TS layer still uses `pages` until the
- * Phase 3 rename ships; at that point this helper flips direction and a
- * boot-time DB migration writes the canonical `views` key.
- *
- * For now: if a config row carries `admin.views` (e.g. a YAML restored from
- * a future 0.3.0 backup), copy it into `admin.pages` so the rest of the
- * codebase keeps working unchanged. Same for `defaultView` → `defaultPage`.
+ * Forward-compat with 0.2.x storage: 0.3.0 renamed `admin.pages` →
+ * `admin.views` (and `admin.defaultPage` → `admin.defaultView`). DB rows
+ * written by an older version still carry the legacy keys; this helper
+ * remaps them into the canonical `views`/`defaultView` shape on read so
+ * the rest of the codebase only ever sees the new names. The next save
+ * persists the canonical shape.
  */
 function normalizeAdminViewsKey(config: FormConfig): FormConfig {
-  const admin = config.admin as FormConfig["admin"] & { views?: unknown; defaultView?: unknown };
+  const admin = config.admin as FormConfig["admin"] & { pages?: unknown; defaultPage?: unknown };
   let mutated = false;
   const next = { ...admin };
-  if (!admin.pages && Array.isArray(admin.views)) {
-    next.pages = admin.views as FormConfig["admin"]["pages"];
-    delete (next as { views?: unknown }).views;
+  if (!Array.isArray(admin.views) && Array.isArray(admin.pages)) {
+    next.views = admin.pages as FormConfig["admin"]["views"];
+    delete (next as { pages?: unknown }).pages;
     mutated = true;
   }
-  if (!admin.defaultPage && typeof admin.defaultView === "string") {
-    next.defaultPage = admin.defaultView;
-    delete (next as { defaultView?: unknown }).defaultView;
+  if (!admin.defaultView && typeof admin.defaultPage === "string") {
+    next.defaultView = admin.defaultPage;
+    delete (next as { defaultPage?: unknown }).defaultPage;
     mutated = true;
   }
   return mutated ? { ...config, admin: next } : config;
@@ -114,8 +112,8 @@ export async function getFormConfig(): Promise<FormConfig> {
   if (!config) {
     config = getFileConfig();
     await writeToDb(config);
-  } else if (!config.admin.pages) {
-    // Migrate old format (admin.widgets) → new format (admin.pages)
+  } else if (!config.admin.views) {
+    // Migrate old format (admin.widgets) → new format (admin.views)
     const fresh = getFileConfig();
     config = { ...config, admin: fresh.admin };
     await writeToDb(config);

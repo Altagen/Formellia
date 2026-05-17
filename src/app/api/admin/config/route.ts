@@ -38,16 +38,15 @@ export async function PUT(req: NextRequest) {
     );
   }
 
-  // 0.3.0 fwd-compat: accept `admin.views` as a synonym for `admin.pages`.
-  // When both are present `views` wins (canonical post-rename). Normalised
-  // back to `pages` on the in-memory body so the rest of the handler is
-  // untouched until the Phase 3 TS rename ships.
-  const adminAny = body.admin as FormConfig["admin"] & { views?: unknown };
-  if (adminAny.views !== undefined && adminAny.pages === undefined) {
-    adminAny.pages = adminAny.views as FormConfig["admin"]["pages"];
-    delete adminAny.views;
+  // 0.3.0 fwd-compat with 0.2.x clients: accept the legacy `admin.pages` key
+  // and remap it to `admin.views` so the rest of the handler only deals with
+  // the canonical shape. `views` wins when both are present.
+  const adminAny = body.admin as FormConfig["admin"] & { pages?: unknown };
+  if (adminAny.pages !== undefined && adminAny.views === undefined) {
+    adminAny.views = adminAny.pages as FormConfig["admin"]["views"];
   }
-  if (!Array.isArray(body.admin.pages)) {
+  delete adminAny.pages;
+  if (!Array.isArray(body.admin.views)) {
     return NextResponse.json({ error: "admin.views must be an array" }, { status: 400 });
   }
 
@@ -57,7 +56,7 @@ export async function PUT(req: NextRequest) {
     "traffic_chart", "email_quality", "urgency_distribution", "funnel_chart", "deadline_distribution", "filter_pills",
   ]);
   const pageIds = new Set<string>();
-  for (const page of body.admin.pages) {
+  for (const page of body.admin.views) {
     if (!page.id || typeof page.id !== "string") {
       return NextResponse.json({ error: "Chaque page doit avoir un identifiant (id)" }, { status: 400 });
     }

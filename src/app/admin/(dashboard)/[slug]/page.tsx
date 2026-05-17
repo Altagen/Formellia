@@ -26,7 +26,7 @@ export default async function AdminDynamicPage({ params }: Props) {
   const config = await getFormConfig();
   const currentUser = await validateAdminSession();
 
-  const page = config.admin.pages.find(p => p.slug === slug);
+  const page = config.admin.views.find(p => p.slug === slug);
   if (!page) notFound();
 
   const needsData = page.widgets.length > 0;

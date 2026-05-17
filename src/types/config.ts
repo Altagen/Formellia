@@ -269,7 +269,7 @@ export type WidgetDef =
       field: string;
     };
 
-export interface AdminPage {
+export interface AdminView {
   id: string;
   title: string;
   slug: string;         // URL segment: /admin/[slug]
@@ -322,7 +322,7 @@ export interface AdminFeatures {
    * /api/admin/config/auto-pages/backfill endpoint) creates the missing pages
    * for forms that don't have one yet.
    */
-  autoCreateDashboardPageOnFormCreate?: boolean;
+  autoCreateDashboardViewOnFormCreate?: boolean;
 }
 
 /**
@@ -343,8 +343,8 @@ export interface AdminBrandingConfig {
 }
 
 export interface AdminConfig {
-  pages: AdminPage[];
-  defaultPage?: string;       // slug → /admin redirects here if set
+  views: AdminView[];
+  defaultView?: string;       // slug → /admin redirects here if set
   tableColumns: TableColumnDef[];
   /** Optional pages and features — all disabled by default */
   features?: AdminFeatures;
