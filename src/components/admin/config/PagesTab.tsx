@@ -192,8 +192,10 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
   // Cache of unique values per field per dataSourceId
   const [dataSourceFieldValues, setDataSourceFieldValues] = useState<Record<string, Record<string, string[]>>>({});
   // DataPools available as a page source (option 4 alongside form / dataset / all).
-  // Shape kept minimal — only what the source dropdown + editor metadata needs.
-  const [pools, setPools] = useState<Array<{ id: string; slug: string; name: string }>>([]);
+  // We need keyField + additionalFields so the editor can synthesise scoped
+  // formSteps for pool-bound pages (otherwise the field pickers below would
+  // fall back to the all-forms list and collide on duplicate field ids).
+  const [pools, setPools] = useState<Array<{ id: string; slug: string; name: string; keyField: string; additionalFields: string[] }>>([]);
 
   useEffect(() => {
     fetch("/api/admin/datasets")
@@ -202,7 +204,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
       .catch(() => {});
     fetch("/api/admin/datapools")
       .then(r => r.ok ? r.json() : [])
-      .then((rows: Array<{ id: string; slug: string; name: string }>) => setPools(rows))
+      .then((rows: Array<{ id: string; slug: string; name: string; keyField: string; additionalFields: string[] }>) => setPools(rows))
       .catch(() => {});
   }, []);
 
@@ -428,7 +430,25 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
           const isPoolSource     = !!page.dataPoolId;
           // Native form fields scoped to THIS page's form (or all forms for an
           // "all submissions" page) — drives the column/filter pickers below.
-          const pageFormSteps = stepsForPage(page, formInstances, formSteps);
+          // For pool-bound pages, synthesise a single step from the pool's
+          // keyField + additionalFields so the pickers don't fall back to
+          // every form's fields (which would collide on duplicate ids).
+          const boundPool = isPoolSource ? pools.find(po => po.id === page.dataPoolId) : undefined;
+          const pageFormSteps: StepDef[] = boundPool
+            ? [{
+                id: "pool-fields",
+                title: boundPool.name,
+                fields: [
+                  { id: boundPool.keyField, type: "text", label: boundPool.keyField, required: false },
+                  ...boundPool.additionalFields
+                    // De-dup defensively: if the pool config ever has keyField
+                    // inside additionalFields too, the synthetic step would
+                    // double-list it.
+                    .filter(f => f !== boundPool.keyField)
+                    .map(f => ({ id: f, type: "text" as const, label: f, required: false })),
+                ],
+              }]
+            : stepsForPage(page, formInstances, formSteps);
           const pageNativeFields = pageFormSteps.flatMap(s => s.fields).filter(f => f.type !== "section_header");
           const pageNativeFieldValues = nativeFieldValuesFor(pageFormSteps);
           // Build groupBy options: dataset fields when external, scoped form fields otherwise
