@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import type {
   AdminView,
+  AdminConfig,
   AdminFeatures,
   WidgetDef,
   StepDef,
@@ -36,12 +37,13 @@ interface ViewsTabProps {
    *  rely on the explicit Save button to avoid one PUT per keystroke. */
   onChangeViews: (pages: AdminView[]) => void;
   onChangeColumns: (cols: TableColumnDef[]) => void;
-  /** Update the draft AND persist instantly. Used by action buttons
-   *  (add/delete/move view, set default, toggle feature) so the admin
-   *  sidebar reflects the change without the operator clicking Save. */
-  commitViews:   (pages: AdminView[], opts?: { destructive?: boolean }) => void;
-  commitDefault: (slug: string | undefined) => void;
-  commitFeatures: (f: AdminFeatures) => void;
+  /** Apply a partial AdminConfig patch and persist as a single atomic PUT.
+   *  Used by action buttons (add/delete/move view, set default, toggle
+   *  feature) so the admin sidebar reflects the change without the operator
+   *  clicking Save. `destructive: true` triggers a hard reload after save —
+   *  reserved for delete because router.refresh() is flaky for layout-level
+   *  updates under Next 16 + Turbopack. */
+  commitAdmin: (patch: Partial<AdminConfig>, opts?: { destructive?: boolean }) => void;
 }
 
 const WIDGET_TYPE_ICONS: Record<WidgetDef["type"], string> = {
@@ -86,7 +88,7 @@ function slugify(s: string) {
 export function ViewsTab({
   views: pages, defaultView: defaultPage, tableColumns, formSteps, formInstances = [], features,
   onChangeViews, onChangeColumns,
-  commitViews, commitDefault, commitFeatures,
+  commitAdmin,
 }: ViewsTabProps) {
   const tr = useTranslations();
   const p = tr.admin.config.views;
@@ -275,7 +277,7 @@ export function ViewsTab({
     const newPage: AdminView = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
     // Instant save: parent commits to DB + refreshes the admin sidebar so the
     // new view appears in the nav without an explicit Save step.
-    commitViews([...pages, newPage]);
+    commitAdmin({ views: [...pages, newPage] });
     setExpandedPageId(id);
     setExpandedWidgetId(null);
     if (typeof window !== "undefined") {
@@ -308,22 +310,23 @@ export function ViewsTab({
       setExpandedWidgetId(null);
     }
     setPendingDelete(null);
-    // Destructive: re-anchor `defaultView` if needed AND drop the view in a
-    // single PUT, then hard-reload so the admin sidebar definitely picks up
-    // the change (router.refresh is flaky under Next 16 + Turbopack for
-    // layout-level updates).
-    if (wasDefault) {
-      commitDefault(remaining[0]?.slug);
-    }
-    commitViews(remaining, { destructive: true });
+    // Destructive: drop the view AND re-anchor `defaultView` if needed in a
+    // SINGLE atomic PUT, then hard-reload so the admin sidebar definitely
+    // picks up the change. Doing two separate commits would race — the older
+    // snapshot could land last server-side and resurrect the deleted view
+    // (which is exactly what the user hit before this fix).
+    commitAdmin(
+      wasDefault ? { views: remaining, defaultView: remaining[0]?.slug } : { views: remaining },
+      { destructive: true },
+    );
   }
 
   function movePage(id: string, dir: "up" | "down") {
     const i = pages.findIndex(pg => pg.id === id);
     if (dir === "up" && i > 0) {
-      const copy = [...pages]; [copy[i-1], copy[i]] = [copy[i], copy[i-1]]; commitViews(copy);
+      const copy = [...pages]; [copy[i-1], copy[i]] = [copy[i], copy[i-1]]; commitAdmin({ views: copy });
     } else if (dir === "down" && i < pages.length - 1) {
-      const copy = [...pages]; [copy[i], copy[i+1]] = [copy[i+1], copy[i]]; commitViews(copy);
+      const copy = [...pages]; [copy[i], copy[i+1]] = [copy[i+1], copy[i]]; commitAdmin({ views: copy });
     }
   }
 
@@ -419,7 +422,7 @@ export function ViewsTab({
                   type="button"
                   role="switch"
                   aria-checked={enabled}
-                  onClick={() => commitFeatures({ ...features, [key]: !enabled })}
+                  onClick={() => commitAdmin({ features: { ...features, [key]: !enabled } })}
                   className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring/50 mt-0.5 ${
                     enabled ? "bg-blue-600" : "bg-muted"
                   }`}
@@ -493,7 +496,7 @@ export function ViewsTab({
                         {isDefault ? (
                           <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium" title={p.defaultLabel}>★</span>
                         ) : (
-                          <button type="button" onClick={() => commitDefault(page.slug)} title={p.setDefault}
+                          <button type="button" onClick={() => commitAdmin({ defaultView: page.slug })} title={p.setDefault}
                             className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-amber-500 hover:bg-accent opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity">
                             <Star className="w-3 h-3" />
                           </button>

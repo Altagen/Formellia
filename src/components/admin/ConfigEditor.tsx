@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import type { FormConfig } from "@/types/config";
+import type { FormConfig, AdminConfig } from "@/types/config";
 import type { FormInstance } from "@/types/formInstance";
 import { FormsTab } from "@/components/admin/config/FormsTab";
 import { ViewsTab } from "@/components/admin/config/ViewsTab";
@@ -138,11 +138,22 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
     void persistDraft(draft, { reload: true, toastLabel: cfg.toasts.saving });
   }, [draft, cfg, persistDraft]);
 
-  // Commit a structural change (add/delete view, move, toggle, set default)
-  // and persist instantly. `destructive: true` forces a full reload after the
-  // save — used for delete because `router.refresh()` proved unreliable under
-  // Next 16 + Turbopack for layout-level (sidebar) updates.
-  const commitAction = useCallback((next: FormConfig, opts?: { destructive?: boolean }) => {
+  // Keep a ref to the latest draft so consecutive instant commits in the same
+  // event handler all build from the freshest state (setDraft is async, so the
+  // value captured in the next setDraft call's closure would otherwise be the
+  // pre-update state). Updated synchronously inside commitAdmin below.
+  const draftRef = useRef(draft);
+  useEffect(() => { draftRef.current = draft; }, [draft]);
+
+  // Apply a partial AdminConfig patch and persist as a SINGLE PUT. This is the
+  // canonical "instant action" pathway — combined updates (e.g. delete view +
+  // re-anchor default) ship atomically, avoiding the two-PUT race that would
+  // let an old snapshot land last and resurrect the deleted view.
+  // `destructive: true` triggers a full reload after the save instead of the
+  // (flaky under Next 16 + Turbopack) `router.refresh()`.
+  const commitAdmin = useCallback((patch: Partial<AdminConfig>, opts?: { destructive?: boolean }) => {
+    const next: FormConfig = { ...draftRef.current, admin: { ...draftRef.current.admin, ...patch } };
+    draftRef.current = next;            // sync update so sibling calls see it
     setDraft(next);
     void persistDraft(next, { reload: opts?.destructive === true });
   }, [persistDraft]);
@@ -293,9 +304,7 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
             onChangeViews={(views) => setDraft({ ...draft, admin: { ...draft.admin, views } })}
             tableColumns={draft.admin.tableColumns}
             onChangeColumns={(tableColumns) => setDraft({ ...draft, admin: { ...draft.admin, tableColumns } })}
-            commitViews={(views, opts) => commitAction({ ...draft, admin: { ...draft.admin, views } }, opts)}
-            commitDefault={(defaultView) => commitAction({ ...draft, admin: { ...draft.admin, defaultView } })}
-            commitFeatures={(features) => commitAction({ ...draft, admin: { ...draft.admin, features } })}
+            commitAdmin={commitAdmin}
           />
         )}
         {activeTab === "datapools" && (
