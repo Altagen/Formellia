@@ -40,6 +40,18 @@ Production on a VPS:
   the API key resolution order, template variables, local testing,
   production domain verification, troubleshooting.
 
+### I want to build a recipient audience
+
+- **[datapools.md](./datapools.md)** — deduplicated audiences computed
+  on top of one or more forms, exclusions (Art. 21), CSV export, and
+  what's carried in backup/restore.
+
+### I want to send a manual broadcast email
+
+- **[email-composer.md](./email-composer.md)** — WYSIWYG composer
+  bound to DataPools, BCC-batched sending via Resend/SendGrid/Mailgun,
+  sanitisation pipeline, GDPR boundaries vs the future newsletter.
+
 ### I want to understand how the system works
 
 - **[architecture.md](./architecture.md)** — component map, request flow,
@@ -61,6 +73,8 @@ Production on a VPS:
 | [config-as-code.md](./config-as-code.md) | DB-mode vs file-mode | Operators |
 | [yaml-schema.md](./yaml-schema.md) | Field reference | Operators / devs |
 | [email-setup.md](./email-setup.md) | Outgoing notifications | Operators |
+| [datapools.md](./datapools.md) | Deduplicated audiences | Operators |
+| [email-composer.md](./email-composer.md) | Manual broadcast emails | Operators |
 | [deployment.md](./deployment.md) | VPS production checklist | Operators |
 | [security.md](./security.md) | Auth, secrets, rate limit, audit | Devs / ops |
 | [examples/](./examples/) | Copy-paste YAML | Operators |

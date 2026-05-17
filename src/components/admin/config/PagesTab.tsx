@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import type {
   AdminPage,
   AdminFeatures,
@@ -30,10 +31,12 @@ interface PagesTabProps {
   formSteps: StepDef[];
   formInstances?: FormInstance[];
   features?: AdminFeatures;
+  exclusionReasons?: string[];
   onChangePages: (pages: AdminPage[]) => void;
   onChangeDefault: (slug: string | undefined) => void;
   onChangeColumns: (cols: TableColumnDef[]) => void;
   onChangeFeatures: (f: AdminFeatures) => void;
+  onChangeExclusionReasons: (reasons: string[]) => void;
 }
 
 const WIDGET_TYPE_ICONS: Record<WidgetDef["type"], string> = {
@@ -75,7 +78,7 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40) || "page";
 }
 
-export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInstances = [], features, onChangePages, onChangeDefault, onChangeColumns, onChangeFeatures }: PagesTabProps) {
+export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInstances = [], features, exclusionReasons, onChangePages, onChangeDefault, onChangeColumns, onChangeFeatures, onChangeExclusionReasons }: PagesTabProps) {
   const tr = useTranslations();
   const p = tr.admin.config.pages;
   const w = tr.admin.config.widgets;
@@ -334,6 +337,11 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
               label: p.auditLogLabel,
               desc: p.auditLogDesc,
             },
+            {
+              key: "autoCreateDashboardPageOnFormCreate" as const,
+              label: p.autoCreatePageLabel,
+              desc: p.autoCreatePageDesc,
+            },
           ] as const).map(({ key, label, desc }) => {
             const enabled = features?.[key] ?? false;
             return (
@@ -357,6 +365,29 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
             );
           })}
         </div>
+
+        {features?.autoCreateDashboardPageOnFormCreate && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <BackfillButton label={p.autoCreatePageBackfillBtn} done={p.autoCreatePageBackfillDone} />
+          </div>
+        )}
+      </div>
+
+      {/* Exclusion reasons — predefined dropdown values for the DataPool */}
+      {/* exclusion dialog. Each deployment has its own policy vocabulary, */}
+      {/* so this lives in admin config (YAML + UI editable). Operators can */}
+      {/* still type a free-text reason at the dialog level. */}
+      <div className="bg-card rounded-xl border border-border p-5">
+        <h2 className="text-sm font-semibold text-foreground mb-1">{p.exclusionReasonsTitle}</h2>
+        <p className="text-xs text-muted-foreground mb-4">{p.exclusionReasonsDesc}</p>
+        <ExclusionReasonsEditor
+          reasons={exclusionReasons ?? []}
+          onChange={onChangeExclusionReasons}
+          labelAdd={p.exclusionReasonsAdd}
+          labelPlaceholder={p.exclusionReasonsPlaceholder}
+          labelRemove={p.exclusionReasonsRemove}
+          labelEmpty={p.exclusionReasonsEmpty}
+        />
       </div>
 
       <div className="flex items-start justify-between">
@@ -1430,6 +1461,97 @@ function InfoCardEditor({
           {ACCENT_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
+    </div>
+  );
+}
+
+// ─── Auto-pages backfill button ───────────────────────────────────────────
+// Standalone subcomponent so the parent stays focused on page editing. Posts
+// to /api/admin/config/auto-pages/backfill which is idempotent — clicking
+// twice just yields an empty `created` set the second time.
+function BackfillButton({ label, done }: { label: string; done: string }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const res = await fetch("/api/admin/config/auto-pages/backfill", { method: "POST" });
+          if (!res.ok) throw new Error(await res.text());
+          const data = (await res.json()) as { created: string[]; skipped: string[] };
+          toast.success(done.replace("{count}", String(data.created.length)));
+          // The new pages live in adminConfig — a soft reload picks them up
+          // without re-entering the editing state the operator might be in.
+          if (data.created.length > 0) setTimeout(() => location.reload(), 600);
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Backfill failed");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? "…" : label}
+    </Button>
+  );
+}
+
+/**
+ * Inline list editor for admin.exclusionReasons. Renders each reason as an
+ * editable row with a remove button, plus a single "Add" affordance at the
+ * bottom that appends an empty row in edit mode.
+ *
+ * Kept deliberately simple — no drag-to-reorder, no validation beyond
+ * trim+dedup at the parent's `onChange` boundary. The values are short
+ * policy labels, not freeform content, so the editor stays compact.
+ */
+function ExclusionReasonsEditor({
+  reasons, onChange, labelAdd, labelPlaceholder, labelRemove, labelEmpty,
+}: {
+  reasons: string[];
+  onChange: (next: string[]) => void;
+  labelAdd: string;
+  labelPlaceholder: string;
+  labelRemove: string;
+  labelEmpty: string;
+}) {
+  function update(idx: number, value: string) {
+    const next = [...reasons];
+    next[idx] = value;
+    onChange(next);
+  }
+  function remove(idx: number) { onChange(reasons.filter((_, i) => i !== idx)); }
+  function add()             { onChange([...reasons, ""]); }
+
+  return (
+    <div className="space-y-2">
+      {reasons.length === 0 && (
+        <p className="text-xs text-muted-foreground italic">{labelEmpty}</p>
+      )}
+      {reasons.map((r, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          <Input
+            value={r}
+            onChange={(e) => update(idx, e.target.value)}
+            placeholder={labelPlaceholder}
+            className="text-sm"
+          />
+          <Button
+            type="button" variant="ghost" size="icon"
+            onClick={() => remove(idx)}
+            title={labelRemove}
+            className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0"
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={add} className="gap-1.5">
+        <Plus className="w-3.5 h-3.5" /> {labelAdd}
+      </Button>
     </div>
   );
 }

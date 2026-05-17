@@ -1,15 +1,17 @@
 import { notFound } from "next/navigation";
 import { getDataPool } from "@/lib/datapools/crud";
 import { listFormInstances } from "@/lib/db/formInstanceLoader";
+import { getFormConfig } from "@/lib/config";
 import { DataPoolDetailClient } from "./DataPoolDetailClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function DataPoolDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [pool, formInstances] = await Promise.all([
+  const [pool, formInstances, config] = await Promise.all([
     getDataPool(id),
     listFormInstances(),
+    getFormConfig(),
   ]);
   if (!pool) notFound();
 
@@ -24,5 +26,5 @@ export default async function DataPoolDetailPage({ params }: { params: Promise<{
     ),
   }));
 
-  return <DataPoolDetailClient pool={pool} forms={forms} />;
+  return <DataPoolDetailClient pool={pool} forms={forms} exclusionReasons={config.admin.exclusionReasons ?? []} />;
 }

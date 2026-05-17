@@ -8,6 +8,7 @@ import { Plus, Database, Trash2, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useTranslations } from "@/lib/context/LocaleContext";
 import type { DataPool } from "@/lib/db/schema";
 
 export interface FormOption {
@@ -34,6 +35,7 @@ function slugify(s: string): string {
 
 export function DataPoolsListClient({ initialPools, forms }: Props) {
   const router = useRouter();
+  const t = useTranslations().admin.datapool;
   const [pools, setPools] = useState<DataPool[]>(initialPools);
   const [creating, setCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<DataPool | null>(null);
@@ -43,10 +45,10 @@ export function DataPoolsListClient({ initialPools, forms }: Props) {
     const res = await fetch(`/api/admin/datapools/${pendingDelete.id}`, { method: "DELETE" });
     if (res.ok) {
       setPools((p) => p.filter((x) => x.id !== pendingDelete.id));
-      toast.success(`Pool "${pendingDelete.name}" supprimée`);
+      toast.success(t.listDeletedToast.replace("{name}", pendingDelete.name));
     } else {
       const { error } = (await res.json().catch(() => ({}))) as { error?: string };
-      toast.error(error ?? "Erreur lors de la suppression");
+      toast.error(error ?? t.listDeleteFailedToast);
     }
     setPendingDelete(null);
   }
@@ -56,21 +58,18 @@ export function DataPoolsListClient({ initialPools, forms }: Props) {
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
-            <Database className="w-5 h-5" /> DataPools
+            <Database className="w-5 h-5" /> {t.listTitle}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Audiences dédupliquées construites au fil de l&apos;eau à partir des soumissions des
-            formulaires. Sert de base aux envois d&apos;emails groupés.
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">{t.listDescription}</p>
         </div>
         <Button onClick={() => setCreating(true)} className="shrink-0">
-          <Plus className="w-4 h-4 mr-1" /> Nouvelle DataPool
+          <Plus className="w-4 h-4 mr-1" /> {t.listNewButton}
         </Button>
       </div>
 
       {pools.length === 0 ? (
         <div className="text-center py-12 border-2 border-dashed rounded-xl text-sm text-muted-foreground">
-          Aucune DataPool pour l&apos;instant. Cliquez sur <strong>Nouvelle DataPool</strong> pour commencer.
+          {t.listEmpty} <strong>{t.listEmptyAction}</strong> {t.listEmptySuffix}
         </div>
       ) : (
         <div className="space-y-2">
@@ -81,9 +80,9 @@ export function DataPoolsListClient({ initialPools, forms }: Props) {
                 <Link href={`/admin/datapools/${pool.id}`} className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground">{pool.name}</p>
                   <p className="text-xs text-muted-foreground font-mono">
-                    /{pool.slug} · clé: <code>{pool.keyField}</code>
+                    /{pool.slug} · <code>{pool.keyField}</code>
                     {pool.additionalFields.length > 0 && (
-                      <> · {pool.additionalFields.length} champ{pool.additionalFields.length > 1 ? "s" : ""} additionnel{pool.additionalFields.length > 1 ? "s" : ""}</>
+                      <> · {pool.additionalFields.length} +</>
                     )}
                   </p>
                 </Link>
@@ -91,14 +90,13 @@ export function DataPoolsListClient({ initialPools, forms }: Props) {
                   type="button"
                   onClick={() => setPendingDelete(pool)}
                   className="w-8 h-8 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  title="Supprimer"
+                  title={t.listDeleteTooltip}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
                 <Link
                   href={`/admin/datapools/${pool.id}`}
                   className="w-8 h-8 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                  title="Ouvrir"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Link>
@@ -122,10 +120,10 @@ export function DataPoolsListClient({ initialPools, forms }: Props) {
 
       <ConfirmDialog
         open={!!pendingDelete}
-        title="Supprimer cette DataPool ?"
-        description={`La pool "${pendingDelete?.name}" et ses exclusions seront supprimées. Les soumissions des formulaires sources ne sont pas affectées.`}
-        confirmLabel="Supprimer"
-        cancelLabel="Annuler"
+        title={t.listDeleteConfirmTitle}
+        description={t.listDeleteConfirmDesc.replace("{name}", pendingDelete?.name ?? "")}
+        confirmLabel={t.settingsDeleteButton}
+        cancelLabel={t.createCancelButton}
         destructive
         onConfirm={handleDelete}
         onOpenChange={(open) => !open && setPendingDelete(null)}
@@ -143,6 +141,7 @@ interface CreatePoolModalProps {
 }
 
 function CreatePoolModal({ forms, onClose, onCreated }: CreatePoolModalProps) {
+  const t = useTranslations().admin.datapool;
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
@@ -194,11 +193,11 @@ function CreatePoolModal({ forms, onClose, onCreated }: CreatePoolModalProps) {
     setSubmitting(false);
     if (res.ok) {
       const pool = (await res.json()) as DataPool;
-      toast.success(`DataPool "${pool.name}" créée`);
+      toast.success(t.createdToast.replace("{name}", pool.name));
       onCreated(pool);
     } else {
       const { error } = (await res.json().catch(() => ({}))) as { error?: string };
-      toast.error(error ?? "Erreur lors de la création");
+      toast.error(error ?? t.createFailedToast);
     }
   }
 
@@ -208,44 +207,48 @@ function CreatePoolModal({ forms, onClose, onCreated }: CreatePoolModalProps) {
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
       <div className="bg-card border border-border rounded-xl shadow-lg w-full max-w-2xl my-8">
         <div className="px-6 py-4 border-b border-border">
-          <h2 className="text-lg font-semibold">Nouvelle DataPool</h2>
+          <h2 className="text-lg font-semibold">{t.createTitle}</h2>
         </div>
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">Nom</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">{t.createNameLabel}</label>
               <Input
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
                   if (!slugTouched) setSlug(slugify(e.target.value));
                 }}
-                placeholder="MU-1ère - Audience"
+                placeholder={t.createNamePlaceholder}
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">Slug</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">{t.createSlugLabel}</label>
               <Input
                 value={slug}
                 onChange={(e) => {
                   setSlug(slugify(e.target.value));
                   setSlugTouched(true);
                 }}
-                placeholder="mu-1ere-audience"
+                placeholder={t.createSlugPlaceholder}
                 className="font-mono"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Description (optionnel)</label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="À quoi sert cette pool ?" />
+            <label className="block text-xs text-muted-foreground mb-1.5">{t.createDescriptionLabel}</label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t.createDescriptionPlaceholder} />
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Formulaires sources ({selectedFormIds.length} sélectionné{selectedFormIds.length > 1 ? "s" : ""})</label>
+            <label className="block text-xs text-muted-foreground mb-1.5">
+              {t.createSourcesLabel
+                .replace("{count}", String(selectedFormIds.length))
+                .replace("{plural}", selectedFormIds.length > 1 ? "s" : "")}
+            </label>
             {forms.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">Aucun formulaire disponible. Créez-en un d&apos;abord.</p>
+              <p className="text-xs text-muted-foreground py-2">{t.createNoForms}</p>
             ) : (
               <div className="border border-border rounded-md max-h-40 overflow-y-auto">
                 {forms.map((f) => (
@@ -265,18 +268,16 @@ function CreatePoolModal({ forms, onClose, onCreated }: CreatePoolModalProps) {
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">
-              Champ-clé (la valeur dédupliquée — ex&nbsp;<code>email</code>)
-            </label>
+            <label className="block text-xs text-muted-foreground mb-1.5">{t.createKeyFieldLabel}</label>
             {candidateFields.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">Sélectionnez d&apos;abord au moins un formulaire source.</p>
+              <p className="text-xs text-muted-foreground py-2">{t.createNoFormsSelectedHint}</p>
             ) : (
               <select
                 value={keyField}
                 onChange={(e) => setKeyField(e.target.value)}
                 className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-[3px] focus:ring-ring/50"
               >
-                <option value="">— choisir —</option>
+                <option value="">—</option>
                 {candidateFields.map((f) => (
                   <option key={f.id} value={f.id}>{f.label} ({f.id})</option>
                 ))}
@@ -286,9 +287,7 @@ function CreatePoolModal({ forms, onClose, onCreated }: CreatePoolModalProps) {
 
           {keyField && (
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">
-                Champs additionnels à inclure (optionnel — utile pour la perso ultérieure)
-              </label>
+              <label className="block text-xs text-muted-foreground mb-1.5">{t.createAdditionalFieldsLabel}</label>
               <div className="border border-border rounded-md max-h-40 overflow-y-auto">
                 {candidateFields.filter((f) => f.id !== keyField).map((f) => (
                   <label key={f.id} className="flex items-center gap-2 px-3 py-2 hover:bg-accent/30 cursor-pointer text-sm border-b border-border/40 last:border-0">
@@ -307,9 +306,9 @@ function CreatePoolModal({ forms, onClose, onCreated }: CreatePoolModalProps) {
           )}
         </div>
         <div className="px-6 py-4 border-t border-border flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose} disabled={submitting}>Annuler</Button>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>{t.createCancelButton}</Button>
           <Button onClick={submit} disabled={!valid || submitting}>
-            {submitting ? "Création…" : "Créer la DataPool"}
+            {submitting ? t.createSubmittingButton : t.createSubmitButton}
           </Button>
         </div>
       </div>
