@@ -43,7 +43,10 @@ interface ViewsTabProps {
    *  clicking Save. `destructive: true` triggers a hard reload after save —
    *  reserved for delete because router.refresh() is flaky for layout-level
    *  updates under Next 16 + Turbopack. */
-  commitAdmin: (patch: Partial<AdminConfig>, opts?: { destructive?: boolean }) => void;
+  commitAdmin: (
+    patch: Partial<AdminConfig> | ((current: AdminConfig) => Partial<AdminConfig>),
+    opts?: { destructive?: boolean },
+  ) => void;
 }
 
 const WIDGET_TYPE_ICONS: Record<WidgetDef["type"], string> = {
@@ -275,9 +278,10 @@ export function ViewsTab({
     if (pages.length >= 10) return;
     const id = `p-${Date.now()}`;
     const newPage: AdminView = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
-    // Instant save: parent commits to DB + refreshes the admin sidebar so the
-    // new view appears in the nav without an explicit Save step.
-    commitAdmin({ views: [...pages, newPage] });
+    // Instant save with functional patch — reads the freshest views from the
+    // parent's draftRef, so rapid clicks don't race against a stale `pages`
+    // prop and drop in-flight additions.
+    commitAdmin(current => ({ views: [...(current.views ?? []), newPage] }));
     setExpandedPageId(id);
     setExpandedWidgetId(null);
     if (typeof window !== "undefined") {
@@ -303,31 +307,42 @@ export function ViewsTab({
   function doDeletePage() {
     if (!pendingDelete) return;
     const id = pendingDelete.id;
-    const remaining = pages.filter(pg => pg.id !== id);
-    const wasDefault = defaultPage === pages.find(pg => pg.id === id)?.slug;
-    if (expandedPageId === id) {
-      setExpandedPageId(remaining[0]?.id ?? null);
-      setExpandedWidgetId(null);
-    }
+    setExpandedWidgetId(null);
     setPendingDelete(null);
-    // Destructive: drop the view AND re-anchor `defaultView` if needed in a
-    // SINGLE atomic PUT, then hard-reload so the admin sidebar definitely
-    // picks up the change. Doing two separate commits would race — the older
-    // snapshot could land last server-side and resurrect the deleted view
-    // (which is exactly what the user hit before this fix).
+    // Functional patch: filter the LATEST views from the ref (not the prop),
+    // and re-anchor defaultView in the same commit when the deleted view was
+    // default. Single atomic PUT + hard reload — router.refresh is flaky for
+    // layout-level updates under Next 16 + Turbopack.
     commitAdmin(
-      wasDefault ? { views: remaining, defaultView: remaining[0]?.slug } : { views: remaining },
+      current => {
+        const remaining = (current.views ?? []).filter(pg => pg.id !== id);
+        const wasDefault = current.defaultView === (current.views ?? []).find(pg => pg.id === id)?.slug;
+        return wasDefault
+          ? { views: remaining, defaultView: remaining[0]?.slug }
+          : { views: remaining };
+      },
       { destructive: true },
     );
+    if (expandedPageId === id) {
+      setExpandedPageId(null);
+    }
   }
 
   function movePage(id: string, dir: "up" | "down") {
-    const i = pages.findIndex(pg => pg.id === id);
-    if (dir === "up" && i > 0) {
-      const copy = [...pages]; [copy[i-1], copy[i]] = [copy[i], copy[i-1]]; commitAdmin({ views: copy });
-    } else if (dir === "down" && i < pages.length - 1) {
-      const copy = [...pages]; [copy[i], copy[i+1]] = [copy[i+1], copy[i]]; commitAdmin({ views: copy });
-    }
+    commitAdmin(current => {
+      const list = current.views ?? [];
+      const i = list.findIndex(pg => pg.id === id);
+      if (i < 0) return {};
+      if (dir === "up" && i > 0) {
+        const copy = [...list]; [copy[i - 1], copy[i]] = [copy[i], copy[i - 1]];
+        return { views: copy };
+      }
+      if (dir === "down" && i < list.length - 1) {
+        const copy = [...list]; [copy[i], copy[i + 1]] = [copy[i + 1], copy[i]];
+        return { views: copy };
+      }
+      return {};
+    });
   }
 
   function addWidget(pageId: string, type: WidgetDef["type"]) {
@@ -422,7 +437,7 @@ export function ViewsTab({
                   type="button"
                   role="switch"
                   aria-checked={enabled}
-                  onClick={() => commitAdmin({ features: { ...features, [key]: !enabled } })}
+                  onClick={() => commitAdmin(current => ({ features: { ...current.features, [key]: !enabled } }))}
                   className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring/50 mt-0.5 ${
                     enabled ? "bg-blue-600" : "bg-muted"
                   }`}

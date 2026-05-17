@@ -149,10 +149,24 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
   // canonical "instant action" pathway — combined updates (e.g. delete view +
   // re-anchor default) ship atomically, avoiding the two-PUT race that would
   // let an old snapshot land last and resurrect the deleted view.
+  //
+  // `patch` can be a static object OR a function that receives the latest
+  // admin snapshot from the ref. The functional form is critical: a static
+  // `[...pages, newPage]` patch is built from the React prop, which may be
+  // stale relative to the just-committed draft (rapid clicks land before
+  // React re-renders ViewsTab with the new prop), so the patch would replace
+  // `views` with `[OLD_views, newPage]`, dropping any item added milliseconds
+  // earlier. Using `(admin) => ({ views: [...admin.views, newPage] })` always
+  // reads from the ref's fresh state.
+  //
   // `destructive: true` triggers a full reload after the save instead of the
   // (flaky under Next 16 + Turbopack) `router.refresh()`.
-  const commitAdmin = useCallback((patch: Partial<AdminConfig>, opts?: { destructive?: boolean }) => {
-    const next: FormConfig = { ...draftRef.current, admin: { ...draftRef.current.admin, ...patch } };
+  const commitAdmin = useCallback((
+    patch: Partial<AdminConfig> | ((current: AdminConfig) => Partial<AdminConfig>),
+    opts?: { destructive?: boolean },
+  ) => {
+    const resolved = typeof patch === "function" ? patch(draftRef.current.admin) : patch;
+    const next: FormConfig = { ...draftRef.current, admin: { ...draftRef.current.admin, ...resolved } };
     draftRef.current = next;            // sync update so sibling calls see it
     setDraft(next);
     void persistDraft(next, { reload: opts?.destructive === true });
