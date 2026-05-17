@@ -60,6 +60,13 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
 
   const [draft, setDraft] = useState<FormConfig>(() => JSON.parse(JSON.stringify(config)));
 
+  // Last snapshot we successfully PUT to the server. The Save button shows
+  // when `draft` diverges from THIS, not from the initial `config` prop —
+  // `config` only refreshes via the (Turbopack-flaky) `router.refresh()`, so
+  // comparing against it would leave the button stuck "dirty" after every
+  // instant action even though the server already has the new state.
+  const [savedSnapshot, setSavedSnapshot] = useState<FormConfig>(() => JSON.parse(JSON.stringify(config)));
+
   // Confirmation toast across the post-save full reload. Sonner can't survive
   // location.replace(), so we stash a flag in sessionStorage and surface it on
   // remount — that way the operator sees the "saved" feedback even though the
@@ -83,7 +90,11 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
   }
   const [saving, setSaving] = useState(false);
 
-  const isDirty = JSON.stringify(draft) !== JSON.stringify(config);
+  // Dirty against the last-saved snapshot, not the initial prop — instant
+  // actions (add/delete/move/toggle/setDefault) bump `savedSnapshot` directly,
+  // so the Save button only shows up when text-field edits (title/slug/icon/
+  // widget config) actually diverge from what's already in the DB.
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(savedSnapshot);
 
   // Persist a specific draft snapshot — used both by the explicit Save button
   // (text-field edits) and by per-action instant saves (add/delete/move view,
@@ -109,6 +120,12 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
         else        toast.error(msg);
         return false;
       }
+      // PUT accepted by server → mark this snapshot as the new clean baseline.
+      // The Save button uses isDirty = draft !== savedSnapshot, so bumping the
+      // snapshot here makes instant actions (toggle/add/move/delete) leave the
+      // form in a clean state immediately, without depending on router.refresh
+      // ever propagating the new `config` prop.
+      setSavedSnapshot(next);
       if (opts.reload) {
         // Hard reload — preserves the current tab and uses a cache-buster
         // querystring so the browser actually re-fetches instead of serving
