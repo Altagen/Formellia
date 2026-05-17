@@ -238,13 +238,13 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
         )}
         {activeTab === "pages" && (
           <ViewsTab
-            pages={draft.admin.views}
-            defaultPage={draft.admin.defaultView}
+            views={draft.admin.views}
+            defaultView={draft.admin.defaultView}
             formSteps={visibleFormInstances.flatMap(inst => inst.config?.form?.steps ?? [])}
             formInstances={visibleFormInstances}
             features={draft.admin.features}
             exclusionReasons={draft.admin.exclusionReasons}
-            onChangePages={(views) => setDraft({ ...draft, admin: { ...draft.admin, views } })}
+            onChangeViews={(views) => setDraft({ ...draft, admin: { ...draft.admin, views } })}
             onChangeDefault={(defaultView) => setDraft({ ...draft, admin: { ...draft.admin, defaultView } })}
             tableColumns={draft.admin.tableColumns}
             onChangeColumns={(tableColumns) => setDraft({ ...draft, admin: { ...draft.admin, tableColumns } })}

@@ -24,15 +24,15 @@ import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Star, X, Eye, EyeOf
 import { useTranslations } from "@/lib/context/LocaleContext";
 import { stepsForPage } from "@/lib/dashboard/scopedFields";
 
-interface PagesTabProps {
-  pages: AdminView[];
-  defaultPage: string | undefined;
+interface ViewsTabProps {
+  views: AdminView[];
+  defaultView: string | undefined;
   tableColumns: TableColumnDef[];
   formSteps: StepDef[];
   formInstances?: FormInstance[];
   features?: AdminFeatures;
   exclusionReasons?: string[];
-  onChangePages: (pages: AdminView[]) => void;
+  onChangeViews: (pages: AdminView[]) => void;
   onChangeDefault: (slug: string | undefined) => void;
   onChangeColumns: (cols: TableColumnDef[]) => void;
   onChangeFeatures: (f: AdminFeatures) => void;
@@ -78,7 +78,7 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40) || "page";
 }
 
-export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInstances = [], features, exclusionReasons, onChangePages, onChangeDefault, onChangeColumns, onChangeFeatures, onChangeExclusionReasons }: PagesTabProps) {
+export function ViewsTab({ views: pages, defaultView: defaultPage, tableColumns, formSteps, formInstances = [], features, exclusionReasons, onChangeViews, onChangeDefault, onChangeColumns, onChangeFeatures, onChangeExclusionReasons }: ViewsTabProps) {
   const tr = useTranslations();
   const p = tr.admin.config.views;
   const w = tr.admin.config.widgets;
@@ -241,7 +241,7 @@ export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInst
     if (pages.length >= 10) return;
     const id = `p-${Date.now()}`;
     const newPage: AdminView = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
-    onChangePages([...pages, newPage]);
+    onChangeViews([...pages, newPage]);
     setExpandedPageId(id);
     setExpandedWidgetId(null);
     // Scroll the newly created page into view once React paints it. rAF
@@ -255,12 +255,12 @@ export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInst
   }
 
   function updatePage(id: string, patch: Partial<AdminView>) {
-    onChangePages(pages.map(pg => pg.id === id ? { ...pg, ...patch } : pg));
+    onChangeViews(pages.map(pg => pg.id === id ? { ...pg, ...patch } : pg));
   }
 
   function deletePage(id: string) {
     const remaining = pages.filter(pg => pg.id !== id);
-    onChangePages(remaining);
+    onChangeViews(remaining);
     if (defaultPage === pages.find(pg => pg.id === id)?.slug) {
       onChangeDefault(remaining[0]?.slug);
     }
@@ -273,9 +273,9 @@ export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInst
   function movePage(id: string, dir: "up" | "down") {
     const i = pages.findIndex(pg => pg.id === id);
     if (dir === "up" && i > 0) {
-      const copy = [...pages]; [copy[i-1], copy[i]] = [copy[i], copy[i-1]]; onChangePages(copy);
+      const copy = [...pages]; [copy[i-1], copy[i]] = [copy[i], copy[i-1]]; onChangeViews(copy);
     } else if (dir === "down" && i < pages.length - 1) {
-      const copy = [...pages]; [copy[i], copy[i+1]] = [copy[i+1], copy[i]]; onChangePages(copy);
+      const copy = [...pages]; [copy[i], copy[i+1]] = [copy[i+1], copy[i]]; onChangeViews(copy);
     }
   }
 
