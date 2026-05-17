@@ -53,7 +53,34 @@ async function readFromDb(): Promise<FormConfig | null> {
 
   const rows = await db.select().from(formConfig).where(eq(formConfig.id, 1)).limit(1);
   if (rows.length === 0) return null;
-  return rows[0].config as FormConfig;
+  return normalizeAdminViewsKey(rows[0].config as FormConfig);
+}
+
+/**
+ * Forward-compat: 0.3.0 prepares the storage layer to accept `admin.views`
+ * as a synonym for `admin.pages`. The TS layer still uses `pages` until the
+ * Phase 3 rename ships; at that point this helper flips direction and a
+ * boot-time DB migration writes the canonical `views` key.
+ *
+ * For now: if a config row carries `admin.views` (e.g. a YAML restored from
+ * a future 0.3.0 backup), copy it into `admin.pages` so the rest of the
+ * codebase keeps working unchanged. Same for `defaultView` → `defaultPage`.
+ */
+function normalizeAdminViewsKey(config: FormConfig): FormConfig {
+  const admin = config.admin as FormConfig["admin"] & { views?: unknown; defaultView?: unknown };
+  let mutated = false;
+  const next = { ...admin };
+  if (!admin.pages && Array.isArray(admin.views)) {
+    next.pages = admin.views as FormConfig["admin"]["pages"];
+    delete (next as { views?: unknown }).views;
+    mutated = true;
+  }
+  if (!admin.defaultPage && typeof admin.defaultView === "string") {
+    next.defaultPage = admin.defaultView;
+    delete (next as { defaultView?: unknown }).defaultView;
+    mutated = true;
+  }
+  return mutated ? { ...config, admin: next } : config;
 }
 
 async function writeToDb(config: FormConfig): Promise<void> {

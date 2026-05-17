@@ -61,10 +61,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Admin key missing" }, { status: 422 });
     }
     const inAdmin = incoming.admin as Record<string, unknown>;
-    if (inAdmin.pages !== undefined) {
-      const pagesErr = validatePages(inAdmin.pages);
+    // 0.3.0 fwd-compat: accept `admin.views` as a synonym for `admin.pages`.
+    // When both are present `views` wins (canonical post-rename).
+    const pagesPayload = inAdmin.views ?? inAdmin.pages;
+    if (pagesPayload !== undefined) {
+      const pagesErr = validatePages(pagesPayload);
       if (pagesErr) return NextResponse.json({ error: pagesErr }, { status: 422 });
-      updated.admin.pages = inAdmin.pages as typeof updated.admin.pages;
+      updated.admin.pages = pagesPayload as typeof updated.admin.pages;
     }
     if (inAdmin.tableColumns !== undefined) updated.admin.tableColumns = inAdmin.tableColumns as typeof updated.admin.tableColumns;
     if (inAdmin.branding     !== undefined) updated.admin.branding     = inAdmin.branding     as typeof updated.admin.branding;

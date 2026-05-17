@@ -127,9 +127,13 @@ export async function restoreFromObject(
       const current = await getFormConfig();
       const inAdmin = incoming.admin as Record<string, unknown>;
       const updated = { ...current, admin: { ...current.admin } };
-      if (inAdmin.pages !== undefined) {
-        if (!Array.isArray(inAdmin.pages)) throw new Error("admin.pages must be an array");
-        updated.admin.pages = mergeAdminPages(current.admin.pages ?? [], inAdmin.pages as AdminPage[], mode);
+      // Forward-compat with 0.3.0 YAML format: accept `admin.views` as a
+      // synonym for `admin.pages`. When both are present `views` wins
+      // (canonical post-rename). The full TS rename ships in Phase 3.
+      const pagesPayload = inAdmin.views ?? inAdmin.pages;
+      if (pagesPayload !== undefined) {
+        if (!Array.isArray(pagesPayload)) throw new Error("admin.views must be an array");
+        updated.admin.pages = mergeAdminPages(current.admin.pages ?? [], pagesPayload as AdminPage[], mode);
       }
       if (inAdmin.tableColumns !== undefined) {
         if (!Array.isArray(inAdmin.tableColumns)) throw new Error("admin.tableColumns must be an array");

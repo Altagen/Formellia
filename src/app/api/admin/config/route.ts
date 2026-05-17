@@ -38,8 +38,17 @@ export async function PUT(req: NextRequest) {
     );
   }
 
+  // 0.3.0 fwd-compat: accept `admin.views` as a synonym for `admin.pages`.
+  // When both are present `views` wins (canonical post-rename). Normalised
+  // back to `pages` on the in-memory body so the rest of the handler is
+  // untouched until the Phase 3 TS rename ships.
+  const adminAny = body.admin as FormConfig["admin"] & { views?: unknown };
+  if (adminAny.views !== undefined && adminAny.pages === undefined) {
+    adminAny.pages = adminAny.views as FormConfig["admin"]["pages"];
+    delete adminAny.views;
+  }
   if (!Array.isArray(body.admin.pages)) {
-    return NextResponse.json({ error: "admin.pages must be an array" }, { status: 400 });
+    return NextResponse.json({ error: "admin.views must be an array" }, { status: 400 });
   }
 
   // Validate pages: unique IDs, required fields, known widget types
