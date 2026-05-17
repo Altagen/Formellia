@@ -55,6 +55,8 @@ let createdRootFormId = "";
 let createdImportedFormId = "";
 let createdDuplicateFormId = "";
 let createdDataPoolId = "";
+let dataPoolFormId   = "";   // dedicated form for DATAPOOL-02..09 (clean state)
+let dataPoolFormSlug = "";
 let createdAutoFormId = "";
 let createdBroadcastId = "";
 
@@ -1989,15 +1991,25 @@ test("DATAPOOL-01", "GET /api/admin/datapools → 200 array", async () => {
   ok("is array", Array.isArray(res.body));
 });
 
-test("DATAPOOL-02", "POST /api/admin/datapools (uses FORMS-02 form) → 201", async () => {
-  if (!createdFormId) throw new Error("createdFormId missing — FORMS-02 must run first");
+test("DATAPOOL-02", "POST /api/admin/datapools (dedicated form, clean state) → 201", async () => {
+  // Use a fresh form so DATAPOOL-06..09 can assert exact preview counts
+  // without pollution from earlier submission-flow tests (SUBM-*/BULK-*)
+  // that target the shared `createdFormSlug`.
+  const slug = `e2e-pool-form-${Date.now()}`;
+  const form = await adminClient.post<Record<string, unknown>>("/api/admin/forms", {
+    slug, name: "E2E pool form",
+  });
+  eq("form 201", form.status, 201);
+  dataPoolFormId   = form.body.id as string;
+  dataPoolFormSlug = form.body.slug as string;
+
   const res = await adminClient.post<Record<string, unknown>>("/api/admin/datapools", {
     slug: `e2e-pool-${Date.now()}`,
     name: "E2E pool",
     description: "End-to-end test pool",
     keyField: "email",
     additionalFields: ["firstName"],
-    sources: [{ formInstanceId: createdFormId }],
+    sources: [{ formInstanceId: dataPoolFormId }],
   });
   eq("status", res.status, 201);
   ok("has id", typeof res.body.id === "string");
@@ -2011,7 +2023,7 @@ test("DATAPOOL-03", "POST duplicate slug → 409", async () => {
     slug: pool.body.slug,
     name: "Other",
     keyField: "email",
-    sources: [{ formInstanceId: createdFormId }],
+    sources: [{ formInstanceId: dataPoolFormId }],
   });
   eq("status", res.status, 409);
 });
@@ -2035,10 +2047,10 @@ test("DATAPOOL-05", "GET /api/admin/datapools/:id → 200 with sources + exclusi
 });
 
 test("DATAPOOL-06", "Submit 3 entries (with duplicate email) → preview shows 2 unique", async () => {
-  if (!createdDataPoolId || !createdFormSlug) return;
+  if (!createdDataPoolId || !dataPoolFormSlug) return;
   // Three submissions — two share `alice@example.com` to exercise dedup.
   const submit = (email: string) => new ApiClient(BASE_URL).post(
-    `/api/forms/${createdFormSlug}/submit`,
+    `/api/forms/${dataPoolFormSlug}/submit`,
     { formData: { email, firstName: email.split("@")[0] } },
   );
   await submit("alice@example.com");
@@ -2405,6 +2417,14 @@ test("CLEAN-09", "DELETE DataPool from DATAPOOL-02 → 200", async () => {
   // Re-fetch should now 404
   const after = await adminClient.get(`/api/admin/datapools/${createdDataPoolId}`);
   eq("status (after delete)", after.status, 404);
+});
+
+test("CLEAN-10", "DELETE dedicated DATAPOOL form → 200", async () => {
+  if (!dataPoolFormId) return;
+  const res = await adminClient.delete(`/api/admin/forms/${dataPoolFormId}`);
+  eq("status", res.status, 200);
+  dataPoolFormId = "";
+  dataPoolFormSlug = "";
 });
 
 // ── ROOT PAGE (useCustomRoot feature) ────────────────────────────────────────
