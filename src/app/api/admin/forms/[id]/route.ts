@@ -8,7 +8,7 @@ import {
   deleteFormInstance,
   listFormInstances,
 } from "@/lib/db/formInstanceLoader";
-import { removeAutoViewForForm } from "@/lib/admin/autoFormPage";
+import { removeAutoViewForForm } from "@/lib/admin/autoFormView";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { isReservedSlug } from "@/lib/config/reservedSlugs";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";

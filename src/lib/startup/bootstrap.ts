@@ -170,7 +170,7 @@ export async function runStartupBootstrap(): Promise<void> {
   // Runs idempotently after the YAML form upserts so any new form created in
   // step 3 lands on the dashboard without an extra round-trip.
   try {
-    const { backfillAutoViews } = await import("@/lib/admin/autoFormPage");
+    const { backfillAutoViews } = await import("@/lib/admin/autoFormView");
     const result = await backfillAutoViews();
     if (result.created.length > 0) {
       log.info({ created: result.created, skipped: result.skipped.length }, "Auto-pages backfilled");

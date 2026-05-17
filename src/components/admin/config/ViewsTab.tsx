@@ -78,7 +78,7 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40) || "page";
 }
 
-export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInstances = [], features, exclusionReasons, onChangePages, onChangeDefault, onChangeColumns, onChangeFeatures, onChangeExclusionReasons }: PagesTabProps) {
+export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInstances = [], features, exclusionReasons, onChangePages, onChangeDefault, onChangeColumns, onChangeFeatures, onChangeExclusionReasons }: PagesTabProps) {
   const tr = useTranslations();
   const p = tr.admin.config.pages;
   const w = tr.admin.config.widgets;
@@ -245,10 +245,10 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
     setExpandedPageId(id);
     setExpandedWidgetId(null);
     // Scroll the newly created page into view once React paints it. rAF
-    // lets the new <div data-page-id> appear in the DOM before we look it up.
+    // lets the new <div data-view-id> appear in the DOM before we look it up.
     if (typeof window !== "undefined") {
       requestAnimationFrame(() => {
-        const el = document.querySelector(`[data-page-id="${id}"]`);
+        const el = document.querySelector(`[data-view-id="${id}"]`);
         el?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     }
@@ -475,7 +475,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
               ];
 
           return (
-            <div key={page.id} data-page-id={page.id} className={cn("rounded-xl border transition-all", isPageExpanded ? "border-primary/50 ring-1 ring-primary/20" : "border-border")}>
+            <div key={page.id} data-view-id={page.id} className={cn("rounded-xl border transition-all", isPageExpanded ? "border-primary/50 ring-1 ring-primary/20" : "border-border")}>
               {/* Page header */}
               <div className={cn("flex items-center gap-2 px-3 py-2.5 rounded-t-xl transition-colors", isPageExpanded && "bg-primary/[0.04]")}>
                 <div className="flex flex-col gap-0.5 shrink-0">

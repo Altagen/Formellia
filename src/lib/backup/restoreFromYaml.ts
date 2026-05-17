@@ -21,7 +21,7 @@ import {
   createDataPool,
   updateDataPool,
 } from "@/lib/datapools/crud";
-import { backfillAutoViews } from "@/lib/admin/autoFormPage";
+import { backfillAutoViews } from "@/lib/admin/autoFormView";
 import cron from "node-cron";
 import type { FormInstanceConfig } from "@/types/formInstance";
 import type { AdminView, TableColumnDef } from "@/types/config";

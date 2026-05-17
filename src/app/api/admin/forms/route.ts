@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { getAccessibleFormIds } from "@/lib/auth/permissions";
 import { listFormInstances, createFormInstance } from "@/lib/db/formInstanceLoader";
-import { ensureAutoViewForForm } from "@/lib/admin/autoFormPage";
+import { ensureAutoViewForForm } from "@/lib/admin/autoFormView";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { isReservedSlug } from "@/lib/config/reservedSlugs";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";

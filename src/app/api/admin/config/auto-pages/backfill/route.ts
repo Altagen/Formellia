@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
-import { backfillAutoViews } from "@/lib/admin/autoFormPage";
+import { backfillAutoViews } from "@/lib/admin/autoFormView";
 
 /**
  * POST /api/admin/config/auto-pages/backfill

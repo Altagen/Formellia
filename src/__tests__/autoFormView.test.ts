@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildAutoFormPage } from "@/lib/admin/autoFormPage";
+import { buildAutoFormPage } from "@/lib/admin/autoFormView";
 
 describe("buildAutoFormPage", () => {
   const form = { id: "11111111-2222-3333-4444-555555555555", slug: "inscription", name: "Inscription" };
