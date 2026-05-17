@@ -132,6 +132,16 @@ export const appConfig = pgTable("app_config", {
   loginRateLimitWindowMinutes: integer("login_rate_limit_window_minutes").notNull().default(15),
   useCustomRoot: boolean("use_custom_root").notNull().default(false),
   protectedSlugs: jsonb("protected_slugs").$type<string[]>().notNull().default([]),
+  // ── Global broadcast email config (0.3.0) ──────────────────────────────
+  // Used by the manual email composer to send to a deduplicated audience
+  // pulled from DataPools. Separate from `form_instances.config.notifications.email`
+  // which is per-form transactional. Both go through the same provider HTTP layer
+  // but the encryption key, identity ("from") and quotas are independent.
+  broadcastEmailProvider:          text("broadcast_email_provider"),                                   // 'resend' | 'sendgrid' | 'mailgun'
+  broadcastEmailFromAddress:       text("broadcast_email_from_address"),
+  broadcastEmailFromName:          text("broadcast_email_from_name"),
+  broadcastEmailApiKeyEncrypted:   text("broadcast_email_api_key_encrypted"),                          // AES-256-GCM, "cur:" prefix
+  broadcastEmailApiKeyExpiresAt:   date("broadcast_email_api_key_expires_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (t) => [
   check("app_config_single_row", sql`${t.id} = 1`),
@@ -429,6 +439,48 @@ export const dataPoolSubmissionExclusions = pgTable("data_pool_submission_exclus
 export type DataPool = typeof dataPools.$inferSelect;
 export type DataPoolSource = typeof dataPoolSources.$inferSelect;
 export type DataPoolSubmissionExclusion = typeof dataPoolSubmissionExclusions.$inferSelect;
+
+/**
+ * email_broadcasts — manual one-shot mailings composed in the admin UI and
+ * sent to the deduplicated union of one or more DataPools.
+ *
+ * Lifecycle (status column):
+ *   draft   → freshly created, not yet sent; freely editable.
+ *   sending → /send was invoked, the engine is processing batches.
+ *   sent    → all batches accepted by the provider; counts populated.
+ *   failed  → engine aborted (e.g. provider auth failure); `last_error` set.
+ *
+ * `data_pool_ids` is captured at send time so a later DataPool edit doesn't
+ * retroactively change the recipient set of an already-sent broadcast.
+ *
+ * GDPR: the email values themselves are NEVER stored here — recipients are
+ * recomputed at send time from the referenced pools, and the *count* (not the
+ * addresses) is the only post-send artefact. Erasure of a submission propagates
+ * transparently because the pool aggregation is a view, not a copy.
+ */
+export const emailBroadcasts = pgTable("email_broadcasts", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  name:            text("name").notNull(),
+  subject:         text("subject").notNull().default(""),
+  bodyHtml:        text("body_html").notNull().default(""),
+  bodyText:        text("body_text").notNull().default(""),
+  status:          text("status").notNull().default("draft"),
+  dataPoolIds:     jsonb("data_pool_ids").$type<string[]>().notNull().default([]),
+  recipientCount:  integer("recipient_count").notNull().default(0),
+  sentCount:       integer("sent_count").notNull().default(0),
+  failedCount:     integer("failed_count").notNull().default(0),
+  lastError:       text("last_error"),
+  sentAt:          timestamp("sent_at"),
+  createdByUserId: varchar("created_by_user_id", { length: 21 }).references(() => users.id, { onDelete: "set null" }),
+  createdAt:       timestamp("created_at").notNull().defaultNow(),
+  updatedAt:       timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  check("email_broadcasts_status_check",
+        sql`${t.status} IN ('draft', 'sending', 'sent', 'failed')`),
+  index("idx_email_broadcasts_status_created_at").on(t.status, t.createdAt),
+]);
+
+export type EmailBroadcast = typeof emailBroadcasts.$inferSelect;
 
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type CustomCaCert = typeof customCaCerts.$inferSelect;

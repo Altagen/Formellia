@@ -1,0 +1,498 @@
+"use client";
+
+/**
+ * Three-pane broadcast composer:
+ *
+ *   1. Settings: name + subject + DataPool checkboxes (server source of truth)
+ *   2. Body:    TipTap WYSIWYG (preserves paste-from-web formatting)
+ *   3. Preview: live recipient resolution + sanitized + CSS-inlined HTML
+ *               render exactly as the provider will receive it
+ *
+ * Auto-save fires 800 ms after the operator stops typing. Once the broadcast
+ * is sent (status != "draft") every field becomes read-only — manual edits to
+ * a `sent` row would silently drift from the archive of what was delivered.
+ */
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { ChevronLeft, Send, Eye, Pencil, Trash2, Users, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { RichTextEditor } from "@/components/admin/email/RichTextEditor";
+import { useTranslations } from "@/lib/context/LocaleContext";
+import type { EmailBroadcast } from "@/lib/db/schema";
+import type { BroadcastEmailConfig } from "@/lib/email/broadcastConfig";
+
+interface PoolOpt { id: string; name: string; slug: string }
+
+interface Props {
+  broadcast:      EmailBroadcast;
+  pools:          PoolOpt[];
+  providerConfig: BroadcastEmailConfig;
+}
+
+interface PreviewState {
+  loading:        boolean;
+  recipientCount: number;
+  recipients:     string[];   // truncated/redacted in render
+  html:           string;
+  text:           string;
+  subject:        string;
+}
+
+export function BroadcastComposerClient({ broadcast: initial, pools, providerConfig }: Props) {
+  const router = useRouter();
+  const t = useTranslations().admin.email.composer;
+  const [broadcast, setBroadcast] = useState(initial);
+  const [tab, setTab] = useState<"compose" | "preview">("compose");
+  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [sending, setSending] = useState(false);
+  // Confirmation dialogs — `null` when nothing is pending. Using a union so a
+  // single ConfirmDialog instance handles both delete + send (they're mutually
+  // exclusive in the UI anyway).
+  const [pendingConfirm, setPendingConfirm] = useState<
+    | { kind: "delete" }
+    | { kind: "send"; count: number }
+    | null
+  >(null);
+
+  // Live recipient count for the currently-checked pools. Refreshed via a
+  // debounced fetch on every toggle so the operator sees "X destinataires"
+  // before opening the Preview tab. `null` means "not computed yet"; a
+  // number is the latest merged-and-deduplicated total across selected pools.
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+  const [liveCountLoading, setLiveCountLoading] = useState(false);
+  const countTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const readOnly = broadcast.status !== "draft";
+
+  // ── Auto-save on idle ─────────────────────────────────────
+  // Build a debounced save so every keystroke doesn't hit the API. 800 ms is
+  // a sweet spot: long enough not to spam the server during typing, short
+  // enough that the operator sees "Saved" before they reach for the Send
+  // button. Skipped entirely when the row is no longer a draft.
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (readOnly || !dirty) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      setSaving(true);
+      try {
+        const res = await fetch(`/api/admin/email/broadcasts/${broadcast.id}`, {
+          method:  "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({
+            name:        broadcast.name,
+            subject:     broadcast.subject,
+            bodyHtml:    broadcast.bodyHtml,
+            bodyText:    broadcast.bodyText,
+            dataPoolIds: broadcast.dataPoolIds,
+          }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        setDirty(false);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : t.autoSaveFailed);
+      } finally {
+        setSaving(false);
+      }
+    }, 800);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [broadcast, dirty, readOnly]);
+
+  function update<K extends keyof EmailBroadcast>(key: K, val: EmailBroadcast[K]) {
+    setBroadcast(b => ({ ...b, [key]: val }));
+    setDirty(true);
+  }
+
+  function togglePool(id: string) {
+    // Allow unchecking everything — the operator may want a clean slate to
+    // pick a different set. The inline message below the picker keeps the
+    // empty state visible, and the Send button is disabled until at least
+    // one pool is checked AND the merged recipient count is > 0.
+    const next = broadcast.dataPoolIds.includes(id)
+      ? broadcast.dataPoolIds.filter(p => p !== id)
+      : [...broadcast.dataPoolIds, id];
+    update("dataPoolIds", next);
+  }
+
+  // Tabs metadata — drives the strip below the header. Keeping it inline
+  // (rather than mapping over a string list) makes the icon binding obvious.
+  const tabs: Array<{ id: "compose" | "preview"; label: string; icon: typeof Pencil }> = [
+    { id: "compose", label: t.tabCompose, icon: Pencil },
+    { id: "preview", label: t.tabPreview, icon: Eye },
+  ];
+
+  // ── Live recipient-count refresh ──────────────────────────
+  // Re-fetches the merged dedup count whenever the pool selection changes.
+  // Debounced 400 ms so a series of quick toggles (e.g. "deselect all,
+  // reselect three") only fires one query. Uses the stateless endpoint
+  // /api/admin/email/recipient-count — no broadcast row needed.
+  useEffect(() => {
+    if (countTimer.current) clearTimeout(countTimer.current);
+    if (broadcast.dataPoolIds.length === 0) {
+      setLiveCount(0);
+      return;
+    }
+    setLiveCountLoading(true);
+    countTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/admin/email/recipient-count", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ dataPoolIds: broadcast.dataPoolIds }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = (await res.json()) as { recipientCount: number };
+        setLiveCount(data.recipientCount);
+      } catch {
+        // Soft-failure: leave the count as "?" rather than blocking interaction
+        setLiveCount(null);
+      } finally {
+        setLiveCountLoading(false);
+      }
+    }, 400);
+    return () => { if (countTimer.current) clearTimeout(countTimer.current); };
+  }, [broadcast.dataPoolIds]);
+
+  // Used to gate the Send and Preview buttons.
+  const hasPools          = broadcast.dataPoolIds.length > 0;
+  const hasAnyRecipients  = liveCount !== null && liveCount > 0;
+  const canSend           = !readOnly && hasPools && hasAnyRecipients && !sending;
+
+  async function loadPreview() {
+    setTab("preview");
+    setPreview({ loading: true, recipientCount: 0, recipients: [], html: "", text: "", subject: "" });
+    try {
+      const res = await fetch(`/api/admin/email/broadcasts/${broadcast.id}/preview`, { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as Omit<PreviewState, "loading">;
+      setPreview({ loading: false, ...data });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t.sendFailedToast);
+      setPreview(null);
+    }
+  }
+
+  async function send() {
+    // Use the live merged count rather than the preview count — the preview
+    // pane might not have been opened yet, and `liveCount` is kept fresh by
+    // the debounced effect above. Both should agree but live is the source
+    // of truth here.
+    const total = liveCount ?? preview?.recipientCount ?? 0;
+    if (total === 0) {
+      toast.error(t.noRecipientsToast);
+      return;
+    }
+    // Defer to the ConfirmDialog — the actual POST happens in `confirmSend`
+    // once the operator agrees.
+    setPendingConfirm({ kind: "send", count: total });
+  }
+
+  async function confirmSend(total: number) {
+    setSending(true);
+    try {
+      const res = await fetch(`/api/admin/email/broadcasts/${broadcast.id}/send`, { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      const r = await res.json();
+      toast.success(
+        t.sendResultToast.replace("{sent}", String(r.sent)).replace("{failed}", String(r.failed)),
+      );
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t.sendFailedToast);
+    } finally {
+      setSending(false);
+    }
+    void total;
+  }
+
+  function destroy() {
+    setPendingConfirm({ kind: "delete" });
+  }
+
+  async function confirmDelete() {
+    const res = await fetch(`/api/admin/email/broadcasts/${broadcast.id}`, { method: "DELETE" });
+    if (!res.ok) { toast.error(t.deleteFailed); return; }
+    router.push("/admin/email/broadcasts");
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Link href="/admin/email/broadcasts" className="text-xs text-muted-foreground hover:underline inline-flex items-center gap-1">
+          <ChevronLeft className="w-3 h-3" /> {t.backLink}
+        </Link>
+        {/* Title row — only the Input lives next to the buttons so */}
+        {/* `items-center` aligns them on a single line. The save-status */}
+        {/* paragraph drops to the line below to avoid pulling the */}
+        {/* buttons off-axis by half the paragraph's height. */}
+        <div className="flex items-center justify-between mt-2 gap-3">
+          <Input
+            value={broadcast.name}
+            onChange={e => update("name", e.target.value)}
+            disabled={readOnly}
+            className="flex-1 min-w-0 text-xl font-bold border-none px-0 focus-visible:ring-0 shadow-none"
+            placeholder={t.namePlaceholder}
+          />
+          <div className="flex gap-2 shrink-0">
+            {/* The Preview button used to live here; it duplicated the */}
+            {/* Preview tab below. Consolidated into the tab strip. */}
+            {!readOnly && (
+              <Button type="button" onClick={send} disabled={!canSend}>
+                <Send className="w-4 h-4 mr-1" /> {sending ? t.sendingButton : t.sendButton}
+              </Button>
+            )}
+            {!readOnly && (
+              <Button type="button" variant="outline" onClick={destroy} title={t.deleteTitle}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          {saving ? t.saving : dirty ? t.dirty : t.saved}
+          {" · "}{t.statusLabel} <span className="font-medium">{broadcast.status}</span>
+        </p>
+      </div>
+
+      {/* Provider warning — surfaces here too in case the operator dropped into */}
+      {/* the composer directly from the list view's "New draft" button. */}
+      {(!providerConfig.provider || !providerConfig.apiKeyConfigured) && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+          ⚠ {t.providerWarning} <Link href="/admin/email/provider" className="underline font-medium">{t.configureNow}</Link>.
+        </div>
+      )}
+
+      {broadcast.status === "failed" && broadcast.lastError && (
+        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-900 dark:text-red-200">
+          {t.lastSendFailure} <span className="font-mono">{broadcast.lastError}</span>
+        </div>
+      )}
+
+      <div className="flex gap-1 border-b border-border">
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <button key={id}
+                  onClick={() => id === "preview" ? loadPreview() : setTab(id)}
+                  className={`px-4 py-2 text-sm border-b-2 -mb-px inline-flex items-center gap-1.5 ${tab === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Both panes stay mounted — toggled via CSS — so TipTap's internal */}
+      {/* state (cursor, undo, source-mode toggle) survives switching to */}
+      {/* Preview and back. Unmounting on tab switch used to re-parse */}
+      {/* `bodyHtml` through TipTap's semantic filter, dropping styled */}
+      {/* <div>s the operator had just pasted via the 📋 button. */}
+      <div className={`space-y-5 ${tab === "compose" ? "" : "hidden"}`}>
+          {/* Subject */}
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">{t.subjectLabel}</label>
+            <Input
+              value={broadcast.subject}
+              onChange={e => update("subject", e.target.value)}
+              disabled={readOnly}
+              placeholder={t.subjectPlaceholder}
+            />
+          </div>
+
+          {/* Body */}
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">{t.bodyLabel}</label>
+            <RichTextEditor
+              value={broadcast.bodyHtml}
+              onChange={html => update("bodyHtml", html)}
+              disabled={readOnly}
+            />
+            <p className="text-xs text-muted-foreground mt-1">{t.bodyHint}</p>
+          </div>
+
+          {/* DataPools picker */}
+          <div>
+            <label className="flex items-center justify-between text-xs font-medium text-muted-foreground mb-2">
+              <span>{t.recipientsLabel}</span>
+              {/* Live count badge — refreshed on every toggle via the */}
+              {/* /api/admin/email/recipient-count endpoint. */}
+              {hasPools && (
+                <span className="inline-flex items-center gap-1 text-foreground">
+                  <Users className="w-3 h-3" />
+                  {liveCountLoading ? (
+                    <span className="text-muted-foreground">{t.counting}</span>
+                  ) : liveCount === null ? (
+                    <span className="text-muted-foreground">?</span>
+                  ) : (
+                    <span className="font-medium">{liveCount} {liveCount === 1 ? t.recipientsUnitSingular : t.recipientsUnit}</span>
+                  )}
+                  <span className="text-muted-foreground"> · {broadcast.dataPoolIds.length} {broadcast.dataPoolIds.length === 1 ? t.poolsUnitSingular : t.poolsUnit}</span>
+                </span>
+              )}
+            </label>
+            <div className="space-y-1.5 border border-border rounded-md p-3 bg-card max-h-[200px] overflow-y-auto">
+              {pools.length === 0 ? (
+                <p className="text-xs text-muted-foreground">{t.noPools} <Link href="/admin/datapools" className="underline">{t.createPoolLink}</Link>.</p>
+              ) : pools.map(p => (
+                <label key={p.id} className="flex items-center gap-2 cursor-pointer text-sm">
+                  <input
+                    type="checkbox"
+                    checked={broadcast.dataPoolIds.includes(p.id)}
+                    onChange={() => togglePool(p.id)}
+                    disabled={readOnly}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <span className="flex-1">{p.name}</span>
+                  <span className="text-xs text-muted-foreground font-mono">{p.slug}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Inline status messages — three states, ordered by severity */}
+            {!hasPools ? (
+              <div className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300 mt-2">
+                <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>{t.atLeastOnePool}</span>
+              </div>
+            ) : !liveCountLoading && liveCount === 0 ? (
+              <div className="flex items-start gap-1.5 text-xs text-red-700 dark:text-red-300 mt-2">
+                <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>{t.emptyAudience}</span>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-2">{t.mergedHint}</p>
+            )}
+          </div>
+      </div>
+
+      {tab === "preview" && (
+        <div className="space-y-4">
+          {!preview || preview.loading ? (
+            <p className="text-sm text-muted-foreground">{t.previewLoading}</p>
+          ) : (
+            <>
+              <div className="rounded-md border border-border bg-card p-3 text-sm">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="font-medium">
+                    {t.previewRecipientsCount.replace("{count}", String(preview.recipientCount))}
+                  </div>
+                  {preview.recipients.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:text-foreground underline"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(preview.recipients.join(", "));
+                          toast.success(t.listCopied);
+                        } catch {
+                          toast.error(t.copyFailed);
+                        }
+                      }}
+                    >
+                      {t.copyList}
+                    </button>
+                  )}
+                </div>
+                {/* Full list — scrollable, monospace, plain (no redaction). The */}
+                {/* operator running the preview already has admin access; hiding */}
+                {/* the addresses from themselves was making it impossible to */}
+                {/* double-check who they were about to email. */}
+                {preview.recipients.length > 0 && (
+                  <div className="mt-2 max-h-[160px] overflow-y-auto rounded border border-border/50 bg-muted/30 p-2">
+                    <div className="text-xs font-mono break-all leading-relaxed text-muted-foreground">
+                      {preview.recipients.join(", ")}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="rounded-md border border-border bg-card">
+                <div className="px-3 py-2 border-b border-border bg-muted/30 text-xs">
+                  <span className="text-muted-foreground">{t.previewSubjectLabel} </span>
+                  <span className="font-medium">{preview.subject || <em>{t.noSubject}</em>}</span>
+                </div>
+                {/* Iframe sandbox — isolates the email from the admin shell's */}
+                {/* Tailwind / typography styles, so what the operator sees is */}
+                {/* very close to what a recipient sees in their inbox client. */}
+                {/* `srcDoc` doesn't trigger a network request and is GDPR-safe. */}
+                {/* The sandbox attribute strips scripts, popups, top-nav, etc. */}
+                <iframe
+                  title={t.previewIframeTitle}
+                  sandbox=""
+                  srcDoc={previewSrcDoc(preview.html)}
+                  className="w-full h-[600px] border-0 bg-white"
+                />
+              </div>
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">{t.plainTextDetails}</summary>
+                <pre className="mt-2 whitespace-pre-wrap font-mono text-xs bg-muted/30 p-3 rounded">{preview.text}</pre>
+              </details>
+              {!readOnly && (
+                <div className="flex justify-end">
+                  <Button onClick={send} disabled={sending || preview.recipientCount === 0}>
+                    <Send className="w-4 h-4 mr-1" /> {sending ? t.sendingButton : t.sendNow}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {readOnly && (
+        <div className="text-xs text-muted-foreground italic">
+          {t.readOnlyHint}
+          {broadcast.status === "sent" && broadcast.sentAt &&
+            t.sentOnHint.replace("{date}", new Date(broadcast.sentAt).toLocaleString())
+          }.
+        </div>
+      )}
+
+      {/* Confirmation dialogs — single instance, content driven by `pendingConfirm`. */}
+      <ConfirmDialog
+        open={pendingConfirm !== null}
+        title={
+          pendingConfirm?.kind === "send"   ? t.confirmSendTitle :
+          pendingConfirm?.kind === "delete" ? t.confirmDeleteTitle : ""
+        }
+        description={
+          pendingConfirm?.kind === "send"
+            ? t.confirmSend.replace("{count}", String(pendingConfirm.count))
+            : pendingConfirm?.kind === "delete"
+              ? t.deleteConfirm
+              : ""
+        }
+        confirmLabel={
+          pendingConfirm?.kind === "send"   ? t.sendButton :
+          pendingConfirm?.kind === "delete" ? t.deleteTitle : ""
+        }
+        cancelLabel={t.confirmCancel}
+        destructive={pendingConfirm?.kind === "delete"}
+        onOpenChange={(open) => { if (!open) setPendingConfirm(null); }}
+        onConfirm={() => {
+          if (pendingConfirm?.kind === "send")   confirmSend(pendingConfirm.count);
+          if (pendingConfirm?.kind === "delete") confirmDelete();
+          setPendingConfirm(null);
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Wraps the email HTML in a minimal document with the page background and
+ * font defaults most inboxes apply. Keeps the iframe rendering close to
+ * what a recipient sees — without leaking the admin shell's CSS.
+ */
+function previewSrcDoc(html: string): string {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html,body { margin:0; padding:24px; background:#f3f4f6; font-family:-apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#1f2937; }
+  a { color:inherit; }
+</style>
+</head><body>${html}</body></html>`;
+}
