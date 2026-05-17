@@ -620,35 +620,12 @@ function PreviewTab({
 
 function ExclusionsTab({ pool, onUpdated }: { pool: DataPoolWithMeta; onUpdated: (p: DataPoolWithMeta) => void }) {
   const t = useTranslations().admin.datapool;
-  const [submissionId, setSubmissionId] = useState("");
-  const [reason, setReason] = useState("");
-  const [adding, setAdding] = useState(false);
 
   async function refresh() {
     const res = await fetch(`/api/admin/datapools/${pool.id}`);
     if (res.ok) {
       const updated = (await res.json()) as DataPoolWithMeta;
       onUpdated(updated);
-    }
-  }
-
-  async function addExclusion() {
-    if (!submissionId.trim()) return;
-    setAdding(true);
-    const res = await fetch(`/api/admin/datapools/${pool.id}/exclusions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ submissionId: submissionId.trim(), reason: reason.trim() || null }),
-    });
-    setAdding(false);
-    if (res.ok) {
-      toast.success(t.exclusionAddedToast);
-      setSubmissionId("");
-      setReason("");
-      await refresh();
-    } else {
-      const { error } = (await res.json().catch(() => ({}))) as { error?: string };
-      toast.error(error ?? t.exclusionAddFailedToast);
     }
   }
 
@@ -665,18 +642,6 @@ function ExclusionsTab({ pool, onUpdated }: { pool: DataPoolWithMeta; onUpdated:
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">{t.exclusionsIntro}</p>
-      <div className="rounded-md border border-blue-500/40 bg-blue-500/5 px-3 py-2 text-xs text-blue-900 dark:text-blue-200">
-        💡 <strong>{t.exclusionsHintTitle}</strong> — {t.exclusionsHintBody}
-      </div>
-
-      <div className="border border-border rounded-md p-4 bg-muted/20">
-        <div className="text-sm font-medium mb-3">{t.exclusionsFormTitle}</div>
-        <div className="grid grid-cols-[2fr_1fr_auto] gap-2">
-          <Input placeholder={t.exclusionsFormUuidPlaceholder} value={submissionId} onChange={(e) => setSubmissionId(e.target.value)} className="font-mono text-xs" />
-          <Input placeholder={t.exclusionsFormReasonPlaceholder} value={reason} onChange={(e) => setReason(e.target.value)} />
-          <Button onClick={addExclusion} disabled={adding || !submissionId.trim()}>{adding ? "…" : t.exclusionsFormAddButton}</Button>
-        </div>
-      </div>
 
       <div className="border border-border rounded-md overflow-hidden">
         <table className="w-full text-sm">
