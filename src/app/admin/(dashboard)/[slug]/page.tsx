@@ -56,22 +56,31 @@ export default async function AdminDynamicPage({ params }: Props) {
         orphanedPoolId = page.dataPoolId;
       } else {
         const { entries } = await getDataPoolEntries(page.dataPoolId);
-        initialSubmissions = entries.map(e => ({
-          id:              e.sourceSubmissionId,
-          formInstanceId:  e.sourceFormInstanceId,
-          email:           pool.keyField === "email" ? e.key : (e.additional.email ?? null),
-          formData:        { [pool.keyField]: e.key, ...e.additional, _submissionCount: e.submissionCount, _firstSubmittedAt: e.firstSubmittedAt.toISOString() },
-          submittedAt:     e.lastSubmittedAt,
-          createdAt:       e.firstSubmittedAt,
-          updatedAt:       e.lastSubmittedAt,
-          ipHash:          null,
-          status:          null,
-          priority:        null,
-          dueDate:         null,
-          receivedAt:      null,
-          assignedToId:    null,
-          excludedFromDataPools: false,
-        }) as unknown as Submission);
+        // Defensive Date coercion — the pg driver can hand back timestamps as
+        // either Date objects (modern path) or ISO strings (older configs /
+        // when the column is timestamp-without-tz), depending on the deployment.
+        // The Submission type wants Date, so we coerce both ends.
+        const toDate = (v: unknown): Date => v instanceof Date ? v : new Date(v as string);
+        initialSubmissions = entries.map(e => {
+          const first = toDate(e.firstSubmittedAt);
+          const last  = toDate(e.lastSubmittedAt);
+          return {
+            id:              e.sourceSubmissionId,
+            formInstanceId:  e.sourceFormInstanceId,
+            email:           pool.keyField === "email" ? e.key : (e.additional.email ?? null),
+            formData:        { [pool.keyField]: e.key, ...e.additional, _submissionCount: e.submissionCount, _firstSubmittedAt: first.toISOString() },
+            submittedAt:     last,
+            createdAt:       first,
+            updatedAt:       last,
+            ipHash:          null,
+            status:          null,
+            priority:        null,
+            dueDate:         null,
+            receivedAt:      null,
+            assignedToId:    null,
+            excludedFromDataPools: false,
+          } as unknown as Submission;
+        });
 
         // Synthesise a single-step formSteps so column pickers + table headers
         // see the pool's keyField + additionalFields. Pool entries never have
