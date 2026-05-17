@@ -168,9 +168,13 @@ function InstanceEditor({ instance: initial, onSaved, onDeleted }: InstanceEdito
         const data = await res.json().catch(() => ({}));
         toast.error(data.error ?? f.networkError);
       } else {
+        // Hard reload — router.refresh() proved flaky under Next.js 16 +
+        // Turbopack for layout-level changes (the sidebar's forms list +
+        // auto-views didn't update without a full reload). Same pattern as
+        // ConfigEditor.handleSave.
         toast.success(f.deleted);
         onDeleted();
-        router.refresh();
+        window.location.reload();
       }
     } catch {
       toast.error(f.networkError);
@@ -178,7 +182,7 @@ function InstanceEditor({ instance: initial, onSaved, onDeleted }: InstanceEdito
       setDeleting(false);
       setConfirmDeleteOpen(false);
     }
-  }, [draft.id, onDeleted, router, f]);
+  }, [draft.id, onDeleted, f]);
 
   const handleUnlock = useCallback(async () => {
     try {
