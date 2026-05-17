@@ -13,6 +13,7 @@ import { CompletionFunnel } from "@/components/dashboard/CompletionFunnel";
 import { PrioritySettingsProvider } from "@/lib/context/PrioritySettingsContext";
 import { DEFAULT_THRESHOLDS } from "@/lib/utils/priority";
 import { flattenRepeaterRows, expandStepsForRepeater } from "@/lib/utils/flattenRepeater";
+import { getTranslations } from "@/i18n";
 import type { StepDef } from "@/types/config";
 import type { Submission } from "@/lib/db/schema";
 
@@ -90,12 +91,26 @@ export default async function AdminDynamicPage({ params }: Props) {
   const effectivePreset = instanceColorPreset ?? config.admin.branding?.colorPreset;
   const presetCss = buildPresetCssVars(effectivePreset);
 
+  // A page is in "every form mixed together" mode when no source is bound
+  // (no form instance, no external dataset, no flattened repeater). Show a
+  // banner so the operator sees at a glance that the table mixes submissions
+  // from every form — a behaviour the page editor warns about but that's
+  // easy to forget once the page is saved and being viewed day-to-day.
+  const isAllSubmissionsMode = !page.formInstanceId && !page.dataSourceId && !page.flattenRepeater;
+  const tr = getTranslations(config.locale);
+
   return (
     <PrioritySettingsProvider settings={instanceThresholds}>
       {presetCss && <style dangerouslySetInnerHTML={{ __html: presetCss }} />}
       <div className="space-y-6">
         <AutoRefresh intervalSeconds={page.refreshInterval ?? 0} />
         <h1 className="text-2xl font-bold tracking-tight">{page.title}</h1>
+
+        {isAllSubmissionsMode && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+            ⚠ {tr.admin.dashboard.allSubmissionsBanner}
+          </div>
+        )}
 
         <DashboardView
           formInstanceId={formInstanceId}
