@@ -2140,6 +2140,42 @@ test("DATAPOOL-12", "POST /api/admin/config/backup restore dataPools[] (append) 
   if (restored) await adminClient.delete(`/api/admin/datapools/${restored.id}`);
 });
 
+test("DATAPOOL-13", "Page bound to a DataPool renders entries from the pool", async () => {
+  if (!createdDataPoolId) return;
+  // Snapshot existing pages to splice the test page in/out without
+  // touching the operator's setup.
+  const before = await adminClient.get<Record<string, unknown>>("/api/admin/config/backup", { Accept: "application/json" });
+  const adminCfg = before.body.admin as Record<string, unknown>;
+  const existingPages = adminCfg.pages as Array<Record<string, unknown>>;
+  const testPageId = `pool-page-e2e-${Date.now()}`;
+  const testPageSlug = testPageId;
+  const pagesWithTest = [
+    ...existingPages,
+    {
+      id: testPageId, slug: testPageSlug, title: "Pool source e2e",
+      widgets: [{ type: "submissions_table", id: "tbl-1", title: "Pool entries" }],
+      dataPoolId: createdDataPoolId, showCompletionFunnel: false,
+    },
+  ];
+  const restoreRes = await adminClient.post<Record<string, unknown>>(
+    "/api/admin/config/backup?mode=replace&sections=admin",
+    { admin: { pages: pagesWithTest } },
+  );
+  eq("status (restore)", restoreRes.status, 200);
+
+  // Hit the page route — the server renderer should resolve the pool +
+  // build the synthetic submission rows. We only assert HTTP 200 here
+  // (deep DOM assertion lives in the live curl smoke script).
+  const page = await adminClient.request<string>("GET", `/admin/${testPageSlug}`);
+  eq("page status", page.status, 200);
+
+  // Clean up — remove the test page so the operator's setup is restored.
+  await adminClient.post(
+    "/api/admin/config/backup?mode=replace&sections=admin",
+    { admin: { pages: existingPages } },
+  );
+});
+
 // ── AUTO DASHBOARD PAGES ─────────────────────────────────────────────────────
 //
 // When `admin.features.autoCreateDashboardPageOnFormCreate` is on, creating a

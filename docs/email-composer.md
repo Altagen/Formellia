@@ -59,23 +59,66 @@ The encryption key is the same `ENCRYPTION_KEY` that protects per-form keys,
 so an `ENCRYPTION_KEY` rotation (`/api/admin/system/reencrypt`) migrates this
 column transparently.
 
+## The editor
+
+The body field uses a **dual-mode editor** so both technical and
+non-technical operators get a comfortable surface:
+
+- **Visual mode** (TipTap WYSIWYG): toolbar applies real formatting
+  (bold, italic, underline, strike, inline code, H1/H2/H3, lists,
+  blockquote, horizontal rule, link, undo/redo). The link button opens
+  a clean dialog with separate fields for the visible text and the
+  URL, with `javascript:`/`data:` rejected client-side.
+- **Code mode** (textarea): the canonical HTML source. The same
+  toolbar buttons insert the matching tags at the cursor / wrap the
+  current selection. Operators who paste a designed template stay in
+  this mode.
+- **📋 Paste rich HTML**: a dedicated toolbar button reads the
+  clipboard via the native API, picks the `text/html` MIME if
+  available (preserves inline styles), drops it verbatim into code
+  mode, and surfaces a confirm dialog before overwriting non-empty
+  content.
+- **Non-destructive toggle**: switching modes never silently rewrites
+  the source. The visual view only adopts the typed-in changes when
+  the operator actually types in it.
+- **Default mode** is computed from the content on initial load
+  (complex HTML → starts in code; plain text → starts in visual), so
+  a refresh of a styled template doesn't briefly flash the stripped
+  visual rendering.
+- **Preview tab** renders the final HTML in a sandboxed iframe
+  (`sandbox=""`, no scripts, no top-nav). What the operator sees is
+  byte-for-byte what the recipient receives, including the
+  CSS-inlining done by juice on the server.
+
+Every confirmation, link insertion, paste-replace, and provider-key
+removal goes through Radix Dialog — no `prompt()` / `confirm()` from
+the browser, no design inconsistencies with the rest of the admin UI.
+
 ## Security model
 
-- **WYSIWYG output sanitised on the server.** TipTap produces clean-ish HTML
-  on the client, but the server re-runs `DOMPurify` with an email-friendly
-  allow-list (`p, div, a, table, …, style` attributes allowed; `script`,
-  inline event handlers, `javascript:`/`data:` URLs blocked) before passing
-  the HTML to the send engine.
+- **HTML sanitised on the server.** The body is run through `DOMPurify`
+  with an email-friendly allow-list (`p, div, a, table, …, style`
+  attributes allowed; `script`, inline event handlers, `javascript:`/
+  `data:` URLs blocked) before reaching the send engine. The visual
+  mode's own pre-sanitization is treated as belt-and-braces, not
+  trusted.
 - **CSS inlining.** [juice](https://github.com/Automattic/juice) folds
-  `<style>` blocks into inline `style=` attributes — required for Gmail and
-  Outlook which strip the `<head>` entirely.
+  `<style>` blocks into inline `style=` attributes BEFORE sanitisation,
+  so rules defined in a single `<style>` block survive into the final
+  email. Gmail/Outlook strip `<head>/<style>` entirely; only inline
+  styles ride through.
+- **CAS-safe send.** `claimForSend` atomically transitions
+  `status='draft' → 'sending'` via `WHERE id=? AND status='draft'` —
+  two concurrent /send requests can't both succeed.
 - **BCC isolation.** Recipients never see each other's addresses in any
   provider mode.
 - **No tracking pixel.** No click rewriting. The composer never injects
   anything that wasn't in the operator's HTML.
 - **Audit log.** Every action (`email.broadcast.draft`, `…update`,
-  `…delete`, `…send`, `…send.failed`, `email.provider.update`) is recorded
-  in `admin_events` via `logAdminEvent`.
+  `…delete`, `…send`, `…send.failed`, `email.provider.update`) is
+  recorded in `admin_events` via `logAdminEvent`. The provider API
+  key never appears in any audit entry; only `apiKeyChanged: bool` is
+  logged.
 
 ## GDPR notes
 
@@ -128,7 +171,7 @@ Validation schemas live in `src/lib/email/broadcastValidation.ts`.
 | `src/lib/email/broadcastValidation.ts` | zod schemas (create/update/config) |
 | `src/app/api/admin/email/**` | REST endpoints |
 | `src/app/admin/(dashboard)/email/**` | Admin UI (list / composer / provider config) |
-| `src/components/admin/email/RichTextEditor.tsx` | TipTap wrapper used by the composer |
+| `src/components/admin/email/RichTextEditor.tsx` | Dual-mode editor (TipTap visual + textarea code) with toolbar, paste-rich-html, link dialog |
 
 ## Why this isn't a newsletter
 

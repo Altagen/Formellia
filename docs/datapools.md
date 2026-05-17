@@ -105,10 +105,36 @@ restoration and dataset operations.
 ### Per-pool exclusion
 
 If a person opts out of *one* audience only ("I still want the renewal
-reminder, but stop sending me marketing"), use the **Exclusions** tab
-on the pool detail page. This writes a row in
-`data_pool_submission_exclusions(pool_id, submission_id)` — an FK pair,
-no PII duplicated.
+reminder, but stop sending me marketing"), the easiest path is the
+**Preview** tab: find the row, click the 🚫 button at the end of the
+line. A dialog asks for an optional reason (free text, or one of the
+predefined reasons set in **Admin → Configuration → Pages → Exclusion
+reasons**) and writes a row in
+`data_pool_submission_exclusions(pool_id, submission_id)` — an FK
+pair, no PII duplicated.
+
+A power-user form is also available in the **Exclusions** tab if you
+already have the submission UUID (e.g. from an automation, an audit
+log entry, or a CSV import).
+
+#### Predefined exclusion reasons
+
+`admin.exclusionReasons: string[]` (YAML + UI) defines the dropdown
+shown in the exclusion dialog. Each deployment has its own
+vocabulary — set the list once, it stays consistent across all pools
+and gets exported in `backup.yaml` under `admin.exclusionReasons`.
+
+```yaml
+admin:
+  exclusionReasons:
+    - GDPR Art. 21 request
+    - Bounced email
+    - Spam complaint
+    - Manual op
+```
+
+Empty list = free-text only. Operators can always type a custom reason
+on top of these via the "Other reason" option.
 
 When the underlying submission is deleted (Art. 17 erasure), the
 exclusion row is removed automatically via `ON DELETE CASCADE`. If the
@@ -124,6 +150,50 @@ erasure (the right to object can also be re-exercised).
 > avoids parallel records. A suppression list will be added when the
 > newsletter feature ships (see `project_newsletter_future_groundwork`
 > in the maintainers' memory).
+
+## Use a pool as a dashboard page source
+
+In addition to forms and external datasets, a dashboard page can be
+bound to a DataPool. The page's widgets then operate on the
+deduplicated entries instead of raw submissions — useful for "audience
+view" pages that span several forms.
+
+Set `dataPoolId` on the page (UI: **Admin → Configuration → Pages →
+Source → By DataPool**, YAML: `admin.pages[].dataPoolId`):
+
+```yaml
+admin:
+  pages:
+    - id: subscribers-overview
+      slug: subscribers
+      title: Subscribers
+      dataPoolId: <uuid>
+      widgets:
+        - { type: submissions_table, id: tbl, title: All subscribers }
+        - { type: traffic_chart, id: tc, title: New entries / day }
+```
+
+| Widget | Pool source | Notes |
+|---|---|---|
+| `submissions_table` | ✅ | Main view of the deduplicated entries |
+| `stats_card`, `stats_table`, `chart` | ✅ | Aggregates over the pool fields |
+| `recent` | ✅ | Last entries by `lastSubmittedAt` |
+| `info_card` | ✅ | Static content |
+| `filter_pills` | ✅ | Over `additionalFields` |
+| `traffic_chart` | ✅ | Submission volume in the pool over time |
+| `email_quality` | ✅ | When `keyField === "email"` |
+| `funnel_chart` | ❌ | Needs form steps |
+| `urgency_distribution` | ❌ | Needs `urgency` column on submissions |
+| `deadline_distribution` | ❌ | Needs `dueDate` column |
+
+The Page Builder hides incompatible widget buttons automatically when
+a page is bound to a pool. If the operator switches the source later,
+unsupported widgets that were already added stay in place but render
+empty — the operator can remove them via the page editor.
+
+If the bound pool is deleted, the page surfaces an amber "DataPool
+deleted" banner so the operator knows to rebind. Other pages and the
+rest of the admin keep working normally.
 
 ## CSV export
 
@@ -205,6 +275,14 @@ sources than declared.
 - **Right to object** maps to either the per-pool exclusion (one
   audience) or the global flag (all audiences). Both are reversible;
   both are wiped on Art. 17 erasure.
+
+## i18n
+
+The DataPool admin UI (list, create modal, detail tabs, exclusion
+dialog) is fully translated through `src/i18n/{fr,en}.ts` under the
+`admin.datapool` namespace. Per-deployment YAML can override the
+locale (e.g. set to `fr` for a French audience) without touching the
+repo.
 
 ## File map
 
