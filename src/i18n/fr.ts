@@ -94,6 +94,7 @@ export const fr = {
       // List view
       listTitle: "DataPools",
       listDescription: "Audiences dédupliquées construites au fil de l'eau à partir des soumissions des formulaires. Sert de base aux envois d'emails groupés.",
+      backToConfig: "Retour à la configuration des DataPools",
       listNewButton: "Nouvelle DataPool",
       listEmpty: "Aucune DataPool pour l'instant. Cliquez sur",
       listEmptyAction: "Nouvelle DataPool",

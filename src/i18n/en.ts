@@ -95,6 +95,7 @@ export const en: TranslationKeys = {
       navLabel: "DataPools",
       listTitle: "DataPools",
       listDescription: "Deduplicated audiences built on top of form submissions. Used as the recipient set for broadcast emails.",
+      backToConfig: "Back to DataPools configuration",
       listNewButton: "New DataPool",
       listEmpty: "No DataPool yet. Click",
       listEmptyAction: "New DataPool",

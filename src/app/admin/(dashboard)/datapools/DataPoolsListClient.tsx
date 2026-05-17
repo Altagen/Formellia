@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Database, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Database, Trash2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -55,6 +55,17 @@ export function DataPoolsListClient({ initialPools, forms }: Props) {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
+      {/* Back to the DataPools configuration tab — the CRUD page is one click
+          deeper than the rest of the admin sidebar nav, so we surface the
+          return path explicitly. */}
+      <Link
+        href="/admin/configuration?tab=datapools"
+        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
+      >
+        <ChevronLeft className="w-3.5 h-3.5" />
+        {t.backToConfig}
+      </Link>
+
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
