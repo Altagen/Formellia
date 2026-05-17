@@ -80,7 +80,7 @@ function slugify(s: string) {
 
 export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInstances = [], features, exclusionReasons, onChangePages, onChangeDefault, onChangeColumns, onChangeFeatures, onChangeExclusionReasons }: PagesTabProps) {
   const tr = useTranslations();
-  const p = tr.admin.config.pages;
+  const p = tr.admin.config.views;
   const w = tr.admin.config.widgets;
 
   const WIDGET_TYPE_LABELS: Record<WidgetDef["type"], string> = {
@@ -237,7 +237,7 @@ export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInst
     };
   }
 
-  function addPage() {
+  function addView() {
     if (pages.length >= 10) return;
     const id = `p-${Date.now()}`;
     const newPage: AdminView = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
@@ -356,8 +356,8 @@ export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInst
             },
             {
               key: "autoCreateDashboardViewOnFormCreate" as const,
-              label: p.autoCreatePageLabel,
-              desc: p.autoCreatePageDesc,
+              label: p.autoCreateViewLabel,
+              desc: p.autoCreateViewDesc,
             },
           ] as const).map(({ key, label, desc }) => {
             const enabled = features?.[key] ?? false;
@@ -385,7 +385,7 @@ export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInst
 
         {features?.autoCreateDashboardViewOnFormCreate && (
           <div className="mt-4 pt-4 border-t border-border">
-            <BackfillButton label={p.autoCreatePageBackfillBtn} done={p.autoCreatePageBackfillDone} />
+            <BackfillButton label={p.autoCreateViewBackfillBtn} done={p.autoCreateViewBackfillDone} />
           </div>
         )}
       </div>
@@ -409,21 +409,21 @@ export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInst
 
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">{p.dashboardPages}</h2>
+          <h2 className="text-sm font-semibold text-foreground">{p.dashboardViews}</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            {p.dashboardPagesDesc}
-            {pages.length >= 10 && <span className="text-destructive ml-1">{p.maxPages}</span>}
+            {p.dashboardViewsDesc}
+            {pages.length >= 10 && <span className="text-destructive ml-1">{p.maxViews}</span>}
           </p>
         </div>
-        <Button type="button" size="sm" onClick={addPage} disabled={pages.length >= 10} className="gap-1.5 shrink-0">
+        <Button type="button" size="sm" onClick={addView} disabled={pages.length >= 10} className="gap-1.5 shrink-0">
           <Plus className="w-4 h-4" />
-          {p.addPage}
+          {p.addView}
         </Button>
       </div>
 
 {pages.length === 0 && (
         <div className="text-center py-10 border-2 border-dashed rounded-xl text-sm text-muted-foreground">
-          {p.noPagesYet}
+          {p.noViewsYet}
         </div>
       )}
 
@@ -649,7 +649,7 @@ export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInst
 
                   {/* Widgets list */}
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">{p.widgetsOnPage}</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">{p.widgetsOnView}</p>
 
                     {page.widgets.length === 0 ? (
                       <p className="text-xs text-muted-foreground py-2">{p.noWidgets}</p>
@@ -829,7 +829,7 @@ export function ViewsTab({ pages, defaultPage, tableColumns, formSteps, formInst
 
 /* ── Sub-editors ─────────────────────────────────────────── */
 
-type PagesTranslations = ReturnType<typeof useTranslations>["admin"]["config"]["pages"];
+type ViewsTranslations = ReturnType<typeof useTranslations>["admin"]["config"]["views"];
 
 const BUILTIN_LABELS: Record<string, string> = {
   email:        "Email",
@@ -853,7 +853,7 @@ function SubmissionsTableEditor({
   tableColumns: TableColumnDef[];
   onChangeColumns: (cols: TableColumnDef[]) => void;
   dataSourceFields?: string[];
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "submissions_table" }>>) => void;
 }) {
   const isExternal = !!dataSourceFields && dataSourceFields.length > 0;
@@ -1017,7 +1017,7 @@ function ChartEditor({
   groupByOptions: { value: string; label: string }[];
   chartTypes: { value: ChartType; label: string }[];
   dateRanges: { value: string; label: string }[];
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "chart" }>>) => void;
 }) {
   function updateChart(patch: Partial<typeof widget.chartConfig>) {
@@ -1095,7 +1095,7 @@ function StatsTableEditor({
   widget: Extract<WidgetDef, { type: "stats_table" }>;
   availableFields: { value: string; label: string }[];
   fieldValues: Record<string, string[]>;
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "stats_table" }>>) => void;
 }) {
   const cfg = widget.tableConfig;
@@ -1318,7 +1318,7 @@ function StatsCardEditor({
   widget: Extract<WidgetDef, { type: "stats_card" }>;
   availableFields: { value: string; label: string }[];
   fieldValues: Record<string, string[]>;
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "stats_card" }>>) => void;
 }) {
   const stats = widget.statsConfig;
@@ -1473,7 +1473,7 @@ function RecentEditor({
   onChange,
 }: {
   widget: Extract<WidgetDef, { type: "recent" }>;
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "recent" }>>) => void;
 }) {
   return (
@@ -1498,7 +1498,7 @@ function InfoCardEditor({
   onChange,
 }: {
   widget: Extract<WidgetDef, { type: "info_card" }>;
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "info_card" }>>) => void;
 }) {
   return (

@@ -44,7 +44,7 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
     const adminOnly = role === "admin";
     return [
       { id: "forms" as const, label: cfg.tabs.forms },
-      { id: "pages" as const, label: cfg.tabs.pages },
+      { id: "pages" as const, label: cfg.tabs.views },
       ...(adminOnly ? [
         { id: "general" as const,        label: cfg.tabs.general },
         { id: "sources" as const,        label: cfg.tabs.sources },
