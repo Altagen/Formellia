@@ -832,17 +832,6 @@ export function AdminSidebar({
             {role !== "viewer" && role !== "agent" && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link href="/admin/datapools" onClick={onClose} aria-label="DataPools"
-                    className={cn(iconLinkBase, isActive("/admin/datapools") && iconLinkActive)}>
-                    <Database className="w-4 h-4" />
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">DataPools</TooltipContent>
-              </Tooltip>
-            )}
-            {role !== "viewer" && role !== "agent" && (
-              <Tooltip>
-                <TooltipTrigger asChild>
                   <Link href="/admin/email/broadcasts" onClick={onClose} aria-label={tr.admin.email.navLabel}
                     className={cn(iconLinkBase, isActive("/admin/email") && iconLinkActive)}>
                     <Mail className="w-4 h-4" />
@@ -1156,14 +1145,6 @@ export function AdminSidebar({
               className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
                 isActive("/admin/global") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
               <Globe className="w-4 h-4 shrink-0" /><span>{tr.admin.nav.globalView}</span>
-            </Link>
-          )}
-
-          {role !== "viewer" && role !== "agent" && (
-            <Link href="/admin/datapools" onClick={onClose}
-              className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
-                isActive("/admin/datapools") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
-              <Database className="w-4 h-4 shrink-0" /><span>DataPools</span>
             </Link>
           )}
 

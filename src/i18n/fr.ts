@@ -1928,6 +1928,8 @@ export const fr = {
         spanToggleExpand: "Étendre sur 2 colonnes",
       },
       dataPoolsTab: {
+        managePoolsTitle: "Gérer les DataPools",
+        managePoolsDesc: "Créer des pools, éditer les sources, gérer les entrées et exclusions.",
         exclusionReasonsTitle: "Raisons d'exclusion",
         exclusionReasonsDesc: "Liste prédéfinie proposée quand vous excluez une soumission d'une DataPool. Laissez vide pour ne proposer que la saisie libre.",
         exclusionReasonsAdd: "Ajouter une raison",

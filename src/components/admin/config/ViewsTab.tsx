@@ -39,7 +39,7 @@ interface ViewsTabProps {
   /** Update the draft AND persist instantly. Used by action buttons
    *  (add/delete/move view, set default, toggle feature) so the admin
    *  sidebar reflects the change without the operator clicking Save. */
-  commitViews:   (pages: AdminView[]) => void;
+  commitViews:   (pages: AdminView[], opts?: { destructive?: boolean }) => void;
   commitDefault: (slug: string | undefined) => void;
   commitFeatures: (f: AdminFeatures) => void;
 }
@@ -294,7 +294,7 @@ export function ViewsTab({
 
   function confirmDeletePage(id: string) {
     const target = pages.find(pg => pg.id === id);
-    if (!target || pages.length <= 1) return;
+    if (!target) return;
     setPendingDelete({ id, title: target.title });
   }
 
@@ -308,12 +308,14 @@ export function ViewsTab({
       setExpandedWidgetId(null);
     }
     setPendingDelete(null);
-    // Instant save: drop the view and re-anchor `defaultView` if needed in a
-    // single PUT so the admin sidebar reflects the deletion immediately.
+    // Destructive: re-anchor `defaultView` if needed AND drop the view in a
+    // single PUT, then hard-reload so the admin sidebar definitely picks up
+    // the change (router.refresh is flaky under Next 16 + Turbopack for
+    // layout-level updates).
     if (wasDefault) {
       commitDefault(remaining[0]?.slug);
     }
-    commitViews(remaining);
+    commitViews(remaining, { destructive: true });
   }
 
   function movePage(id: string, dir: "up" | "down") {
@@ -496,7 +498,7 @@ export function ViewsTab({
                             <Star className="w-3 h-3" />
                           </button>
                         )}
-                        <button type="button" onClick={() => confirmDeletePage(page.id)} disabled={pages.length <= 1} title={p.delete}
+                        <button type="button" onClick={() => confirmDeletePage(page.id)} title={p.delete}
                           className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-20 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity">
                           <Trash2 className="w-3 h-3" />
                         </button>

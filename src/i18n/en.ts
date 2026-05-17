@@ -1919,6 +1919,8 @@ export const en: TranslationKeys = {
         spanToggleExpand: "Expand to 2 columns",
       },
       dataPoolsTab: {
+        managePoolsTitle: "Manage DataPools",
+        managePoolsDesc: "Create pools, edit sources, manage entries and exclusions.",
         exclusionReasonsTitle: "Exclusion reasons",
         exclusionReasonsDesc: "Predefined list offered when excluding a submission from a DataPool. Leave empty to use free text only.",
         exclusionReasonsAdd: "Add a reason",

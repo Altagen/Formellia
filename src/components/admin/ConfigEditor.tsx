@@ -139,11 +139,12 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
   }, [draft, cfg, persistDraft]);
 
   // Commit a structural change (add/delete view, move, toggle, set default)
-  // and persist instantly. The caller passes the new draft computed from the
-  // current one so the optimistic UI update + server save are coupled.
-  const commitAction = useCallback((next: FormConfig) => {
+  // and persist instantly. `destructive: true` forces a full reload after the
+  // save — used for delete because `router.refresh()` proved unreliable under
+  // Next 16 + Turbopack for layout-level (sidebar) updates.
+  const commitAction = useCallback((next: FormConfig, opts?: { destructive?: boolean }) => {
     setDraft(next);
-    void persistDraft(next, { reload: false });
+    void persistDraft(next, { reload: opts?.destructive === true });
   }, [persistDraft]);
 
   const handleExport = useCallback(async () => {
@@ -292,7 +293,7 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
             onChangeViews={(views) => setDraft({ ...draft, admin: { ...draft.admin, views } })}
             tableColumns={draft.admin.tableColumns}
             onChangeColumns={(tableColumns) => setDraft({ ...draft, admin: { ...draft.admin, tableColumns } })}
-            commitViews={(views) => commitAction({ ...draft, admin: { ...draft.admin, views } })}
+            commitViews={(views, opts) => commitAction({ ...draft, admin: { ...draft.admin, views } }, opts)}
             commitDefault={(defaultView) => commitAction({ ...draft, admin: { ...draft.admin, defaultView } })}
             commitFeatures={(features) => commitAction({ ...draft, admin: { ...draft.admin, features } })}
           />
