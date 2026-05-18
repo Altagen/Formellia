@@ -5,6 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
 
+/** Internal shadow shape — gives each input a stable identity so deleting
+ *  a sibling row doesn't shift focus / IME state onto the wrong field. */
+interface Row {
+  id:    string;
+  value: string;
+}
+
 /**
  * Editor for the operator-defined exclusion reasons surfaced as dropdown
  * suggestions in the DataPool exclusion dialog. Kept deliberately simple —
@@ -32,7 +39,6 @@ export function ExclusionReasonsEditor({
   // that `key={idx}` causes.
   const idCounter = useRef(0);
   const newId = () => `row-${idCounter.current++}`;
-  type Row = { id: string; value: string };
   const [rows, setRows] = useState<Row[]>(() => reasons.map((v) => ({ id: newId(), value: v })));
 
   // Re-sync when the prop changes due to an external reset (e.g. parent
