@@ -63,28 +63,34 @@ export function sanitizeBroadcastHtml(raw: string): string {
 }
 
 /**
- * Best-effort plain-text fallback for the multipart/alternative body
- * (email standards require both parts so spam filters don't downgrade).
- * Two design choices keep CodeQL's `js/bad-tag-filter` happy without
- * resorting to a runtime DOM parser server-side:
+ * Plain-text fallback for the multipart/alternative body. Custom regex
+ * strippers get flagged by CodeQL `js/bad-tag-filter` (rightly — they're
+ * easy to bypass with unterminated tags / entity tricks). We swap in
+ * DOMPurify with an empty allow-list: it removes every tag and attribute
+ * but keeps the text content, which is exactly what plain-text wants.
  *
- *   - Strip ALL angle-bracket sequences, including unterminated ones
- *     (`<script` without `>`). The `<[^>]*>?` pattern matches `<foo>`,
- *     `<foo` and a bare `<`, so nothing slips through.
- *   - DON'T decode HTML entities. Decoding `&amp;` / `&lt;` would risk
- *     surfacing a `<` that we'd then need to re-strip. Entities pass
- *     through as literal text — mail clients render `&lt;` verbatim,
- *     which is acceptable for the rare operator-typed angle brackets.
- *
- * The composer can override the plain-text body explicitly if it wants
- * a cleaner version (e.g. by hand).
+ * Structural tags get substituted with placeholder characters BEFORE the
+ * sanitiser runs so we can restore newlines after — DOMPurify itself only
+ * sees opaque text in those positions.
  */
+const NL = "";
+const NLNL = "";
+
 export function htmlToPlainText(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<\/(?:h[1-6]|li|tr|div)>/gi, "\n")
-    .replace(/<[^>]*>?/g, "")
+  const marked = html
+    .replace(/<br\s*\/?>/gi, NL)
+    .replace(/<\/p>/gi, NLNL)
+    .replace(/<\/(?:h[1-6]|li|tr|div)>/gi, NL);
+
+  const stripped = DOMPurify.sanitize(marked, {
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
+    KEEP_CONTENT: true,
+  });
+
+  return stripped
+    .replace(new RegExp(NLNL, "g"), "\n\n")
+    .replace(new RegExp(NL,   "g"), "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
