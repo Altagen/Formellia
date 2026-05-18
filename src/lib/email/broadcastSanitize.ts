@@ -63,35 +63,27 @@ export function sanitizeBroadcastHtml(raw: string): string {
 }
 
 /**
- * Best-effort plain-text fallback. Email standards require a multipart/alt
- * body so spam filters don't downgrade the message. This is a naive HTML
- * stripper — it's intentionally not perfect; the composer can override the
- * plain-text body explicitly if a tighter version is needed.
+ * Best-effort plain-text fallback for the multipart/alternative body
+ * (email standards require both parts so spam filters don't downgrade).
+ * Two design choices keep CodeQL's `js/bad-tag-filter` happy without
+ * resorting to a runtime DOM parser server-side:
  *
- * Three-pass design (CodeQL js/bad-tag-filter + js/double-escaping):
- *   1. Turn structural tags into newlines, strip every other tag.
- *   2. Decode entities, with `&amp;` LAST so an originally-encoded
- *      `&amp;lt;script>` doesn't round-trip to `<script>` in the output.
- *   3. Re-strip any angle-bracket sequence that entity decoding may have
- *      surfaced. Plain-text is non-executable in an email MIME part, but
- *      defending against `<script>`-shaped text means callers can pipe
- *      this output into other contexts without surprises.
+ *   - Strip ALL angle-bracket sequences, including unterminated ones
+ *     (`<script` without `>`). The `<[^>]*>?` pattern matches `<foo>`,
+ *     `<foo` and a bare `<`, so nothing slips through.
+ *   - DON'T decode HTML entities. Decoding `&amp;` / `&lt;` would risk
+ *     surfacing a `<` that we'd then need to re-strip. Entities pass
+ *     through as literal text — mail clients render `&lt;` verbatim,
+ *     which is acceptable for the rare operator-typed angle brackets.
+ *
+ * The composer can override the plain-text body explicitly if it wants
+ * a cleaner version (e.g. by hand).
  */
 export function htmlToPlainText(html: string): string {
   return html
-    // 1. Tag pass.
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n\n")
     .replace(/<\/(?:h[1-6]|li|tr|div)>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    // 2. Entity pass — &amp; last.
-    .replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, "&")
-    // 3. Defensive re-strip of anything that decoding may have revealed.
     .replace(/<[^>]*>?/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

@@ -88,11 +88,20 @@ describe("htmlToPlainText", () => {
     expect(out).toBe("Click here");
   });
 
-  it("decodes common entities", () => {
-    expect(htmlToPlainText(`a &amp; b`)).toBe("a & b");
-    expect(htmlToPlainText(`&quot;quoted&quot;`)).toBe('"quoted"');
-    // &nbsp; in the middle (the outer trim() would strip a leading one)
-    expect(htmlToPlainText(`a&nbsp;b`)).toBe("a b");
+  it("passes HTML entities through as literal text", () => {
+    // Plain-text MIME parts render entities verbatim — readers see "&amp;",
+    // not "&". We accept that trade-off so the function never has to surface
+    // raw `<` / `>` after a decode pass (CodeQL js/bad-tag-filter).
+    expect(htmlToPlainText(`a &amp; b`)).toBe("a &amp; b");
+    expect(htmlToPlainText(`&quot;quoted&quot;`)).toBe("&quot;quoted&quot;");
+    expect(htmlToPlainText(`a&nbsp;b`)).toBe("a&nbsp;b");
+  });
+
+  it("strips unterminated tags too (no <script> escape)", () => {
+    // The `<[^>]*>?` pattern catches a bare `<script` without a closing `>`,
+    // so a malformed input can't leak the substring into the plain-text out.
+    expect(htmlToPlainText(`hello <script alert(1)`)).toBe("hello");
+    expect(htmlToPlainText(`pre<post`)).toBe("pre");
   });
 
   it("collapses 3+ consecutive newlines to 2", () => {
