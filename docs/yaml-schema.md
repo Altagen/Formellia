@@ -306,34 +306,39 @@ customStatuses:
   - { value: "approved", label: "Approved", color: "#059669" }
 ```
 
-## Dashboard pages (UI restore only)
+## Dashboard views (UI restore only)
 
-Analytics pages are **not** accepted by the boot YAML. They go through the
+Analytics views are **not** accepted by the boot YAML. They go through the
 restore endpoint `/api/admin/config/backup?mode=append|replace`.
 
-- **`mode=append`** (recommended for partial edits): `admin.pages` and
+> **0.2.x compatibility**: the keys `admin.pages` and `admin.defaultPage`
+> are accepted as input and remapped to `admin.views` / `admin.defaultView`
+> at read time. Writes always emit the canonical 0.3.0 shape. See
+> `docs/migration-0.3.0.md`.
+
+- **`mode=append`** (recommended for partial edits): `admin.views` and
   `admin.tableColumns` are **upserted by `id`** — an incoming entry with an
   existing `id` updates it in place, a new `id` is appended, and entries not
-  present in the import are left untouched. So you can re-import a single page
-  without re-sending all the others. Every incoming page/column needs a
+  present in the import are left untouched. So you can re-import a single view
+  without re-sending all the others. Every incoming view/column needs a
   non-empty string `id` (the upsert key).
-- **`mode=replace`**: `admin.pages` / `admin.tableColumns` become the exact set
+- **`mode=replace`**: `admin.views` / `admin.tableColumns` become the exact set
   in the import — anything absent is dropped. Use for a controlled full reset.
-- `admin.branding` / `admin.features` are singletons: replaced in both modes
-  when present in the import.
+- `admin.branding` / `admin.features` / `admin.exclusionReasons` are
+  singletons: replaced in both modes when present in the import.
 
 Format:
 
 ```yaml
 admin:
-  pages:
-    - id: "page-stats"
+  views:
+    - id: "view-stats"
       title: "Registrations"
       slug: "registrations"       # /admin/registrations
       icon: "users"               # Lucide icon name
       formInstanceId: "/"         # filter on this form (id or slug)
       refreshInterval: 60         # auto-refresh in seconds (0 = off)
-      interactiveFilter: false    # clicking a segment filters the page
+      interactiveFilter: false    # clicking a segment filters the view
       showCompletionFunnel: true  # default true; set false to hide the step funnel
       widgets:
         - { type: "stats_card", id: "...", statsConfig: { ... } }
@@ -341,11 +346,14 @@ admin:
         - { type: "stats_table", id: "...", title: "...", tableConfig: { ... } }
         - { type: "submissions_table", id: "...", title: "...", searchFields: [...] }
         # other types listed below
-  defaultPage: "registrations"    # /admin redirects here
+  defaultView: "registrations"    # /admin redirects here
   tableColumns:                   # columns for the global submissions table
     - { id: "col-email",     label: "Email",     source: "email" }
     - { id: "col-status",    label: "Status",    source: "status" }
     - { id: "col-submitted", label: "Submitted", source: "submittedAt" }
+  exclusionReasons:               # operator-defined dropdown values for the
+    - "GDPR Art. 21 request"     # DataPool exclusion dialog (free text still
+    - "Bounce / hard fail"       # available alongside)
 ```
 
 ### Widget types

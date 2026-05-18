@@ -131,10 +131,12 @@ Two stable layers separated by the bootstrap:
   `notifications`, `priorityThresholds`. Editable from the admin UI
   unless `_managedBy: "yaml"` (file mode).
 - **Global admin config** — one singleton row in `app_config_doc`:
-  `admin.pages` (dashboards), `admin.tableColumns`, `admin.branding`,
-  `admin.features`, `useCustomRoot`. Edited from the admin UI; can be
-  reset via `restoreFromYaml` (`append` upserts by `id`, `replace`
-  wipes-and-sets).
+  `admin.views` (dashboards, formerly `admin.pages` until 0.3.0),
+  `admin.tableColumns`, `admin.branding`, `admin.features`,
+  `admin.exclusionReasons`, `useCustomRoot`. Edited from the admin UI;
+  can be reset via `restoreFromYaml` (`append` upserts by `id`,
+  `replace` wipes-and-sets). The 0.2.x key names are accepted as input
+  and normalised on read — see `docs/migration-0.3.0.md`.
 
 `src/lib/yaml/configSchema.ts` is the canonical schema for what the
 boot YAML accepts. `src/types/config.ts` is the canonical typed shape

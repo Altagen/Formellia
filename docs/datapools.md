@@ -158,12 +158,12 @@ bound to a DataPool. The page's widgets then operate on the
 deduplicated entries instead of raw submissions — useful for "audience
 view" pages that span several forms.
 
-Set `dataPoolId` on the page (UI: **Admin → Configuration → Pages →
-Source → By DataPool**, YAML: `admin.pages[].dataPoolId`):
+Set `dataPoolId` on the view (UI: **Admin → Configuration → Vues →
+Source → By DataPool**, YAML: `admin.views[].dataPoolId`):
 
 ```yaml
 admin:
-  pages:
+  views:
     - id: subscribers-overview
       slug: subscribers
       title: Subscribers
