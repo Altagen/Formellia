@@ -67,19 +67,32 @@ export function sanitizeBroadcastHtml(raw: string): string {
  * body so spam filters don't downgrade the message. This is a naive HTML
  * stripper — it's intentionally not perfect; the composer can override the
  * plain-text body explicitly if a tighter version is needed.
+ *
+ * Three-pass design (CodeQL js/bad-tag-filter + js/double-escaping):
+ *   1. Turn structural tags into newlines, strip every other tag.
+ *   2. Decode entities, with `&amp;` LAST so an originally-encoded
+ *      `&amp;lt;script>` doesn't round-trip to `<script>` in the output.
+ *   3. Re-strip any angle-bracket sequence that entity decoding may have
+ *      surfaced. Plain-text is non-executable in an email MIME part, but
+ *      defending against `<script>`-shaped text means callers can pipe
+ *      this output into other contexts without surprises.
  */
 export function htmlToPlainText(html: string): string {
   return html
+    // 1. Tag pass.
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n\n")
     .replace(/<\/(?:h[1-6]|li|tr|div)>/gi, "\n")
     .replace(/<[^>]+>/g, "")
+    // 2. Entity pass — &amp; last.
     .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    // 3. Defensive re-strip of anything that decoding may have revealed.
+    .replace(/<[^>]*>?/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
