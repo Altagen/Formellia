@@ -13,10 +13,12 @@
  */
 import juice from "juice";
 import { getMergedDataPoolKeys } from "@/lib/datapools/compute";
+import { dedupKeysAcrossLists } from "@/lib/datapools/dedup";
 import { sanitizeBroadcastHtml, htmlToPlainText } from "./broadcastSanitize";
 import { sendBroadcast, type BroadcastSendReport } from "./broadcastSender";
 import { getBroadcastEmailConfig } from "./broadcastConfig";
 import { markBroadcastSent, markBroadcastFailed } from "./broadcastCrud";
+import { normalizeAdditionalRecipients } from "./additionalRecipients";
 import type { EmailBroadcast } from "@/lib/db/schema";
 
 export interface BroadcastPreview {
@@ -37,7 +39,13 @@ export interface BroadcastPreview {
  * button in the composer.
  */
 export async function buildBroadcastPreview(broadcast: EmailBroadcast): Promise<BroadcastPreview> {
-  const recipients = await getMergedDataPoolKeys(broadcast.dataPoolIds);
+  // Pools first, then the operator's ad-hoc list — the dedup helper is
+  // case-insensitive and first-wins, so an address present in both surfaces
+  // exactly once and keeps the casing of the pool-resolved version (which
+  // already went through provider-style normalisation when ingested).
+  const poolKeys = await getMergedDataPoolKeys(broadcast.dataPoolIds);
+  const extras   = normalizeAdditionalRecipients(broadcast.additionalRecipients);
+  const recipients = dedupKeysAcrossLists([poolKeys, extras]);
 
   // ── CSS inline + sanitize, in that order ─────────────────────────────────
   //
@@ -94,7 +102,11 @@ export async function executeBroadcast(broadcast: EmailBroadcast): Promise<Execu
 
   const preview = await buildBroadcastPreview(broadcast);
   if (preview.recipientCount === 0) {
-    await markBroadcastFailed(broadcast.id, "No recipients after DataPool dedup");
+    // Belt-and-suspenders: the API route already rejects an empty-selection
+    // draft, but a pool that resolves to zero addresses (e.g. all submissions
+    // excluded) only surfaces here. We still want a clear message in the
+    // archived row.
+    await markBroadcastFailed(broadcast.id, "No recipients after pool dedup + manual list merge");
     throw new Error("No recipients to send to");
   }
 

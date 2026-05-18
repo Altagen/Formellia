@@ -21,8 +21,26 @@ describe("createBroadcastSchema", () => {
     expect(createBroadcastSchema.safeParse(ok).success).toBe(true);
   });
 
-  it("requires at least one dataPoolId", () => {
-    expect(createBroadcastSchema.safeParse({ ...ok, dataPoolIds: [] }).success).toBe(false);
+  it("accepts dataPoolIds: [] (composer allows all-ad-hoc broadcasts)", () => {
+    // 0.3.x relaxed the legacy `min(1)` constraint when the composer learned
+    // to accept free-text addresses on top of (or instead of) DataPools.
+    // The /send endpoint still refuses when the merged recipient count is 0.
+    expect(createBroadcastSchema.safeParse({ ...ok, dataPoolIds: [] }).success).toBe(true);
+  });
+
+  it("accepts an additionalRecipients array", () => {
+    const parsed = createBroadcastSchema.safeParse({
+      ...ok,
+      additionalRecipients: ["a@x.io", "b@x.io"],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects an additionalRecipients entry longer than the RFC 5321 limit", () => {
+    const longAddr = "a".repeat(321);
+    expect(
+      createBroadcastSchema.safeParse({ ...ok, additionalRecipients: [longAddr] }).success,
+    ).toBe(false);
   });
 
   it("rejects non-uuid dataPoolId", () => {

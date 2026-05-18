@@ -8,6 +8,7 @@ import { emailBroadcasts } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import type { EmailBroadcast } from "@/lib/db/schema";
 import type { CreateBroadcastInput, UpdateBroadcastInput } from "./broadcastValidation";
+import { normalizeAdditionalRecipients } from "./additionalRecipients";
 
 export async function listBroadcasts(): Promise<EmailBroadcast[]> {
   return db.select().from(emailBroadcasts).orderBy(desc(emailBroadcasts.createdAt));
@@ -23,11 +24,12 @@ export async function createBroadcast(
   createdByUserId: string | null,
 ): Promise<EmailBroadcast> {
   const [row] = await db.insert(emailBroadcasts).values({
-    name:        input.name,
-    subject:     input.subject,
-    bodyHtml:    input.bodyHtml,
-    bodyText:    input.bodyText,
-    dataPoolIds: input.dataPoolIds,
+    name:                 input.name,
+    subject:              input.subject,
+    bodyHtml:             input.bodyHtml,
+    bodyText:             input.bodyText,
+    dataPoolIds:          input.dataPoolIds,
+    additionalRecipients: normalizeAdditionalRecipients(input.additionalRecipients),
     createdByUserId,
   }).returning();
   return row;
@@ -50,6 +52,8 @@ export async function updateBroadcastIfDraft(
   if (patch.bodyHtml    !== undefined) fields.bodyHtml    = patch.bodyHtml;
   if (patch.bodyText    !== undefined) fields.bodyText    = patch.bodyText;
   if (patch.dataPoolIds !== undefined) fields.dataPoolIds = patch.dataPoolIds;
+  if (patch.additionalRecipients !== undefined)
+    fields.additionalRecipients = normalizeAdditionalRecipients(patch.additionalRecipients);
 
   const [row] = await db
     .update(emailBroadcasts)

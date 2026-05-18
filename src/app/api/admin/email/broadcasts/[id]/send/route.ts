@@ -54,10 +54,14 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   // Block sending a draft that has nothing to send to — surface as 422 with
   // a clear message rather than wasting a `claimForSend` + provider round-trip
-  // just to write back "no recipients" to the row.
-  if (!existing.dataPoolIds || existing.dataPoolIds.length === 0) {
+  // just to write back "no recipients" to the row. Either source (pool or
+  // free-text) is enough; `executeBroadcast` runs a second post-dedup check
+  // to catch the case where pools resolve to zero distinct addresses.
+  const hasPool   = (existing.dataPoolIds ?? []).length > 0;
+  const hasExtras = (existing.additionalRecipients ?? []).length > 0;
+  if (!hasPool && !hasExtras) {
     return NextResponse.json(
-      { error: "Cannot send: no DataPool selected. Pick at least one." },
+      { error: "Cannot send: pick at least one DataPool or add a manual address." },
       { status: 422 },
     );
   }

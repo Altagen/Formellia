@@ -468,6 +468,11 @@ export const emailBroadcasts = pgTable("email_broadcasts", {
   bodyText:        text("body_text").notNull().default(""),
   status:          text("status").notNull().default("draft"),
   dataPoolIds:     jsonb("data_pool_ids").$type<string[]>().notNull().default([]),
+  // Free-text email addresses the operator added by hand in the composer.
+  // Merged with the DataPool-resolved recipients at preview/send time and
+  // case-insensitively deduplicated against them, so a person who appears
+  // both in a pool and in this list still receives one mail.
+  additionalRecipients: jsonb("additional_recipients").$type<string[]>().notNull().default([]),
   recipientCount:  integer("recipient_count").notNull().default(0),
   sentCount:       integer("sent_count").notNull().default(0),
   failedCount:     integer("failed_count").notNull().default(0),

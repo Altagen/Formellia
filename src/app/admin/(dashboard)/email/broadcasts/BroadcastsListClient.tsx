@@ -31,7 +31,8 @@ export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig 
   const [broadcasts] = useState(initialBroadcasts);
   const [creating, setCreating] = useState(false);
 
-  // Operator can't compose a broadcast without at least one pool + provider config
+  // Operator still needs the provider; pools are now optional because the
+  // composer accepts ad-hoc addresses on top of (or instead of) DataPools.
   const noPools = pools.length === 0;
   const noProvider = !providerConfig.provider || !providerConfig.fromAddress || !providerConfig.apiKeyConfigured;
 
@@ -46,7 +47,10 @@ export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig 
           subject:     "",
           bodyHtml:    "",
           bodyText:    "",
-          dataPoolIds: [pools[0].id],
+          // Pre-select the first pool when there is one — saves the operator
+          // a click in the common case. An empty list is fine; the composer
+          // surfaces the manual-addresses input either way.
+          dataPoolIds: pools.length > 0 ? [pools[0].id] : [],
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -70,11 +74,14 @@ export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig 
             {t.list.description}
           </p>
         </div>
-        <Button onClick={createDraft} disabled={creating || noPools || noProvider}>
+        <Button onClick={createDraft} disabled={creating || noProvider}>
           <Plus className="w-4 h-4 mr-1" /> {creating ? "…" : t.list.newDraft}
         </Button>
       </div>
 
+      {/* Only the provider is a hard pre-requisite now — pools are merely a
+          quality-of-life shortcut over typing addresses by hand. We still
+          surface the "no pools" line as informative, not blocking. */}
       {(noPools || noProvider) && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
           <div className="flex items-start gap-2">

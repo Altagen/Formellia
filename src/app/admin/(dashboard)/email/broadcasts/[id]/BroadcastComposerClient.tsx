@@ -12,7 +12,7 @@
  * is sent (status != "draft") every field becomes read-only — manual edits to
  * a `sent` row would silently drift from the archive of what was delivered.
  */
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -24,6 +24,10 @@ import { RichTextEditor } from "@/components/admin/email/RichTextEditor";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import type { EmailBroadcast } from "@/lib/db/schema";
 import type { BroadcastEmailConfig } from "@/lib/email/broadcastConfig";
+import {
+  ADDITIONAL_RECIPIENTS_MAX,
+  parseAdditionalRecipients,
+} from "@/lib/email/additionalRecipients";
 
 interface PoolOpt { id: string; name: string; slug: string }
 
@@ -61,10 +65,24 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
   // Live recipient count for the currently-checked pools. Refreshed via a
   // debounced fetch on every toggle so the operator sees "X destinataires"
   // before opening the Preview tab. `null` means "not computed yet"; a
-  // number is the latest merged-and-deduplicated total across selected pools.
+  // number is the latest merged-and-deduplicated total across selected pools
+  // AND any ad-hoc addresses the operator typed into the free-text input.
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const [liveCountLoading, setLiveCountLoading] = useState(false);
   const countTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Free-text "Adresses additionnelles" — operator-typed buffer kept as a
+  // single string so newlines / commas / mixed separators render back the way
+  // they were typed. The parsed-and-deduplicated email list is derived via
+  // useMemo and is the value we ship to the server.
+  const [additionalRaw, setAdditionalRaw] = useState<string>(
+    (broadcast.additionalRecipients ?? []).join(", "),
+  );
+  const additionalParsed = useMemo(
+    () => parseAdditionalRecipients(additionalRaw),
+    [additionalRaw],
+  );
+  const additionalCapped = additionalParsed.valid.length >= ADDITIONAL_RECIPIENTS_MAX;
 
   const readOnly = broadcast.status !== "draft";
 
@@ -87,11 +105,12 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
           method:  "PATCH",
           headers: { "Content-Type": "application/json" },
           body:    JSON.stringify({
-            name:        broadcast.name,
-            subject:     broadcast.subject,
-            bodyHtml:    broadcast.bodyHtml,
-            bodyText:    broadcast.bodyText,
-            dataPoolIds: broadcast.dataPoolIds,
+            name:                 broadcast.name,
+            subject:              broadcast.subject,
+            bodyHtml:             broadcast.bodyHtml,
+            bodyText:             broadcast.bodyText,
+            dataPoolIds:          broadcast.dataPoolIds,
+            additionalRecipients: additionalParsed.valid,
           }),
         });
         if (!res.ok) throw new Error(await res.text());
@@ -103,7 +122,7 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
       }
     }, 800);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [broadcast, dirty, readOnly]);
+  }, [broadcast, additionalParsed, dirty, readOnly]);
 
   function update<K extends keyof EmailBroadcast>(key: K, val: EmailBroadcast[K]) {
     setBroadcast(b => ({ ...b, [key]: val }));
@@ -135,7 +154,9 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
   // /api/admin/email/recipient-count — no broadcast row needed.
   useEffect(() => {
     if (countTimer.current) clearTimeout(countTimer.current);
-    if (broadcast.dataPoolIds.length === 0) {
+    // Local short-circuit when both sources are empty — avoids a server
+    // round-trip for "nothing selected" which is the default state.
+    if (broadcast.dataPoolIds.length === 0 && additionalParsed.valid.length === 0) {
       setLiveCount(0);
       return;
     }
@@ -145,7 +166,10 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
         const res = await fetch("/api/admin/email/recipient-count", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ dataPoolIds: broadcast.dataPoolIds }),
+          body:    JSON.stringify({
+            dataPoolIds:          broadcast.dataPoolIds,
+            additionalRecipients: additionalParsed.valid,
+          }),
         });
         if (!res.ok) throw new Error(await res.text());
         const data = (await res.json()) as { recipientCount: number };
@@ -158,12 +182,15 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
       }
     }, 400);
     return () => { if (countTimer.current) clearTimeout(countTimer.current); };
-  }, [broadcast.dataPoolIds]);
+  }, [broadcast.dataPoolIds, additionalParsed]);
 
-  // Used to gate the Send and Preview buttons.
+  // Used to gate the Send and Preview buttons. The merged count is the
+  // source of truth — either source (pools OR free-text) can carry the
+  // broadcast on its own as long as `liveCount > 0`.
   const hasPools          = broadcast.dataPoolIds.length > 0;
+  const hasExtras         = additionalParsed.valid.length > 0;
   const hasAnyRecipients  = liveCount !== null && liveCount > 0;
-  const canSend           = !readOnly && hasPools && hasAnyRecipients && !sending;
+  const canSend           = !readOnly && (hasPools || hasExtras) && hasAnyRecipients && !sending;
 
   async function loadPreview() {
     setTab("preview");
@@ -352,8 +379,10 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
               ))}
             </div>
 
-            {/* Inline status messages — three states, ordered by severity */}
-            {!hasPools ? (
+            {/* Inline status messages — three states, ordered by severity.
+                Now scoped on the merged total (pools + extras) so an
+                all-ad-hoc draft is still considered "has recipients". */}
+            {!hasPools && !hasExtras ? (
               <div className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300 mt-2">
                 <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                 <span>{t.atLeastOnePool}</span>
@@ -366,6 +395,48 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
             ) : (
               <p className="text-xs text-muted-foreground mt-2">{t.mergedHint}</p>
             )}
+          </div>
+
+          {/* Free-text "Adresses additionnelles" — merged with the DataPool
+              selection at preview/send time. The textarea keeps the raw
+              keystrokes (so newlines / mixed separators survive a save→reload)
+              while the parsed list above drives validation feedback. */}
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              {t.additionalRecipientsLabel}
+            </label>
+            <textarea
+              value={additionalRaw}
+              onChange={e => {
+                setAdditionalRaw(e.target.value);
+                setDirty(true);
+              }}
+              disabled={readOnly}
+              rows={3}
+              placeholder={t.additionalRecipientsPlaceholder}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-[3px] focus:ring-ring/50 resize-y disabled:opacity-50"
+            />
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mt-1 text-xs">
+              <span className="text-muted-foreground">{t.additionalRecipientsHint}</span>
+              {additionalParsed.valid.length > 0 && (
+                <span className="text-emerald-700 dark:text-emerald-300">
+                  {t.additionalRecipientsValidCount.replace("{count}", String(additionalParsed.valid.length))}
+                </span>
+              )}
+              {additionalParsed.invalid.length > 0 && (
+                <span className="text-amber-700 dark:text-amber-300">
+                  {t.additionalRecipientsInvalidCount
+                    .replace("{count}", String(additionalParsed.invalid.length))
+                    .replace("{list}", additionalParsed.invalid.slice(0, 3).join(", ")
+                      + (additionalParsed.invalid.length > 3 ? "…" : ""))}
+                </span>
+              )}
+              {additionalCapped && (
+                <span className="text-red-700 dark:text-red-300">
+                  {t.additionalRecipientsCapped.replace("{max}", String(ADDITIONAL_RECIPIENTS_MAX))}
+                </span>
+              )}
+            </div>
           </div>
       </div>
 
