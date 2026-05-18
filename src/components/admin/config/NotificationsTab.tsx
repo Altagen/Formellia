@@ -401,6 +401,148 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
         )}
       </div>
 
+      {/* API Key card — always visible (broadcasts also need this key, not just submission confirmations) */}
+      <div className="bg-card rounded-xl border p-6 space-y-5">
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">{n.apiKeyTitle}</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              {n.apiKeyDesc}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Key status badge */}
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+              apiKeySet
+                ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
+                : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${apiKeySet ? "bg-green-500" : "bg-amber-500"}`} />
+              {apiKeySet ? n.keyConfigured : n.noKey}
+            </span>
+            {/* Expiry badge */}
+            {apiKeySet && <ExpiryBadge expiresAt={apiKeyExpiresAt} n={n} />}
+          </div>
+        </div>
+
+        {/* Expiry warning */}
+        {apiKeySet && expiredOrSoon && (
+          <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              {daysUntilExpiry(apiKeyExpiresAt)! < 0
+                ? n.expiredWarning
+                : n.expiringSoonWarning}
+            </p>
+          </div>
+        )}
+
+        {/* New key input */}
+        <div className="space-y-3">
+          <Label className="text-xs text-muted-foreground">
+            {apiKeySet ? n.replaceKey : n.addKey}
+          </Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                type={showKey ? "text" : "password"}
+                value={apiKeyInput}
+                onChange={e => setApiKeyInput(e.target.value)}
+                placeholder={apiKeySet ? n.newKeyPlaceholder : n.addKeyPlaceholder}
+                className="pr-10"
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey(v => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                tabIndex={-1}
+              >
+                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <Button
+              type="button"
+              onClick={handleSaveApiKey}
+              disabled={!apiKeyInput.trim() || savingKey}
+              size="sm"
+            >
+              {savingKey ? "…" : n.save}
+            </Button>
+          </div>
+
+          {/* Expiry date picker */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={noExpiry}
+                onChange={e => {
+                  setNoExpiry(e.target.checked);
+                  if (e.target.checked) setExpiryInput("");
+                }}
+                className="rounded border-input cursor-pointer"
+              />
+              {n.noExpireToggle}
+            </label>
+            {!noExpiry && (
+              <div className="flex items-center gap-2">
+                <Label htmlFor="key-expiry" className="text-xs text-muted-foreground whitespace-nowrap">
+                  {n.expiresAt}
+                </Label>
+                <Input
+                  id="key-expiry"
+                  type="date"
+                  value={expiryInput}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={e => setExpiryInput(e.target.value)}
+                  className="h-8 w-40 text-sm"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Delete key */}
+        {apiKeySet && (
+          <div className="border-t border-border pt-4">
+            {!confirmDelete ? (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1.5 text-xs text-destructive hover:text-destructive/80 cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {n.deleteKey}
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-destructive font-medium">{n.deleteKeyConfirm}</span>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="text-xs px-2 py-1 rounded border border-border hover:bg-muted cursor-pointer transition-colors"
+                >
+                  {n.cancel}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteKey}
+                  disabled={deletingKey}
+                  className="text-xs px-2 py-1 rounded bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer disabled:opacity-50 transition-colors"
+                >
+                  {deletingKey ? "…" : n.delete}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Webhook card */}
       <div className="bg-card rounded-xl border p-6 space-y-4">
         <div>
@@ -513,149 +655,6 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
         )}
       </div>
 
-      {/* API Key card */}
-      {enabled && (
-        <div className="bg-card rounded-xl border p-6 space-y-5">
-
-          {/* Header */}
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">{n.apiKeyTitle}</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                {n.apiKeyDesc}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Key status badge */}
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                apiKeySet
-                  ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
-                  : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${apiKeySet ? "bg-green-500" : "bg-amber-500"}`} />
-                {apiKeySet ? n.keyConfigured : n.noKey}
-              </span>
-              {/* Expiry badge */}
-              {apiKeySet && <ExpiryBadge expiresAt={apiKeyExpiresAt} n={n} />}
-            </div>
-          </div>
-
-          {/* Expiry warning */}
-          {apiKeySet && expiredOrSoon && (
-            <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
-              <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              </svg>
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                {daysUntilExpiry(apiKeyExpiresAt)! < 0
-                  ? n.expiredWarning
-                  : n.expiringSoonWarning}
-              </p>
-            </div>
-          )}
-
-          {/* New key input */}
-          <div className="space-y-3">
-            <Label className="text-xs text-muted-foreground">
-              {apiKeySet ? n.replaceKey : n.addKey}
-            </Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type={showKey ? "text" : "password"}
-                  value={apiKeyInput}
-                  onChange={e => setApiKeyInput(e.target.value)}
-                  placeholder={apiKeySet ? n.newKeyPlaceholder : n.addKeyPlaceholder}
-                  className="pr-10"
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKey(v => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                  tabIndex={-1}
-                >
-                  {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <Button
-                type="button"
-                onClick={handleSaveApiKey}
-                disabled={!apiKeyInput.trim() || savingKey}
-                size="sm"
-              >
-                {savingKey ? "…" : n.save}
-              </Button>
-            </div>
-
-            {/* Expiry date picker */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={noExpiry}
-                  onChange={e => {
-                    setNoExpiry(e.target.checked);
-                    if (e.target.checked) setExpiryInput("");
-                  }}
-                  className="rounded border-input cursor-pointer"
-                />
-                {n.noExpireToggle}
-              </label>
-              {!noExpiry && (
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="key-expiry" className="text-xs text-muted-foreground whitespace-nowrap">
-                    {n.expiresAt}
-                  </Label>
-                  <Input
-                    id="key-expiry"
-                    type="date"
-                    value={expiryInput}
-                    min={new Date().toISOString().slice(0, 10)}
-                    onChange={e => setExpiryInput(e.target.value)}
-                    className="h-8 w-40 text-sm"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Delete key */}
-          {apiKeySet && (
-            <div className="border-t border-border pt-4">
-              {!confirmDelete ? (
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(true)}
-                  className="flex items-center gap-1.5 text-xs text-destructive hover:text-destructive/80 cursor-pointer transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  {n.deleteKey}
-                </button>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-destructive font-medium">{n.deleteKeyConfirm}</span>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDelete(false)}
-                    className="text-xs px-2 py-1 rounded border border-border hover:bg-muted cursor-pointer transition-colors"
-                  >
-                    {n.cancel}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDeleteKey}
-                    disabled={deletingKey}
-                    className="text-xs px-2 py-1 rounded bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer disabled:opacity-50 transition-colors"
-                  >
-                    {deletingKey ? "…" : n.delete}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
