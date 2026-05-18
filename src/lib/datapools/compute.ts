@@ -24,6 +24,16 @@ const EXTRACTED_COLUMNS: Record<string, string> = {
 // this, but pool.keyField may also be loaded from existing DB rows (YAML
 // restore, future bulk imports), so we re-validate here before letting the
 // value reach SQL. Anything outside this charset throws loud and clear.
+//
+// Why `sql.raw` instead of parameter binding: this expression is reused in
+// three places of the query (DISTINCT ON, two PARTITION BY clauses, ORDER
+// BY) and Postgres demands them to be *textually identical* for DISTINCT
+// ON + ORDER BY to validate. Drizzle's `sql\`…${keyField}…\`` template
+// creates a fresh `$N` placeholder for each interpolation, so the three
+// expressions become `COALESCE(…->>$1, …)`, `COALESCE(…->>$2, …)`, etc. —
+// Postgres treats those as different expressions and rejects the query
+// with 42P10 "INVALID COLUMN REFERENCE". The regex below restricts the
+// input to a safe identifier charset BEFORE it reaches the raw splice.
 const KEY_FIELD_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
 
 function keyFieldExpr(keyField: string): SQL {
@@ -31,15 +41,13 @@ function keyFieldExpr(keyField: string): SQL {
     throw new Error(`Invalid keyField identifier: ${JSON.stringify(keyField)}`);
   }
   const column = EXTRACTED_COLUMNS[keyField];
-  // `keyField` flows through Drizzle's `sql` template as a bound parameter
-  // (`$N` in the prepared statement), so even a regex bypass on the input
-  // would land as a literal JSON path string rather than executable SQL.
-  // The `column` value comes from the hardcoded EXTRACTED_COLUMNS dict and
-  // is never operator-controlled — safe to splice as a raw identifier.
+  // COALESCE both the dedicated column (when applicable) and the JSON path so
+  // we transparently support extracted fields, custom fields, and historic
+  // submissions that may have had the value in either place.
   if (column) {
-    return sql`COALESCE(s.form_data->>${keyField}, s.${sql.raw(column)}::text)`;
+    return sql.raw(`COALESCE(s.form_data->>'${keyField}', s.${column}::text)`);
   }
-  return sql`s.form_data->>${keyField}`;
+  return sql.raw(`s.form_data->>'${keyField}'`);
 }
 
 interface ComputeOptions {
