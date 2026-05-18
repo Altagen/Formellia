@@ -20,15 +20,26 @@ const EXTRACTED_COLUMNS: Record<string, string> = {
   submittedAt: "submitted_at",
 };
 
+// Defense in depth — the API boundary (Zod fieldIdSchema) already enforces
+// this, but pool.keyField may also be loaded from existing DB rows (YAML
+// restore, future bulk imports), so we re-validate here before letting the
+// value reach SQL. Anything outside this charset throws loud and clear.
+const KEY_FIELD_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
+
 function keyFieldExpr(keyField: string): SQL {
-  const column = EXTRACTED_COLUMNS[keyField];
-  // COALESCE both the dedicated column (when applicable) and the JSON path so
-  // we transparently support extracted fields, custom fields, and historic
-  // submissions that may have had the value in either place.
-  if (column) {
-    return sql.raw(`COALESCE(s.form_data->>'${keyField}', s.${column}::text)`);
+  if (!KEY_FIELD_PATTERN.test(keyField)) {
+    throw new Error(`Invalid keyField identifier: ${JSON.stringify(keyField)}`);
   }
-  return sql.raw(`s.form_data->>'${keyField}'`);
+  const column = EXTRACTED_COLUMNS[keyField];
+  // `keyField` flows through Drizzle's `sql` template as a bound parameter
+  // (`$N` in the prepared statement), so even a regex bypass on the input
+  // would land as a literal JSON path string rather than executable SQL.
+  // The `column` value comes from the hardcoded EXTRACTED_COLUMNS dict and
+  // is never operator-controlled — safe to splice as a raw identifier.
+  if (column) {
+    return sql`COALESCE(s.form_data->>${keyField}, s.${sql.raw(column)}::text)`;
+  }
+  return sql`s.form_data->>${keyField}`;
 }
 
 interface ComputeOptions {

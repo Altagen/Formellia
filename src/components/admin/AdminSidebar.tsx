@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -149,6 +149,7 @@ interface SortableCatBlockProps {
 }
 
 function SortableCatBlock(props: SortableCatBlockProps) {
+  const sb = useTranslations().admin.config.sidebar;
   const {
     cat, itemOrderIds, orderedItems,
     isRenaming, renameDraft, onRenameDraftChange, onSaveRename, onCancelRename, onStartRename,
@@ -187,7 +188,7 @@ function SortableCatBlock(props: SortableCatBlockProps) {
               onMouseDown={stop}
               onChange={e => onRenameDraftChange({ ...renameDraft, name: e.target.value })}
               onKeyDown={e => { if (e.key === "Enter") onSaveRename(); if (e.key === "Escape") onCancelRename(); }}
-              placeholder="Nom" />
+              placeholder={sb.namePlaceholder} />
             <button type="button" onMouseDown={stop} onClick={onSaveRename} className="shrink-0 p-0.5 rounded text-green-600 hover:bg-accent/50"><Check className="w-3.5 h-3.5" /></button>
             <button type="button" onMouseDown={stop} onClick={onCancelRename} className="shrink-0 p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3.5 h-3.5" /></button>
           </>
@@ -217,7 +218,7 @@ function SortableCatBlock(props: SortableCatBlockProps) {
                 icon={item.icon} label={item.label} onRemove={item.onRemove} />
             ))}
             {orderedItems.length === 0 && !isAddOpen && (
-              <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">Vide</p>
+              <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">{sb.emptyShort}</p>
             )}
             {isAddOpen && addPanel}
           </div>
@@ -238,6 +239,7 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
   onClose: () => void;
   inputClass: string;
 }) {
+  const sb = useTranslations().admin.config.sidebar;
   const [mode, setMode] = useState<"pick" | "page" | "form" | "link">("pick");
   const [label, setLabel] = useState("");
   const [href, setHref] = useState("");
@@ -247,16 +249,16 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
       {availablePages.length > 0 && (
         <button type="button" onMouseDown={e => e.stopPropagation()} onClick={() => setMode("page")}
           className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-border hover:bg-accent/50 transition-colors">
-          <LayoutDashboard className="w-3 h-3" /> Page
+          <LayoutDashboard className="w-3 h-3" /> {sb.addPage}
         </button>
       )}
       <button type="button" onMouseDown={e => e.stopPropagation()} disabled={availableForms.length === 0} onClick={() => setMode("form")}
         className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-border hover:bg-accent/50 disabled:opacity-40 transition-colors">
-        <FileText className="w-3 h-3" /> Form
+        <FileText className="w-3 h-3" /> {sb.addFormItem}
       </button>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={() => setMode("link")}
         className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-border hover:bg-accent/50 transition-colors">
-        <Link2 className="w-3 h-3" /> Lien
+        <Link2 className="w-3 h-3" /> {sb.addLinkItem}
       </button>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={onClose} className="ml-auto p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3 h-3" /></button>
     </div>
@@ -267,7 +269,7 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
       <select autoFocus className={cn(inputClass, "flex-1 text-xs h-6")} defaultValue=""
         onMouseDown={e => e.stopPropagation()}
         onChange={e => { if (e.target.value) { onAddPage(e.target.value); onClose(); } }}>
-        <option value="" disabled>Choisir…</option>
+        <option value="" disabled>{sb.selectPlaceholder}</option>
         {availablePages.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
       </select>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={onClose} className="shrink-0 p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3 h-3" /></button>
@@ -279,7 +281,7 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
       <select autoFocus className={cn(inputClass, "flex-1 text-xs h-6")} defaultValue=""
         onMouseDown={e => e.stopPropagation()}
         onChange={e => { if (e.target.value) { onAddForm(e.target.value); onClose(); } }}>
-        <option value="" disabled>Choisir…</option>
+        <option value="" disabled>{sb.selectPlaceholder}</option>
         {availableForms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
       </select>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={onClose} className="shrink-0 p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3 h-3" /></button>
@@ -288,10 +290,10 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
 
   return (
     <div className="space-y-1 py-1">
-      <input autoFocus className={cn(inputClass, "w-full text-xs h-6")} placeholder="Label"
+      <input autoFocus className={cn(inputClass, "w-full text-xs h-6")} placeholder={sb.linkLabel}
         onMouseDown={e => e.stopPropagation()} value={label} onChange={e => setLabel(e.target.value)} />
       <div className="flex gap-1">
-        <input className={cn(inputClass, "flex-1 text-xs h-6")} placeholder="URL"
+        <input className={cn(inputClass, "flex-1 text-xs h-6")} placeholder={sb.linkUrl}
           onMouseDown={e => e.stopPropagation()} value={href} onChange={e => setHref(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && label && href) { onAddLink({ label, href }); onClose(); } }} />
         <button type="button" onMouseDown={e => e.stopPropagation()} disabled={!label.trim() || !href.trim()}
@@ -373,9 +375,16 @@ export function AdminSidebar({
           body: JSON.stringify(next),
         });
         if (res.ok) toast.success(tr.admin.config.sidebar.saved, { duration: 1200 });
-      } catch { /* silent */ }
+      } catch (err) {
+        console.error("[AdminSidebar] persist failed:", err);
+      }
     }, 400);
   }, [tr.admin.config.sidebar.saved]);
+  // Cancel any pending save when the sidebar unmounts so a stale PATCH doesn't
+  // race a fresher one fired by the next mount (route change, dialog open).
+  useEffect(() => () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+  }, []);
 
   function update(next: SidebarLayout) { setLayout(next); persist(next); }
 
@@ -964,7 +973,7 @@ export function AdminSidebar({
                           label={l.label} onRemove={() => removeLink(l.id)} />
                       ))}
                       {uncatPages.length === 0 && uncatFormIds.length === 0 && uncatLinks.length === 0 && addingTo !== UNCAT && (
-                        <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">Vide</p>
+                        <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">{tr.admin.config.sidebar.emptyShort}</p>
                       )}
                       {addingTo === UNCAT && (
                         <AddItemPanel

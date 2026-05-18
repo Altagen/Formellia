@@ -233,11 +233,11 @@ export function ViewsTab({
     fetch("/api/admin/datasets")
       .then(r => r.ok ? r.json() : [])
       .then(setDatasets)
-      .catch(() => {});
+      .catch(err => console.error("[ViewsTab] datasets fetch failed:", err));
     fetch("/api/admin/datapools")
       .then(r => r.ok ? r.json() : [])
       .then((rows: Array<{ id: string; slug: string; name: string; keyField: string; additionalFields: string[] }>) => setPools(rows))
-      .catch(() => {});
+      .catch(err => console.error("[ViewsTab] datapools fetch failed:", err));
   }, []);
 
   // Fetch field names + all distinct values for a dataset when first needed.
@@ -253,7 +253,7 @@ export function ViewsTab({
         setDataSourceFields(prev => ({ ...prev, [dsId]: data.fields }));
         setDataSourceFieldValues(prev => ({ ...prev, [dsId]: data.values }));
       })
-      .catch(() => {});
+      .catch(err => console.error("[ViewsTab] field-values fetch failed:", err));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expandedPageId, expandedPageDsId]);
 

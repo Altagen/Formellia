@@ -239,7 +239,9 @@ export async function restoreFromObject(
     }
     results.scheduledJobs = { created: jCreated, updated: jUpdated, errors: jErrors };
     if (jCreated.length > 0 || jUpdated.length > 0) {
-      import("@/lib/scheduler/scheduler").then(({ reloadJobs }) => reloadJobs()).catch(() => {});
+      import("@/lib/scheduler/scheduler")
+        .then(({ reloadJobs }) => reloadJobs())
+        .catch((err) => console.error("[restoreFromYaml] scheduler reload failed:", err));
     }
   }
 

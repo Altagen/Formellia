@@ -6,6 +6,12 @@ import { getDataPoolEntries } from "@/lib/datapools/compute";
 
 type Props = { params: Promise<{ id: string }> };
 
+// Same cap as the global submissions export — keeps response memory bounded
+// (a typical 50k-entry pool serialises to a few MB, but unbounded growth on a
+// runaway pool would block the handler and pressure the worker). Surfaced as
+// a 400 with a clear message so operators know to paginate or split.
+const MAX_EXPORT_ROWS = 10_000;
+
 function escapeCsv(value: string): string {
   // RFC 4180: any field containing a comma, double-quote or newline must be
   // wrapped in double quotes, with embedded double quotes doubled.
@@ -21,7 +27,15 @@ export async function GET(req: NextRequest, { params }: Props) {
   const pool = await getDataPool(id);
   if (!pool) return NextResponse.json({ error: "DataPool not found" }, { status: 404 });
 
-  const { entries } = await getDataPoolEntries(id);
+  const { entries, total } = await getDataPoolEntries(id, { limit: MAX_EXPORT_ROWS });
+  if (total > MAX_EXPORT_ROWS) {
+    return NextResponse.json(
+      {
+        error: `DataPool has ${total} entries — over the ${MAX_EXPORT_ROWS} export cap. Split it (filter sources) or request a paginated export.`,
+      },
+      { status: 400 },
+    );
+  }
   const columns = [pool.keyField, ...pool.additionalFields];
   const header = columns.map(escapeCsv).join(",");
   const rows = entries.map((e) => {

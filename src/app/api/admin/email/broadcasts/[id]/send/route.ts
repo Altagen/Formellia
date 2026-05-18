@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
+import { checkAdminRateLimit } from "@/lib/security/adminRateLimit";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { getBroadcast, claimForSend } from "@/lib/email/broadcastCrud";
 import { executeBroadcast } from "@/lib/email/broadcastService";
@@ -25,6 +26,20 @@ type Props = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, { params }: Props) {
   const guard = (await requireAdminMutation(req)) ?? (await requireRole("admin", req));
   if (guard) return guard;
+
+  // Per-user rate limit — sending a broadcast triggers an outbound provider
+  // call that costs money and floods recipient mailboxes. Cap at 10 sends per
+  // minute per admin to prevent both accidental retry loops and abuse via
+  // stolen credentials.
+  const actor = await validateAdminSession(req);
+  const rlKey = `broadcast-send:${actor?.id ?? "anon"}`;
+  const rl = checkAdminRateLimit(rlKey, 10, 60_000);
+  if (rl.blocked) {
+    return NextResponse.json(
+      { error: "Too many broadcast send attempts. Try again shortly." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
 
   const { id } = await params;
   const existing = await getBroadcast(id);
@@ -52,7 +67,6 @@ export async function POST(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: "Could not claim broadcast" }, { status: 409 });
   }
 
-  const actor = await validateAdminSession(req);
   try {
     const result = await executeBroadcast(claimed);
     logAdminEvent({
