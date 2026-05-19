@@ -1,13 +1,18 @@
 import { decryptApiKey } from "./crypto";
 import { buildEmailHtml, buildEmailText, substituteVars } from "./template";
-import type { EmailNotificationConfig } from "@/types/formInstance";
+import type { ResolvedEmailConfig } from "./resolveFormEmailConfig";
 
 // ── API key resolution ─────────────────────────────────────────────────────
-// Priority:
-//   1. apiKeyEncrypted in DB (set via UI) → decrypt with AES key
-//   2. EMAIL_API_KEY_{SLUG_UPPER} env var  (e.g. EMAIL_API_KEY_ROOT, EMAIL_API_KEY_MY_FORM)
-//   3. EMAIL_API_KEY env var               (global fallback)
-//   4. None found → throws (email fails silently, submission still succeeds)
+// Priority (resolved by the caller via `resolveFormEmailConfigFromDb`):
+//   1. apiKeyEncrypted from the form's notification override
+//   2. apiKeyEncrypted from the global `app_config.email_api_key_encrypted`
+//   3. EMAIL_API_KEY_{SLUG_UPPER} env var  (e.g. EMAIL_API_KEY_ROOT)
+//   4. EMAIL_API_KEY env var               (global fallback)
+//   5. None found → resolver returns `ok: false` and the caller skips
+//
+// This function only handles the env-var tier — the resolver already chose
+// between the DB sources before calling us. Decryption happens here so the
+// plaintext key never lingers anywhere it doesn't have to.
 
 function canonicalizeSlug(slug: string): string {
   // "/" → "ROOT", "my-form" → "MY_FORM"
@@ -16,9 +21,9 @@ function canonicalizeSlug(slug: string): string {
     .toUpperCase();
 }
 
-function resolveApiKey(config: EmailNotificationConfig, formSlug: string): string {
-  if (config.apiKeyEncrypted?.trim()) {
-    return decryptApiKey(config.apiKeyEncrypted);
+function resolveApiKey(apiKeyEncrypted: string, formSlug: string): string {
+  if (apiKeyEncrypted?.trim()) {
+    return decryptApiKey(apiKeyEncrypted);
   }
   const slugKey = `EMAIL_API_KEY_${canonicalizeSlug(formSlug)}`;
   if (process.env[slugKey]?.trim()) return process.env[slugKey]!.trim();
@@ -35,28 +40,32 @@ function resolveApiKey(config: EmailNotificationConfig, formSlug: string): strin
  *
  * Supports: Resend, SendGrid, Mailgun (BYOK — key stored encrypted in DB).
  * Mailgun domain is derived from fromAddress (must match your Mailgun sending domain).
+ *
+ * Expects an already-resolved config (per-form override merged with global)
+ * — see `resolveFormEmailConfigFromDb` for the merging logic.
  */
 export async function sendEmailNotification(
-  config: EmailNotificationConfig,
+  config: ResolvedEmailConfig,
   to: string,
   formData: Record<string, unknown>,
   formName: string,
   formSlug: string,
 ): Promise<void> {
-  // Refuse to send if the DB-stored key has passed its expiry date
-  // (env-var keys have no expiry — operators manage rotation themselves)
+  // Refuse to send if the DB-stored key has passed its expiry date.
+  // Env-var keys have no expiry — operators manage rotation themselves —
+  // so the check is gated on `apiKeyEncrypted` being non-empty.
   if (config.apiKeyEncrypted?.trim() && config.apiKeyExpiresAt) {
     const expiry = new Date(config.apiKeyExpiresAt);
     expiry.setHours(23, 59, 59, 999);
     if (expiry < new Date()) {
       throw new Error(
         `[email] API key expired on ${config.apiKeyExpiresAt} for form "${formSlug}". ` +
-        `Update the key in Notification settings.`
+        `Update the key in Notification settings (or the global email provider).`
       );
     }
   }
 
-  const apiKey = resolveApiKey(config, formSlug);
+  const apiKey = resolveApiKey(config.apiKeyEncrypted, formSlug);
 
   // Build variable map — formData first, then system vars AFTER so they can't be
   // overridden by a malicious submission containing {"email": "...", "formName": "..."}

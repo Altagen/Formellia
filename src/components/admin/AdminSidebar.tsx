@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -12,7 +12,9 @@ import {
   Settings2, LogOut,
   LayoutDashboard, Inbox, BarChart2, FileText, Info, Globe, User, ClipboardList,
   Link2, ChevronDown, ChevronRight, Pencil, Plus, Trash2, Check, X, FolderPlus,
+  Database, Mail, ChevronsLeft, ChevronsRight,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   DndContext, DragOverlay, MouseSensor, TouchSensor, KeyboardSensor,
@@ -26,7 +28,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { AdminPage, AdminFeatures, AdminBrandingConfig } from "@/types/config";
+import type { AdminView, AdminFeatures, AdminBrandingConfig } from "@/types/config";
 import type { SidebarLayout, SidebarCustomLink, SidebarCategory } from "@/types/sidebarLayout";
 import type { FormInstance } from "@/types/formInstance";
 
@@ -147,6 +149,7 @@ interface SortableCatBlockProps {
 }
 
 function SortableCatBlock(props: SortableCatBlockProps) {
+  const sb = useTranslations().admin.config.sidebar;
   const {
     cat, itemOrderIds, orderedItems,
     isRenaming, renameDraft, onRenameDraftChange, onSaveRename, onCancelRename, onStartRename,
@@ -185,7 +188,7 @@ function SortableCatBlock(props: SortableCatBlockProps) {
               onMouseDown={stop}
               onChange={e => onRenameDraftChange({ ...renameDraft, name: e.target.value })}
               onKeyDown={e => { if (e.key === "Enter") onSaveRename(); if (e.key === "Escape") onCancelRename(); }}
-              placeholder="Nom" />
+              placeholder={sb.namePlaceholder} />
             <button type="button" onMouseDown={stop} onClick={onSaveRename} className="shrink-0 p-0.5 rounded text-green-600 hover:bg-accent/50"><Check className="w-3.5 h-3.5" /></button>
             <button type="button" onMouseDown={stop} onClick={onCancelRename} className="shrink-0 p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3.5 h-3.5" /></button>
           </>
@@ -215,7 +218,7 @@ function SortableCatBlock(props: SortableCatBlockProps) {
                 icon={item.icon} label={item.label} onRemove={item.onRemove} />
             ))}
             {orderedItems.length === 0 && !isAddOpen && (
-              <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">Vide</p>
+              <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">{sb.emptyShort}</p>
             )}
             {isAddOpen && addPanel}
           </div>
@@ -228,7 +231,7 @@ function SortableCatBlock(props: SortableCatBlockProps) {
 // ── Edit: add item panel ──────────────────────────────────────────────────────
 
 function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, onAddLink, onClose, inputClass }: {
-  availablePages: AdminPage[];
+  availablePages: AdminView[];
   availableForms: FormInstance[];
   onAddPage: (id: string) => void;
   onAddForm: (id: string) => void;
@@ -236,6 +239,7 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
   onClose: () => void;
   inputClass: string;
 }) {
+  const sb = useTranslations().admin.config.sidebar;
   const [mode, setMode] = useState<"pick" | "page" | "form" | "link">("pick");
   const [label, setLabel] = useState("");
   const [href, setHref] = useState("");
@@ -245,16 +249,16 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
       {availablePages.length > 0 && (
         <button type="button" onMouseDown={e => e.stopPropagation()} onClick={() => setMode("page")}
           className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-border hover:bg-accent/50 transition-colors">
-          <LayoutDashboard className="w-3 h-3" /> Page
+          <LayoutDashboard className="w-3 h-3" /> {sb.addPage}
         </button>
       )}
       <button type="button" onMouseDown={e => e.stopPropagation()} disabled={availableForms.length === 0} onClick={() => setMode("form")}
         className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-border hover:bg-accent/50 disabled:opacity-40 transition-colors">
-        <FileText className="w-3 h-3" /> Form
+        <FileText className="w-3 h-3" /> {sb.addFormItem}
       </button>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={() => setMode("link")}
         className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-border hover:bg-accent/50 transition-colors">
-        <Link2 className="w-3 h-3" /> Lien
+        <Link2 className="w-3 h-3" /> {sb.addLinkItem}
       </button>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={onClose} className="ml-auto p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3 h-3" /></button>
     </div>
@@ -265,7 +269,7 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
       <select autoFocus className={cn(inputClass, "flex-1 text-xs h-6")} defaultValue=""
         onMouseDown={e => e.stopPropagation()}
         onChange={e => { if (e.target.value) { onAddPage(e.target.value); onClose(); } }}>
-        <option value="" disabled>Choisir…</option>
+        <option value="" disabled>{sb.selectPlaceholder}</option>
         {availablePages.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
       </select>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={onClose} className="shrink-0 p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3 h-3" /></button>
@@ -277,7 +281,7 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
       <select autoFocus className={cn(inputClass, "flex-1 text-xs h-6")} defaultValue=""
         onMouseDown={e => e.stopPropagation()}
         onChange={e => { if (e.target.value) { onAddForm(e.target.value); onClose(); } }}>
-        <option value="" disabled>Choisir…</option>
+        <option value="" disabled>{sb.selectPlaceholder}</option>
         {availableForms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
       </select>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={onClose} className="shrink-0 p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3 h-3" /></button>
@@ -286,10 +290,10 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
 
   return (
     <div className="space-y-1 py-1">
-      <input autoFocus className={cn(inputClass, "w-full text-xs h-6")} placeholder="Label"
+      <input autoFocus className={cn(inputClass, "w-full text-xs h-6")} placeholder={sb.linkLabel}
         onMouseDown={e => e.stopPropagation()} value={label} onChange={e => setLabel(e.target.value)} />
       <div className="flex gap-1">
-        <input className={cn(inputClass, "flex-1 text-xs h-6")} placeholder="URL"
+        <input className={cn(inputClass, "flex-1 text-xs h-6")} placeholder={sb.linkUrl}
           onMouseDown={e => e.stopPropagation()} value={href} onChange={e => setHref(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && label && href) { onAddLink({ label, href }); onClose(); } }} />
         <button type="button" onMouseDown={e => e.stopPropagation()} disabled={!label.trim() || !href.trim()}
@@ -305,17 +309,18 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
 
 interface AdminSidebarProps {
   userEmail: string;
-  pages: AdminPage[];
+  pages: AdminView[];
   features?: AdminFeatures;
   branding?: AdminBrandingConfig;
   initialSidebarLayout?: SidebarLayout | null;
+  initialSidebarCollapsed?: boolean;
   pinnedFormMeta?: { id: string; name: string; slug: string }[];
   onClose?: () => void;
 }
 
 export function AdminSidebar({
   userEmail, pages = [], features, branding,
-  initialSidebarLayout, pinnedFormMeta = [], onClose,
+  initialSidebarLayout, initialSidebarCollapsed = false, pinnedFormMeta = [], onClose,
 }: AdminSidebarProps) {
   const pathname = usePathname();
   const { themeMode } = useUserPreferences();
@@ -337,6 +342,24 @@ export function AdminSidebar({
   // View UI state
   const [viewCollapsed, setViewCollapsed] = useState<Record<string, boolean>>({});
 
+  // Whole-sidebar collapsed mode (icons-only). Hydrated from the user row, then
+  // mirrored on click + persisted to /api/admin/account/preferences. Per-user,
+  // not localStorage — survives device changes.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(initialSidebarCollapsed);
+  const toggleCollapsed = useCallback(async () => {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    try {
+      await fetch("/api/admin/account/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sidebarCollapsed: next }),
+      });
+    } catch {
+      // Silent — the optimistic toggle stays for this session even if persist fails.
+    }
+  }, [sidebarCollapsed]);
+
   // Pre-drag snapshot for cancel/revert
   const preDragLayoutRef = useRef<SidebarLayout | null>(null);
 
@@ -352,9 +375,16 @@ export function AdminSidebar({
           body: JSON.stringify(next),
         });
         if (res.ok) toast.success(tr.admin.config.sidebar.saved, { duration: 1200 });
-      } catch { /* silent */ }
+      } catch (err) {
+        console.error("[AdminSidebar] persist failed:", err);
+      }
     }, 400);
   }, [tr.admin.config.sidebar.saved]);
+  // Cancel any pending save when the sidebar unmounts so a stale PATCH doesn't
+  // race a fresher one fired by the next mount (route change, dialog open).
+  useEffect(() => () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+  }, []);
 
   function update(next: SidebarLayout) { setLayout(next); persist(next); }
 
@@ -729,13 +759,13 @@ export function AdminSidebar({
 
   /** Build ordered item list for view mode (a category). */
   function buildViewItems(cat: SidebarCategory): Array<
-    | { type: "page"; item: AdminPage }
+    | { type: "page"; item: AdminView }
     | { type: "form"; item: { id: string; name: string; slug: string } }
     | { type: "link"; item: SidebarCustomLink }
   > {
     const order = getItemOrder(cat);
     const result: Array<
-      | { type: "page"; item: AdminPage }
+      | { type: "page"; item: AdminView }
       | { type: "form"; item: { id: string; name: string; slug: string } }
       | { type: "link"; item: SidebarCustomLink }
     > = [];
@@ -763,6 +793,115 @@ export function AdminSidebar({
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  // Icon-only collapsed view — short-circuits the full sidebar. Hides the
+  // pinned categories and the edit-mode entirely (operators expand the
+  // sidebar to reorganise). Main nav links and the user/logout actions
+  // become Tooltip-wrapped icon buttons.
+  if (sidebarCollapsed) {
+    const iconLinkBase = "flex items-center justify-center w-9 h-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors";
+    const iconLinkActive = "bg-accent text-accent-foreground";
+    return (
+      <TooltipProvider delayDuration={120}>
+        <aside className="flex flex-col w-14 shrink-0 h-screen border-r border-border bg-card overflow-hidden items-center">
+          {/* Brand + expand: brand on top, expand button right below to make
+              re-opening the sidebar obvious in the collapsed state. */}
+          <Link href="/admin" className="flex items-center justify-center h-12 w-full shrink-0 hover:opacity-80 transition-opacity">
+            {logoUrl ? (
+              <Image src={logoUrl} alt={appName} width={28} height={28} unoptimized
+                style={{ width: "28px", height: "28px", objectFit: "contain" }} />
+            ) : (
+              <Image src="/formellia-logo-transparent.png" alt={appName} width={28} height={28}
+                style={{ width: "28px", height: "28px" }} />
+            )}
+          </Link>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" onClick={toggleCollapsed} aria-label={tr.admin.nav.expand}
+                className="flex items-center justify-center w-9 h-9 mb-2 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors">
+                <ChevronsRight className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{tr.admin.nav.expand}</TooltipContent>
+          </Tooltip>
+          <div className="w-8 border-b border-border" />
+
+          {/* Main nav — icons with tooltips */}
+          <nav className="flex-1 w-full overflow-y-auto py-2 flex flex-col items-center gap-1">
+            {features?.globalView && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/admin/global" onClick={onClose} aria-label={tr.admin.nav.globalView}
+                    className={cn(iconLinkBase, isActive("/admin/global") && iconLinkActive)}>
+                    <Globe className="w-4 h-4" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{tr.admin.nav.globalView}</TooltipContent>
+              </Tooltip>
+            )}
+            {role !== "viewer" && role !== "agent" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/admin/email/broadcasts" onClick={onClose} aria-label={tr.admin.email.navLabel}
+                    className={cn(iconLinkBase, isActive("/admin/email") && iconLinkActive)}>
+                    <Mail className="w-4 h-4" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{tr.admin.email.navLabel}</TooltipContent>
+              </Tooltip>
+            )}
+            {role !== "viewer" && role !== "agent" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/admin/configuration" onClick={onClose} aria-label={tr.admin.nav.configuration}
+                    className={cn(iconLinkBase, isActive("/admin/configuration") && iconLinkActive)}>
+                    <Settings2 className="w-4 h-4" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{tr.admin.nav.configuration}</TooltipContent>
+              </Tooltip>
+            )}
+            {features?.auditLog && role !== "viewer" && role !== "agent" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/admin/audit" onClick={onClose} aria-label={tr.admin.nav.auditLog}
+                    className={cn(iconLinkBase, isActive("/admin/audit") && iconLinkActive)}>
+                    <ClipboardList className="w-4 h-4" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{tr.admin.nav.auditLog}</TooltipContent>
+              </Tooltip>
+            )}
+          </nav>
+
+          {/* Bottom — profile, logout, expand */}
+          <div className="border-t border-border w-full py-2 flex flex-col items-center gap-1 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/admin/profile" onClick={onClose} aria-label={tr.admin.nav.profile}
+                  className={cn(iconLinkBase, "relative", isActive("/admin/profile") && iconLinkActive)}>
+                  <User className="w-4 h-4" />
+                  {(!hasEmail || !hasRecoveryCodes) && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-orange-500" />}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">{tr.admin.nav.profile}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <form action="/api/auth/logout" method="POST">
+                  <button type="submit" aria-label={tr.admin.nav.logout}
+                    className={cn(iconLinkBase, "text-destructive hover:bg-destructive/10")}>
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </form>
+              </TooltipTrigger>
+              <TooltipContent side="right">{tr.admin.nav.logout}</TooltipContent>
+            </Tooltip>
+          </div>
+        </aside>
+      </TooltipProvider>
+    );
+  }
+
   return (
     <aside className="flex flex-col w-56 shrink-0 h-screen border-r border-border bg-card overflow-hidden">
 
@@ -786,6 +925,10 @@ export function AdminSidebar({
             {editMode ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
           </button>
         )}
+        <button type="button" onClick={toggleCollapsed} title={tr.admin.nav.collapse}
+          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors shrink-0">
+          <ChevronsLeft className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* ── Edit mode ─────────────────────────────────────────────────────── */}
@@ -830,7 +973,7 @@ export function AdminSidebar({
                           label={l.label} onRemove={() => removeLink(l.id)} />
                       ))}
                       {uncatPages.length === 0 && uncatFormIds.length === 0 && uncatLinks.length === 0 && addingTo !== UNCAT && (
-                        <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">Vide</p>
+                        <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">{tr.admin.config.sidebar.emptyShort}</p>
                       )}
                       {addingTo === UNCAT && (
                         <AddItemPanel
@@ -1011,6 +1154,14 @@ export function AdminSidebar({
               className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
                 isActive("/admin/global") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
               <Globe className="w-4 h-4 shrink-0" /><span>{tr.admin.nav.globalView}</span>
+            </Link>
+          )}
+
+          {role !== "viewer" && role !== "agent" && (
+            <Link href="/admin/email/broadcasts" onClick={onClose}
+              className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive("/admin/email") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
+              <Mail className="w-4 h-4 shrink-0" /><span>{tr.admin.email.navLabel}</span>
             </Link>
           )}
 

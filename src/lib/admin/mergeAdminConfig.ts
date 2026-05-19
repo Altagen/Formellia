@@ -1,4 +1,4 @@
-import type { AdminPage, TableColumnDef } from "@/types/config";
+import type { AdminView, TableColumnDef } from "@/types/config";
 
 /**
  * Merge incoming dashboard pages into the existing set.
@@ -11,11 +11,11 @@ import type { AdminPage, TableColumnDef } from "@/types/config";
  * In append mode every incoming page must carry a non-empty string `id` (the upsert key);
  * a missing id throws.
  */
-export function mergeAdminPages(
-  current: AdminPage[],
-  incoming: AdminPage[],
+export function mergeAdminViews(
+  current: AdminView[],
+  incoming: AdminView[],
   mode: "append" | "replace",
-): AdminPage[] {
+): AdminView[] {
   if (mode === "replace") return incoming;
   for (const page of incoming) {
     if (!page || typeof page.id !== "string" || page.id === "") {

@@ -1,18 +1,20 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import type { FormConfig } from "@/types/config";
+import type { FormConfig, AdminConfig } from "@/types/config";
 import type { FormInstance } from "@/types/formInstance";
 import { FormsTab } from "@/components/admin/config/FormsTab";
-import { PagesTab } from "@/components/admin/config/PagesTab";
+import { ViewsTab } from "@/components/admin/config/ViewsTab";
+import { DataPoolsTab } from "@/components/admin/config/DataPoolsTab";
 import { DangerZoneTab } from "@/components/admin/config/DangerZoneTab";
 import { DataSourcesTab } from "@/components/admin/config/DataSourcesTab";
 import { ScheduledJobsTab } from "@/components/admin/config/ScheduledJobsTab";
 import { AdminBrandingTab } from "@/components/admin/config/AdminBrandingTab";
 import { BackupTab } from "@/components/admin/config/BackupTab";
 import { AdminTab } from "@/components/admin/config/AdminTab";
+import { EmailsTab } from "@/components/admin/config/EmailsTab";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import { useUserRole, useUserCtx } from "@/lib/context/UserRoleContext";
 
@@ -25,7 +27,7 @@ interface ConfigEditorProps {
   initialTab?: string;
 }
 
-const ALL_TAB_IDS = ["general", "forms", "pages", "sources", "taches", "backup", "danger", "administration"] as const;
+const ALL_TAB_IDS = ["general", "forms", "pages", "datapools", "emails", "sources", "taches", "backup", "danger", "administration"] as const;
 type TabId = (typeof ALL_TAB_IDS)[number];
 
 export function ConfigEditor({ config, formInstances = [], admins = [], initialTab }: ConfigEditorProps) {
@@ -44,8 +46,10 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
     const adminOnly = role === "admin";
     return [
       { id: "forms" as const, label: cfg.tabs.forms },
-      { id: "pages" as const, label: cfg.tabs.pages },
+      { id: "pages" as const, label: cfg.tabs.views },
       ...(adminOnly ? [
+        { id: "datapools" as const,      label: cfg.tabs.dataPools },
+        { id: "emails" as const,         label: cfg.tabs.emails },
         { id: "general" as const,        label: cfg.tabs.general },
         { id: "sources" as const,        label: cfg.tabs.sources },
         { id: "taches" as const,         label: cfg.tabs.jobs },
@@ -58,6 +62,25 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
 
   const [draft, setDraft] = useState<FormConfig>(() => JSON.parse(JSON.stringify(config)));
 
+  // Last snapshot we successfully PUT to the server. The Save button shows
+  // when `draft` diverges from THIS, not from the initial `config` prop —
+  // `config` only refreshes via the (Turbopack-flaky) `router.refresh()`, so
+  // comparing against it would leave the button stuck "dirty" after every
+  // instant action even though the server already has the new state.
+  const [savedSnapshot, setSavedSnapshot] = useState<FormConfig>(() => JSON.parse(JSON.stringify(config)));
+
+  // Confirmation toast across the post-save full reload. Sonner can't survive
+  // location.replace(), so we stash a flag in sessionStorage and surface it on
+  // remount — that way the operator sees the "saved" feedback even though the
+  // page reloads (needed for the sidebar to pick up the new state).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (sessionStorage.getItem("config-just-saved") === "1") {
+      sessionStorage.removeItem("config-just-saved");
+      toast.success(cfg.toasts.saved, { duration: 1500 });
+    }
+  }, [cfg.toasts.saved]);
+
   const validInitial = (ALL_TAB_IDS.includes(initialTab as TabId) && (role === "admin" || ["forms", "pages"].includes(initialTab as string)))
     ? (initialTab as TabId)
     : "forms";
@@ -69,30 +92,112 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
   }
   const [saving, setSaving] = useState(false);
 
-  const isDirty = JSON.stringify(draft) !== JSON.stringify(config);
+  // Dirty against the last-saved snapshot, not the initial prop — instant
+  // actions (add/delete/move/toggle/setDefault) bump `savedSnapshot` directly,
+  // so the Save button only shows up when text-field edits (title/slug/icon/
+  // widget config) actually diverge from what's already in the DB.
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(savedSnapshot);
 
-  const handleSave = useCallback(async () => {
+  // Persist a specific draft snapshot — used both by the explicit Save button
+  // (text-field edits) and by per-action instant saves (add/delete/move view,
+  // toggle feature, set default). When `reload` is true we replace the URL so
+  // the layout (admin sidebar) rehydrates from DB; when false we only refresh
+  // server components in place — keeps action latency under ~200ms.
+  const persistDraft = useCallback(async (
+    next: FormConfig,
+    opts: { reload?: boolean; toastLabel?: string } = {},
+  ): Promise<boolean> => {
     setSaving(true);
-    const toastId = toast.loading(cfg.toasts.saving);
+    const toastId = opts.toastLabel ? toast.loading(opts.toastLabel) : null;
     try {
       const res = await fetch("/api/admin/config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft),
+        body: JSON.stringify(next),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(data.error ?? cfg.toasts.errorStatus.replace("{status}", String(res.status)), { id: toastId });
+        const msg = data.error ?? cfg.toasts.errorStatus.replace("{status}", String(res.status));
+        if (toastId) toast.error(msg, { id: toastId });
+        else        toast.error(msg);
+        return false;
+      }
+      // PUT accepted by server → mark this snapshot as the new clean baseline.
+      // The Save button uses isDirty = draft !== savedSnapshot, so bumping the
+      // snapshot here makes instant actions (toggle/add/move/delete) leave the
+      // form in a clean state immediately, without depending on router.refresh
+      // ever propagating the new `config` prop.
+      setSavedSnapshot(next);
+      if (opts.reload) {
+        // Hard reload — preserves the current tab and uses a cache-buster
+        // querystring so the browser actually re-fetches instead of serving
+        // the prior /admin/configuration HTML from disk cache. Without this
+        // the operator sees stale views (the destructive PUT lands, the DB
+        // is correct, but the reloaded page shows the pre-delete state and
+        // a Ctrl+Shift+R is needed to get a fresh response).
+        if (toastId) toast.dismiss(toastId);
+        sessionStorage.setItem("config-just-saved", "1");
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", activeTab);
+        url.searchParams.set("_r", String(Date.now()));
+        window.location.replace(url.toString());
       } else {
-        toast.success(cfg.toasts.saved, { id: toastId });
+        // Refresh the layout server components (admin sidebar, etc.) without
+        // a full reload so the action stays snappy.
+        if (toastId) toast.dismiss(toastId);
         router.refresh();
       }
+      return true;
     } catch {
-      toast.error(cfg.toasts.networkError, { id: toastId });
+      const msg = cfg.toasts.networkError;
+      if (toastId) toast.error(msg, { id: toastId });
+      else        toast.error(msg);
+      return false;
     } finally {
       setSaving(false);
     }
-  }, [draft, cfg]);
+  }, [cfg, activeTab, router]);
+
+  const handleSave = useCallback(() => {
+    // Use the ref, not the closure-captured draft — fast successive actions
+    // (Add view + immediate Save) would otherwise PUT a stale snapshot from
+    // the render where this callback was last instantiated.
+    void persistDraft(draftRef.current, { reload: true, toastLabel: cfg.toasts.saving });
+  }, [cfg, persistDraft]);
+
+  // Keep a ref to the latest draft so consecutive instant commits in the same
+  // event handler all build from the freshest state (setDraft is async, so the
+  // value captured in the next setDraft call's closure would otherwise be the
+  // pre-update state). Updated synchronously inside commitAdmin below.
+  const draftRef = useRef(draft);
+  useEffect(() => { draftRef.current = draft; }, [draft]);
+
+  // Apply a partial AdminConfig patch and persist as a SINGLE PUT. This is the
+  // canonical "instant action" pathway — combined updates (e.g. delete view +
+  // re-anchor default) ship atomically, avoiding the two-PUT race that would
+  // let an old snapshot land last and resurrect the deleted view.
+  //
+  // `patch` can be a static object OR a function that receives the latest
+  // admin snapshot from the ref. The functional form is critical: a static
+  // `[...pages, newPage]` patch is built from the React prop, which may be
+  // stale relative to the just-committed draft (rapid clicks land before
+  // React re-renders ViewsTab with the new prop), so the patch would replace
+  // `views` with `[OLD_views, newPage]`, dropping any item added milliseconds
+  // earlier. Using `(admin) => ({ views: [...admin.views, newPage] })` always
+  // reads from the ref's fresh state.
+  //
+  // `destructive: true` triggers a full reload after the save instead of the
+  // (flaky under Next 16 + Turbopack) `router.refresh()`.
+  const commitAdmin = useCallback((
+    patch: Partial<AdminConfig> | ((current: AdminConfig) => Partial<AdminConfig>),
+    opts?: { destructive?: boolean },
+  ) => {
+    const resolved = typeof patch === "function" ? patch(draftRef.current.admin) : patch;
+    const next: FormConfig = { ...draftRef.current, admin: { ...draftRef.current.admin, ...resolved } };
+    draftRef.current = next;            // sync update so sibling calls see it
+    setDraft(next);
+    void persistDraft(next, { reload: opts?.destructive === true });
+  }, [persistDraft]);
 
   const handleExport = useCallback(async () => {
     try {
@@ -203,8 +308,9 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
         </div>
       </div>
 
-      {/* Tab content */}
-      <div>
+      {/* Tab content — pb-24 reserves space below for the floating save FAB
+          (h-9 button + bottom-6 offset) so it never overlaps the last field. */}
+      <div className="pb-24">
         {activeTab === "general" && (
           <div className="space-y-6">
             <AdminBrandingTab
@@ -230,18 +336,26 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
           <FormsTab instances={visibleFormInstances} />
         )}
         {activeTab === "pages" && (
-          <PagesTab
-            pages={draft.admin.pages}
-            defaultPage={draft.admin.defaultPage}
+          <ViewsTab
+            views={draft.admin.views}
+            defaultView={draft.admin.defaultView}
             formSteps={visibleFormInstances.flatMap(inst => inst.config?.form?.steps ?? [])}
             formInstances={visibleFormInstances}
             features={draft.admin.features}
-            onChangePages={(pages) => setDraft({ ...draft, admin: { ...draft.admin, pages } })}
-            onChangeDefault={(defaultPage) => setDraft({ ...draft, admin: { ...draft.admin, defaultPage } })}
+            onChangeViews={(views) => setDraft({ ...draft, admin: { ...draft.admin, views } })}
             tableColumns={draft.admin.tableColumns}
             onChangeColumns={(tableColumns) => setDraft({ ...draft, admin: { ...draft.admin, tableColumns } })}
-            onChangeFeatures={(features) => setDraft({ ...draft, admin: { ...draft.admin, features } })}
+            commitAdmin={commitAdmin}
           />
+        )}
+        {activeTab === "datapools" && (
+          <DataPoolsTab
+            exclusionReasons={draft.admin.exclusionReasons}
+            onChangeExclusionReasons={(exclusionReasons) => setDraft({ ...draft, admin: { ...draft.admin, exclusionReasons } })}
+          />
+        )}
+        {activeTab === "emails" && (
+          <EmailsTab />
         )}
         {activeTab === "sources" && (
           <DataSourcesTab />

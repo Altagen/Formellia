@@ -69,11 +69,12 @@ The boot YAML is more restrictive than the import via the UI:
 | `priorityThresholds` | ✅ | ✅ (under `app.priorityThresholds`) |
 | `app.enforcePasswordPolicy` | ✅ | ✅ |
 | `admin.email` | ✅ | ✅ |
-| `admin.pages` | ❌ | ✅ |
+| `admin.views` | ❌ | ✅ |
 | `admin.tableColumns` | ❌ | ✅ |
 | `admin.branding` | ❌ | ✅ |
 | `scheduledJobs` | ❌ | ✅ |
 | `datasets` | ❌ | ✅ |
+| `dataPools` | ❌ | ✅ (see [datapools.md](./datapools.md#backup--restore)) |
 
 **In practice**: a fully "as-code" deployment uses both:
 

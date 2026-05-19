@@ -55,7 +55,7 @@ export function DashboardView({
   currentUserEmail,
 }: DashboardViewProps) {
   const tr = useTranslations();
-  const p = tr.admin.config.pages;
+  const p = tr.admin.config.views;
 
   // Submissions for chart widgets — fetched client-side for native forms
   const [chartSubmissions, setChartSubmissions] = useState<Submission[]>(initialSubmissions ?? []);

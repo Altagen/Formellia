@@ -12,7 +12,8 @@ const KNOWN_WIDGET_TYPES = new Set([
   "deadline_distribution", "filter_pills",
 ]);
 
-const sectionSchema = z.enum(["full", "pages", "columns", "branding", "features"]);
+// "pages" kept as a legacy alias for 0.2.x CLI/tests; "views" is canonical.
+const sectionSchema = z.enum(["full", "views", "pages", "columns", "branding", "features"]);
 
 /**
  * POST /api/admin/config/admin-import
@@ -61,10 +62,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Admin key missing" }, { status: 422 });
     }
     const inAdmin = incoming.admin as Record<string, unknown>;
-    if (inAdmin.pages !== undefined) {
-      const pagesErr = validatePages(inAdmin.pages);
-      if (pagesErr) return NextResponse.json({ error: pagesErr }, { status: 422 });
-      updated.admin.pages = inAdmin.pages as typeof updated.admin.pages;
+    // 0.3.0 fwd-compat: accept legacy `admin.pages` key. `views` wins.
+    const viewsPayload = inAdmin.views ?? inAdmin.pages;
+    if (viewsPayload !== undefined) {
+      const viewsErr = validateViews(viewsPayload);
+      if (viewsErr) return NextResponse.json({ error: viewsErr }, { status: 422 });
+      updated.admin.views = viewsPayload as typeof updated.admin.views;
     }
     if (inAdmin.tableColumns !== undefined) updated.admin.tableColumns = inAdmin.tableColumns as typeof updated.admin.tableColumns;
     if (inAdmin.branding     !== undefined) updated.admin.branding     = inAdmin.branding     as typeof updated.admin.branding;
@@ -72,11 +75,12 @@ export async function POST(req: NextRequest) {
     if ((incoming as Record<string, unknown>).priorityThresholds !== undefined) {
       (updated as unknown as Record<string, unknown>).priorityThresholds = (incoming as Record<string, unknown>).priorityThresholds;
     }
-  } else if (section === "pages") {
-    if (!Array.isArray(rawParsed)) return NextResponse.json({ error: "pages must be an array" }, { status: 422 });
-    const pagesErr = validatePages(rawParsed);
-    if (pagesErr) return NextResponse.json({ error: pagesErr }, { status: 422 });
-    updated.admin.pages = rawParsed as typeof updated.admin.pages;
+  } else if (section === "views" || section === "pages") {
+    // Section param kept dual ("pages" for 0.2.x CLI/tests, "views" canonical).
+    if (!Array.isArray(rawParsed)) return NextResponse.json({ error: "views must be an array" }, { status: 422 });
+    const viewsErr = validateViews(rawParsed);
+    if (viewsErr) return NextResponse.json({ error: viewsErr }, { status: 422 });
+    updated.admin.views = rawParsed as typeof updated.admin.views;
   } else if (section === "columns") {
     if (!Array.isArray(rawParsed)) return NextResponse.json({ error: "columns must be an array" }, { status: 422 });
     updated.admin.tableColumns = rawParsed as typeof updated.admin.tableColumns;
@@ -101,18 +105,18 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ success: true, section });
 }
 
-function validatePages(pages: unknown): string | null {
-  if (!Array.isArray(pages)) return "pages must be an array";
+function validateViews(views: unknown): string | null {
+  if (!Array.isArray(views)) return "views must be an array";
   const ids = new Set<string>();
-  for (const page of pages) {
-    if (!page?.id || typeof page.id !== "string") return "Chaque page doit avoir un id";
-    if (ids.has(page.id)) return `ID de page en double : "${page.id}"`;
-    ids.add(page.id);
-    if (!page.slug) return `Page "${page.id}" : slug manquant`;
-    if (!Array.isArray(page.widgets)) return `Page "${page.id}" : widgets must be an array`;
-    for (const w of page.widgets) {
+  for (const view of views) {
+    if (!view?.id || typeof view.id !== "string") return "Chaque vue doit avoir un id";
+    if (ids.has(view.id)) return `ID de vue en double : "${view.id}"`;
+    ids.add(view.id);
+    if (!view.slug) return `Vue "${view.id}" : slug manquant`;
+    if (!Array.isArray(view.widgets)) return `Vue "${view.id}" : widgets must be an array`;
+    for (const w of view.widgets) {
       if (!w?.type || !KNOWN_WIDGET_TYPES.has(w.type)) {
-        return `Page "${page.id}" : type de widget inconnu "${w?.type}"`;
+        return `Vue "${view.id}" : type de widget inconnu "${w?.type}"`;
       }
     }
   }

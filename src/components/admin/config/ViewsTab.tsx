@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import type {
-  AdminPage,
+  AdminView,
+  AdminConfig,
   AdminFeatures,
   WidgetDef,
   StepDef,
@@ -19,21 +21,32 @@ import type { FormInstance } from "@/types/formInstance";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Star, X, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Star, X, Eye, EyeOff } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import { stepsForPage } from "@/lib/dashboard/scopedFields";
 
-interface PagesTabProps {
-  pages: AdminPage[];
-  defaultPage: string | undefined;
+interface ViewsTabProps {
+  views: AdminView[];
+  defaultView: string | undefined;
   tableColumns: TableColumnDef[];
   formSteps: StepDef[];
   formInstances?: FormInstance[];
   features?: AdminFeatures;
-  onChangePages: (pages: AdminPage[]) => void;
-  onChangeDefault: (slug: string | undefined) => void;
+  /** Update the draft (no save). Used by text-field editors that still
+   *  rely on the explicit Save button to avoid one PUT per keystroke. */
+  onChangeViews: (pages: AdminView[]) => void;
   onChangeColumns: (cols: TableColumnDef[]) => void;
-  onChangeFeatures: (f: AdminFeatures) => void;
+  /** Apply a partial AdminConfig patch and persist as a single atomic PUT.
+   *  Used by action buttons (add/delete/move view, set default, toggle
+   *  feature) so the admin sidebar reflects the change without the operator
+   *  clicking Save. `destructive: true` triggers a hard reload after save —
+   *  reserved for delete because router.refresh() is flaky for layout-level
+   *  updates under Next 16 + Turbopack. */
+  commitAdmin: (
+    patch: Partial<AdminConfig> | ((current: AdminConfig) => Partial<AdminConfig>),
+    opts?: { destructive?: boolean },
+  ) => void;
 }
 
 const WIDGET_TYPE_ICONS: Record<WidgetDef["type"], string> = {
@@ -75,9 +88,13 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40) || "page";
 }
 
-export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInstances = [], features, onChangePages, onChangeDefault, onChangeColumns, onChangeFeatures }: PagesTabProps) {
+export function ViewsTab({
+  views: pages, defaultView: defaultPage, tableColumns, formSteps, formInstances = [], features,
+  onChangeViews, onChangeColumns,
+  commitAdmin,
+}: ViewsTabProps) {
   const tr = useTranslations();
-  const p = tr.admin.config.pages;
+  const p = tr.admin.config.views;
   const w = tr.admin.config.widgets;
 
   const WIDGET_TYPE_LABELS: Record<WidgetDef["type"], string> = {
@@ -183,17 +200,44 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
 
   const [expandedPageId, setExpandedPageId] = useState<string | null>(pages[0]?.id ?? null);
   const [expandedWidgetId, setExpandedWidgetId] = useState<string | null>(null);
+
+  // Sync the selected view with `location.hash` so refresh + bookmark + back-button
+  // preserve which view the operator was editing. Hash format: #view-<id>. Hash
+  // is the right URL slice for this: it doesn't trigger a navigation event and
+  // doesn't conflict with the configuration tab's existing `?tab=` query param.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const m = window.location.hash.match(/^#view-(.+)$/);
+    if (m && pages.some(pg => pg.id === m[1])) setExpandedPageId(m[1]);
+    // Intentionally mount-only — we don't want the hash to drive subsequent
+    // re-renders, only seed the initial state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const next = expandedPageId ? `#view-${expandedPageId}` : window.location.pathname + window.location.search;
+    history.replaceState(null, "", next);
+  }, [expandedPageId]);
   const [datasets, setDatasets] = useState<ExternalDataset[]>([]);
   // Cache of dataset field keys by dataSourceId
   const [dataSourceFields, setDataSourceFields] = useState<Record<string, string[]>>({});
   // Cache of unique values per field per dataSourceId
   const [dataSourceFieldValues, setDataSourceFieldValues] = useState<Record<string, Record<string, string[]>>>({});
+  // DataPools available as a page source (option 4 alongside form / dataset / all).
+  // We need keyField + additionalFields so the editor can synthesise scoped
+  // formSteps for pool-bound pages (otherwise the field pickers below would
+  // fall back to the all-forms list and collide on duplicate field ids).
+  const [pools, setPools] = useState<Array<{ id: string; slug: string; name: string; keyField: string; additionalFields: string[] }>>([]);
 
   useEffect(() => {
     fetch("/api/admin/datasets")
       .then(r => r.ok ? r.json() : [])
       .then(setDatasets)
-      .catch(() => {});
+      .catch(err => console.error("[ViewsTab] datasets fetch failed:", err));
+    fetch("/api/admin/datapools")
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: Array<{ id: string; slug: string; name: string; keyField: string; additionalFields: string[] }>) => setPools(rows))
+      .catch(err => console.error("[ViewsTab] datapools fetch failed:", err));
   }, []);
 
   // Fetch field names + all distinct values for a dataset when first needed.
@@ -209,7 +253,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
         setDataSourceFields(prev => ({ ...prev, [dsId]: data.fields }));
         setDataSourceFieldValues(prev => ({ ...prev, [dsId]: data.values }));
       })
-      .catch(() => {});
+      .catch(err => console.error("[ViewsTab] field-values fetch failed:", err));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expandedPageId, expandedPageDsId]);
 
@@ -225,38 +269,80 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
     };
   }
 
-  function addPage() {
+  // Pending delete confirmation — set when the operator clicks the trash icon
+  // and cleared on confirm/cancel. We keep title + id so the dialog can name
+  // the view that's about to be removed.
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+
+  function addView() {
     if (pages.length >= 10) return;
     const id = `p-${Date.now()}`;
-    const newPage: AdminPage = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
-    onChangePages([...pages, newPage]);
+    const newPage: AdminView = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
+    // Instant save with functional patch — reads the freshest views from the
+    // parent's draftRef, so rapid clicks don't race against a stale `pages`
+    // prop and drop in-flight additions.
+    commitAdmin(current => ({ views: [...(current.views ?? []), newPage] }));
     setExpandedPageId(id);
     setExpandedWidgetId(null);
-  }
-
-  function updatePage(id: string, patch: Partial<AdminPage>) {
-    onChangePages(pages.map(pg => pg.id === id ? { ...pg, ...patch } : pg));
-  }
-
-  function deletePage(id: string) {
-    const remaining = pages.filter(pg => pg.id !== id);
-    onChangePages(remaining);
-    if (defaultPage === pages.find(pg => pg.id === id)?.slug) {
-      onChangeDefault(remaining[0]?.slug);
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => {
+        const el = document.querySelector(`[data-view-id="${id}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
     }
+  }
+
+  function updatePage(id: string, patch: Partial<AdminView>) {
+    // Text-field edits stay in draft until the operator clicks Save —
+    // committing per-keystroke would PUT the whole config dozens of times.
+    onChangeViews(pages.map(pg => pg.id === id ? { ...pg, ...patch } : pg));
+  }
+
+  function confirmDeletePage(id: string) {
+    const target = pages.find(pg => pg.id === id);
+    if (!target) return;
+    setPendingDelete({ id, title: target.title });
+  }
+
+  function doDeletePage() {
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
+    setExpandedWidgetId(null);
+    setPendingDelete(null);
+    // Functional patch: filter the LATEST views from the ref (not the prop),
+    // and re-anchor defaultView in the same commit when the deleted view was
+    // default. Single atomic PUT + hard reload — router.refresh is flaky for
+    // layout-level updates under Next 16 + Turbopack.
+    commitAdmin(
+      current => {
+        const remaining = (current.views ?? []).filter(pg => pg.id !== id);
+        const wasDefault = current.defaultView === (current.views ?? []).find(pg => pg.id === id)?.slug;
+        return wasDefault
+          ? { views: remaining, defaultView: remaining[0]?.slug }
+          : { views: remaining };
+      },
+      { destructive: true },
+    );
     if (expandedPageId === id) {
-      setExpandedPageId(remaining[0]?.id ?? null);
-      setExpandedWidgetId(null);
+      setExpandedPageId(null);
     }
   }
 
   function movePage(id: string, dir: "up" | "down") {
-    const i = pages.findIndex(pg => pg.id === id);
-    if (dir === "up" && i > 0) {
-      const copy = [...pages]; [copy[i-1], copy[i]] = [copy[i], copy[i-1]]; onChangePages(copy);
-    } else if (dir === "down" && i < pages.length - 1) {
-      const copy = [...pages]; [copy[i], copy[i+1]] = [copy[i+1], copy[i]]; onChangePages(copy);
-    }
+    commitAdmin(current => {
+      const list = current.views ?? [];
+      const i = list.findIndex(pg => pg.id === id);
+      if (i < 0) return {};
+      if (dir === "up" && i > 0) {
+        const copy = [...list]; [copy[i - 1], copy[i]] = [copy[i], copy[i - 1]];
+        return { views: copy };
+      }
+      if (dir === "down" && i < list.length - 1) {
+        const copy = [...list]; [copy[i], copy[i + 1]] = [copy[i + 1], copy[i]];
+        return { views: copy };
+      }
+      return {};
+    });
   }
 
   function addWidget(pageId: string, type: WidgetDef["type"]) {
@@ -334,6 +420,11 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
               label: p.auditLogLabel,
               desc: p.auditLogDesc,
             },
+            {
+              key: "autoCreateDashboardViewOnFormCreate" as const,
+              label: p.autoCreateViewLabel,
+              desc: p.autoCreateViewDesc,
+            },
           ] as const).map(({ key, label, desc }) => {
             const enabled = features?.[key] ?? false;
             return (
@@ -346,7 +437,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                   type="button"
                   role="switch"
                   aria-checked={enabled}
-                  onClick={() => onChangeFeatures({ ...features, [key]: !enabled })}
+                  onClick={() => commitAdmin(current => ({ features: { ...current.features, [key]: !enabled } }))}
                   className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring/50 mt-0.5 ${
                     enabled ? "bg-blue-600" : "bg-muted"
                   }`}
@@ -357,94 +448,151 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
             );
           })}
         </div>
+
+        {features?.autoCreateDashboardViewOnFormCreate && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <BackfillButton label={p.autoCreateViewBackfillBtn} done={p.autoCreateViewBackfillDone} />
+          </div>
+        )}
       </div>
 
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">{p.dashboardPages}</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            {p.dashboardPagesDesc}
-            {pages.length >= 10 && <span className="text-destructive ml-1">{p.maxPages}</span>}
-          </p>
-        </div>
-        <Button type="button" size="sm" onClick={addPage} disabled={pages.length >= 10} className="gap-1.5 shrink-0">
-          <Plus className="w-4 h-4" />
-          {p.addPage}
-        </Button>
-      </div>
+      {/* Master/detail layout: rail on the left (scope), editor on the right.
+          The rail-only view scales down nicely on mobile — when a view is
+          selected, the rail hides and the editor takes the full width with a
+          "Back" button to return. */}
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] border border-border rounded-xl bg-card overflow-hidden min-h-[480px]">
 
-{pages.length === 0 && (
-        <div className="text-center py-10 border-2 border-dashed rounded-xl text-sm text-muted-foreground">
-          {p.noPagesYet}
-        </div>
-      )}
+        {/* ── Rail ───────────────────────────────────────────────────────── */}
+        <aside className={cn("md:border-r border-border flex-col", expandedPageId ? "hidden md:flex" : "flex")}>
+          <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border shrink-0">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-foreground truncate">{p.dashboardViews}</h2>
+              {pages.length >= 10 && (
+                <p className="text-xs text-destructive mt-0.5">{p.maxViews}</p>
+              )}
+            </div>
+            <Button type="button" size="sm" onClick={addView} disabled={pages.length >= 10} className="gap-1.5 shrink-0">
+              <Plus className="w-3.5 h-3.5" />
+              {p.addView}
+            </Button>
+          </div>
 
-      <div className="space-y-2">
-        {pages.map((page, i) => {
-          const isPageExpanded = expandedPageId === page.id;
-          const isDefault = defaultPage === page.slug;
-          const dsFields = page.dataSourceId ? (dataSourceFields[page.dataSourceId] ?? []) : [];
-          const isExternal = !!page.dataSourceId && dsFields.length > 0;
-          const dsFieldValues = isExternal ? (dataSourceFieldValues[page.dataSourceId!] ?? {}) : {};
-          const isAllSubmissions = !page.formInstanceId && !page.dataSourceId;
-          // Native form fields scoped to THIS page's form (or all forms for an
-          // "all submissions" page) — drives the column/filter pickers below.
-          const pageFormSteps = stepsForPage(page, formInstances, formSteps);
-          const pageNativeFields = pageFormSteps.flatMap(s => s.fields).filter(f => f.type !== "section_header");
-          const pageNativeFieldValues = nativeFieldValuesFor(pageFormSteps);
-          // Build groupBy options: dataset fields when external, scoped form fields otherwise
-          const builtinKeys = new Set(["date", "status"]);
-          const pageGroupByOptions = isExternal
-            ? [
-                { value: "date",   label: "Date" },
-                { value: "status", label: w.groupStatus },
-                ...dsFields.filter(k => !builtinKeys.has(k)).map(k => ({ value: k, label: formatFieldKey(k) })),
-              ]
-            : [
-                { value: "date",     label: w.groupDate },
-                { value: "status",   label: w.groupStatus },
-                { value: "priority", label: w.groupPriority },
-                ...pageNativeFields.map(f => ({ value: f.dbKey ?? f.id, label: f.label })),
-              ];
+          {pages.length === 0 ? (
+            <div className="flex-1 p-8 text-center text-xs text-muted-foreground">
+              {p.noViewsYet}
+            </div>
+          ) : (
+            <ul className="flex-1 overflow-y-auto p-2 space-y-1">
+              {pages.map((page, i) => {
+                const isSelected = expandedPageId === page.id;
+                const isDefault  = defaultPage === page.slug;
+                return (
+                  <li key={page.id} data-view-id={page.id}>
+                    <div className={cn(
+                      "group flex items-stretch rounded-md transition-colors",
+                      isSelected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-accent/50"
+                    )}>
+                      <div className="flex flex-col justify-center gap-0.5 pl-1.5 py-1 shrink-0">
+                        <button type="button" onClick={() => movePage(page.id, "up")} disabled={i === 0}
+                          className={cn("w-5 h-4 flex items-center justify-center rounded hover:text-foreground hover:bg-accent disabled:opacity-20 transition-colors", isSelected ? "text-primary/60" : "text-muted-foreground")}>
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button type="button" onClick={() => movePage(page.id, "down")} disabled={i === pages.length - 1}
+                          className={cn("w-5 h-4 flex items-center justify-center rounded hover:text-foreground hover:bg-accent disabled:opacity-20 transition-colors", isSelected ? "text-primary/60" : "text-muted-foreground")}>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <button type="button" onClick={() => { setExpandedPageId(isSelected ? null : page.id); setExpandedWidgetId(null); }}
+                        className="flex-1 min-w-0 text-left px-2 py-2">
+                        <p className={cn("text-sm font-medium truncate", isSelected && "text-primary")}>{page.title}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">/admin/{page.slug} · {page.widgets.length} widget{page.widgets.length !== 1 ? "s" : ""}</p>
+                      </button>
+                      <div className="flex items-center gap-0.5 pr-1.5 shrink-0">
+                        {isDefault ? (
+                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium" title={p.defaultLabel}>★</span>
+                        ) : (
+                          <button type="button" onClick={() => commitAdmin({ defaultView: page.slug })} title={p.setDefault}
+                            className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-amber-500 hover:bg-accent opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity">
+                            <Star className="w-3 h-3" />
+                          </button>
+                        )}
+                        <button type="button" onClick={() => confirmDeletePage(page.id)} title={p.delete}
+                          className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-20 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-          return (
-            <div key={page.id} className={cn("rounded-xl border transition-all", isPageExpanded ? "border-primary/50 ring-1 ring-primary/20" : "border-border")}>
-              {/* Page header */}
-              <div className={cn("flex items-center gap-2 px-3 py-2.5 rounded-t-xl transition-colors", isPageExpanded && "bg-primary/[0.04]")}>
-                <div className="flex flex-col gap-0.5 shrink-0">
-                  <button type="button" onClick={() => movePage(page.id, "up")} disabled={i === 0}
-                    className={cn("w-6 h-6 flex items-center justify-center rounded hover:text-foreground hover:bg-accent disabled:opacity-20 transition-colors", isPageExpanded ? "text-primary/60" : "text-muted-foreground")}>
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  </button>
-                  <button type="button" onClick={() => movePage(page.id, "down")} disabled={i === pages.length - 1}
-                    className={cn("w-6 h-6 flex items-center justify-center rounded hover:text-foreground hover:bg-accent disabled:opacity-20 transition-colors", isPageExpanded ? "text-primary/60" : "text-muted-foreground")}>
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
+          <div className="px-3 py-2 border-t border-border shrink-0">
+            <p className="text-[11px] text-muted-foreground leading-snug">{p.dashboardViewsDesc}</p>
+          </div>
+        </aside>
+
+        {/* ── Detail (editor for the selected view) ──────────────────────── */}
+        <section className={cn("min-w-0 overflow-y-auto", expandedPageId ? "block" : "hidden md:block")}>
+          {(() => {
+            const page = pages.find(pg => pg.id === expandedPageId);
+            if (!page) {
+              return (
+                <div className="h-full flex items-center justify-center p-12 text-center text-sm text-muted-foreground">
+                  {p.viewsNoSelection}
                 </div>
+              );
+            }
+            // Derived data scoped to the selected view only — same logic as the
+            // pre-master/detail code, but computed once instead of per-page.
+            const dsFields = page.dataSourceId ? (dataSourceFields[page.dataSourceId] ?? []) : [];
+            const isExternal = !!page.dataSourceId && dsFields.length > 0;
+            const dsFieldValues = isExternal ? (dataSourceFieldValues[page.dataSourceId!] ?? {}) : {};
+            const isAllSubmissions = !page.formInstanceId && !page.dataSourceId && !page.dataPoolId;
+            const isPoolSource     = !!page.dataPoolId;
+            // For pool-bound views, synthesise a single step from the pool's
+            // keyField + additionalFields so the pickers don't fall back to
+            // every form's fields (which would collide on duplicate ids).
+            const boundPool = isPoolSource ? pools.find(po => po.id === page.dataPoolId) : undefined;
+            const pageFormSteps: StepDef[] = boundPool
+              ? [{
+                  id: "pool-fields",
+                  title: boundPool.name,
+                  fields: [
+                    { id: boundPool.keyField, type: "text", label: boundPool.keyField, required: false },
+                    ...boundPool.additionalFields
+                      .filter(f => f !== boundPool.keyField)
+                      .map(f => ({ id: f, type: "text" as const, label: f, required: false })),
+                  ],
+                }]
+              : stepsForPage(page, formInstances, formSteps);
+            const pageNativeFields = pageFormSteps.flatMap(s => s.fields).filter(f => f.type !== "section_header");
+            const pageNativeFieldValues = nativeFieldValuesFor(pageFormSteps);
+            const builtinKeys = new Set(["date", "status"]);
+            const pageGroupByOptions = isExternal
+              ? [
+                  { value: "date",   label: "Date" },
+                  { value: "status", label: w.groupStatus },
+                  ...dsFields.filter(k => !builtinKeys.has(k)).map(k => ({ value: k, label: formatFieldKey(k) })),
+                ]
+              : [
+                  { value: "date",     label: w.groupDate },
+                  { value: "status",   label: w.groupStatus },
+                  { value: "priority", label: w.groupPriority },
+                  ...pageNativeFields.map(f => ({ value: f.dbKey ?? f.id, label: f.label })),
+                ];
 
-                <button type="button" onClick={() => { setExpandedPageId(isPageExpanded ? null : page.id); setExpandedWidgetId(null); }} className="flex-1 min-w-0 text-left">
-                  <p className={cn("text-sm font-medium truncate", isPageExpanded ? "text-primary" : "text-foreground")}>{page.title}</p>
-                  <p className="text-xs text-muted-foreground font-mono">/admin/{page.slug} · {page.widgets.length} widget{page.widgets.length !== 1 ? "s" : ""}</p>
+            return (
+              <div data-view-id={page.id}>
+                {/* Mobile back button — returns to the rail */}
+                <button type="button" onClick={() => { setExpandedPageId(null); setExpandedWidgetId(null); }}
+                  className="md:hidden flex items-center gap-1.5 w-full px-4 py-2 text-sm text-muted-foreground border-b border-border hover:text-foreground hover:bg-accent/30 transition-colors">
+                  <ChevronLeft className="w-4 h-4" />
+                  {p.viewsBackToList}
                 </button>
 
-                {isDefault && (
-                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium shrink-0">{p.defaultLabel}</span>
-                )}
-                {!isDefault && (
-                  <button type="button" onClick={() => onChangeDefault(page.slug)} title={p.setDefault}
-                    className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-amber-500 hover:bg-accent transition-colors shrink-0">
-                    <Star className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <button type="button" onClick={() => deletePage(page.id)} disabled={pages.length <= 1}
-                  className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-20 transition-colors shrink-0">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Expanded page editor */}
-              {isPageExpanded && (
-                <div className="border-t border-border/60 px-4 py-4 space-y-4 bg-muted/20 rounded-b-xl">
+                <div className="px-4 py-4 space-y-4">
                   {/* Title + slug */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -478,23 +626,27 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                     </div>
                   </div>
 
-                  {/* Data source selector (3 options: all native, external dataset, form instance) */}
+                  {/* Data source selector (4 options: all native, form, DataPool, external dataset) */}
                   <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
                     <label className="text-xs font-medium text-muted-foreground shrink-0">{p.sourceLabel}</label>
                     <select
                       value={
-                        page.formInstanceId
-                          ? `form:${page.formInstanceId}`
-                          : page.dataSourceId ?? ""
+                        page.formInstanceId   ? `form:${page.formInstanceId}` :
+                        page.dataPoolId       ? `pool:${page.dataPoolId}`     :
+                                                page.dataSourceId ?? ""
                       }
                       onChange={e => {
                         const v = e.target.value;
+                        // Clear the other source fields so only one is set at a time —
+                        // server renderer + restoreFromYaml both assume mutual exclusion.
                         if (v === "") {
-                          updatePage(page.id, { dataSourceId: undefined, formInstanceId: undefined });
+                          updatePage(page.id, { dataSourceId: undefined, formInstanceId: undefined, dataPoolId: undefined });
                         } else if (v.startsWith("form:")) {
-                          updatePage(page.id, { dataSourceId: undefined, formInstanceId: v.slice(5) });
+                          updatePage(page.id, { dataSourceId: undefined, formInstanceId: v.slice(5),  dataPoolId: undefined });
+                        } else if (v.startsWith("pool:")) {
+                          updatePage(page.id, { dataSourceId: undefined, formInstanceId: undefined,   dataPoolId: v.slice(5) });
                         } else {
-                          updatePage(page.id, { dataSourceId: v, formInstanceId: undefined });
+                          updatePage(page.id, { dataSourceId: v,         formInstanceId: undefined,   dataPoolId: undefined });
                         }
                       }}
                       className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-[3px] focus:ring-ring/50"
@@ -505,6 +657,15 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                           {formInstances.map(inst => (
                             <option key={inst.id} value={`form:${inst.id}`}>
                               {inst.name} ({inst.slug === "/" ? "/" : `/${inst.slug}`})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {pools.length > 0 && (
+                        <optgroup label={p.byDataPool}>
+                          {pools.map(pool => (
+                            <option key={pool.id} value={`pool:${pool.id}`}>
+                              {pool.name} (/{pool.slug})
                             </option>
                           ))}
                         </optgroup>
@@ -525,6 +686,11 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                     {page.dataSourceId && !page.formInstanceId && (
                       <span className="text-xs text-muted-foreground">
                         {p.filterExternalOnly}
+                      </span>
+                    )}
+                    {isPoolSource && (
+                      <span className="text-xs text-muted-foreground">
+                        {p.filterPoolOnly}
                       </span>
                     )}
                     {isAllSubmissions && (
@@ -564,7 +730,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
 
                   {/* Widgets list */}
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">{p.widgetsOnPage}</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">{p.widgetsOnView}</p>
 
                     {page.widgets.length === 0 ? (
                       <p className="text-xs text-muted-foreground py-2">{p.noWidgets}</p>
@@ -715,31 +881,47 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                         </button>
                       ))}
                     </div>
-                    {/* Analytics widgets — only useful when page is scoped to a form instance */}
+                    {/* Analytics widgets — funnel/urgency rely on form-specific notions */}
+                    {/* (step navigation, urgency column, dueDate) that DataPool entries */}
+                    {/* don't carry. We hide them when the page is bound to a pool. */}
                     <div className="flex flex-wrap gap-2">
                       <span className="text-xs text-muted-foreground self-center">{w.analyticsGroup} :</span>
-                      {(["traffic_chart", "email_quality", "urgency_distribution", "funnel_chart"] as WidgetDef["type"][]).map(type => (
-                        <button key={type} type="button" onClick={() => addWidget(page.id, type)}
+                      {(isPoolSource
+                        ? ["traffic_chart", "email_quality"]
+                        : ["traffic_chart", "email_quality", "urgency_distribution", "funnel_chart"]
+                      ).map(type => (
+                        <button key={type} type="button" onClick={() => addWidget(page.id, type as WidgetDef["type"])}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-blue-300 dark:border-blue-800 text-xs text-blue-600 dark:text-blue-400 hover:border-blue-500 transition-colors">
                           <Plus className="w-3 h-3" />
-                          {WIDGET_TYPE_LABELS[type]}
+                          {WIDGET_TYPE_LABELS[type as WidgetDef["type"]]}
                         </button>
                       ))}
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })()}
+        </section>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title={p.deleteConfirmTitle}
+        description={p.deleteConfirmDesc.replace("{title}", pendingDelete?.title ?? "")}
+        confirmLabel={p.delete}
+        cancelLabel={p.cancel}
+        destructive
+        onConfirm={doDeletePage}
+      />
     </div>
   );
 }
 
 /* ── Sub-editors ─────────────────────────────────────────── */
 
-type PagesTranslations = ReturnType<typeof useTranslations>["admin"]["config"]["pages"];
+type ViewsTranslations = ReturnType<typeof useTranslations>["admin"]["config"]["views"];
 
 const BUILTIN_LABELS: Record<string, string> = {
   email:        "Email",
@@ -763,7 +945,7 @@ function SubmissionsTableEditor({
   tableColumns: TableColumnDef[];
   onChangeColumns: (cols: TableColumnDef[]) => void;
   dataSourceFields?: string[];
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "submissions_table" }>>) => void;
 }) {
   const isExternal = !!dataSourceFields && dataSourceFields.length > 0;
@@ -927,7 +1109,7 @@ function ChartEditor({
   groupByOptions: { value: string; label: string }[];
   chartTypes: { value: ChartType; label: string }[];
   dateRanges: { value: string; label: string }[];
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "chart" }>>) => void;
 }) {
   function updateChart(patch: Partial<typeof widget.chartConfig>) {
@@ -1005,7 +1187,7 @@ function StatsTableEditor({
   widget: Extract<WidgetDef, { type: "stats_table" }>;
   availableFields: { value: string; label: string }[];
   fieldValues: Record<string, string[]>;
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "stats_table" }>>) => void;
 }) {
   const cfg = widget.tableConfig;
@@ -1228,7 +1410,7 @@ function StatsCardEditor({
   widget: Extract<WidgetDef, { type: "stats_card" }>;
   availableFields: { value: string; label: string }[];
   fieldValues: Record<string, string[]>;
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "stats_card" }>>) => void;
 }) {
   const stats = widget.statsConfig;
@@ -1383,7 +1565,7 @@ function RecentEditor({
   onChange,
 }: {
   widget: Extract<WidgetDef, { type: "recent" }>;
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "recent" }>>) => void;
 }) {
   return (
@@ -1408,7 +1590,7 @@ function InfoCardEditor({
   onChange,
 }: {
   widget: Extract<WidgetDef, { type: "info_card" }>;
-  p: PagesTranslations;
+  p: ViewsTranslations;
   onChange: (patch: Partial<Extract<WidgetDef, { type: "info_card" }>>) => void;
 }) {
   return (
@@ -1433,3 +1615,38 @@ function InfoCardEditor({
     </div>
   );
 }
+
+// ─── Auto-pages backfill button ───────────────────────────────────────────
+// Standalone subcomponent so the parent stays focused on page editing. Posts
+// to /api/admin/config/auto-pages/backfill which is idempotent — clicking
+// twice just yields an empty `created` set the second time.
+function BackfillButton({ label, done }: { label: string; done: string }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const res = await fetch("/api/admin/config/auto-pages/backfill", { method: "POST" });
+          if (!res.ok) throw new Error(await res.text());
+          const data = (await res.json()) as { created: string[]; skipped: string[] };
+          toast.success(done.replace("{count}", String(data.created.length)));
+          // The new pages live in adminConfig — a soft reload picks them up
+          // without re-entering the editing state the operator might be in.
+          if (data.created.length > 0) setTimeout(() => location.reload(), 600);
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Backfill failed");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? "…" : label}
+    </Button>
+  );
+}
+

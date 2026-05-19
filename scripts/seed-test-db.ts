@@ -70,19 +70,34 @@ async function main() {
   console.log("  ✓ Admin user seeded  (see .env.test for credentials)");
 
   // ── 4. Seed test form instance ─────────────────────────────────────────────
+  // The config must satisfy `rowToInstance` (meta + features + form keys),
+  // otherwise `listFormInstances` throws "corrupted config in DB" and the
+  // whole e2e suite cascades to 500s.
   const minimalFormConfig = {
-    version: 1,
-    title: "Test Form",
-    steps: [
-      {
-        id: "step1",
-        title: "Informations",
-        fields: [
-          { id: "firstName", type: "text", label: "First name", required: true },
-          { id: "email",     type: "email", label: "Email", required: true },
-        ],
-      },
-    ],
+    meta: {
+      name:        "Test Form",
+      title:       "Test Form",
+      description: "Seeded by scripts/seed-test-db.ts",
+      locale:      "en",
+    },
+    page: {
+      branding: { defaultTheme: "light" },
+      hero:     { title: "Test Form", ctaLabel: "Start" },
+    },
+    form: {
+      steps: [
+        {
+          id: "step1",
+          title: "Informations",
+          fields: [
+            { id: "firstName", type: "text",  label: "First name", required: true },
+            { id: "email",     type: "email", label: "Email",      required: true },
+          ],
+        },
+      ],
+    },
+    features: { landingPage: true, form: true },
+    security: { honeypot: { enabled: false }, rateLimit: { enabled: false, maxPerHour: 10, maxPerDay: 50 } },
   };
 
   await db.execute(sql`

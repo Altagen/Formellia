@@ -28,15 +28,21 @@ export interface FormFeatures {
 
 export interface EmailNotificationConfig {
   enabled: boolean;
-  provider: "resend" | "sendgrid" | "mailgun";
-  /** AES-256-GCM encrypted API key — never sent to client */
-  apiKeyEncrypted: string;
+  /**
+   * Provider override for this form. When omitted, the form falls back to
+   * `app_config.email_provider` — the same global value the broadcast composer
+   * uses. Same fallback applies to `fromAddress`, `fromName`, `apiKeyEncrypted`
+   * and `apiKeyExpiresAt`.
+   */
+  provider?:        "resend" | "sendgrid" | "mailgun";
+  /** AES-256-GCM encrypted API key — never sent to client. Optional override. */
+  apiKeyEncrypted?: string;
   /** ISO date string (YYYY-MM-DD) — null means no expiration */
   apiKeyExpiresAt?: string | null;
-  fromAddress: string;
-  fromName?: string;
+  fromAddress?:     string;
+  fromName?:        string;
   /** Supports {{email}}, {{formName}}, {{submittedAt}}, {{fieldId}} */
-  subject: string;
+  subject:  string;
   /** Plain text body — same variable substitution as subject */
   bodyText: string;
 }

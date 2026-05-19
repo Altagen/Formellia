@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,17 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Info, Trash2, Loader2 } from "lucide-react";
 import type { FormInstance } from "@/types/formInstance";
 import { useTranslations } from "@/lib/context/LocaleContext";
+
+// Shape the /api/admin/email/provider endpoint returns. Mirrors `GlobalEmailConfig`
+// from globalEmailConfig.ts; declared here to keep this client component free
+// of server imports.
+interface GlobalEmailSnapshot {
+  provider:         "resend" | "sendgrid" | "mailgun" | null;
+  fromAddress:      string | null;
+  fromName:         string | null;
+  apiKeyConfigured: boolean;
+  apiKeyExpiresAt:  string | null;
+}
 
 interface NotificationsTabProps {
   instance: FormInstance;
@@ -106,6 +118,19 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
   const [savingKey,      setSavingKey]      = useState(false);
   const [confirmDelete,  setConfirmDelete]  = useState(false);
   const [deletingKey,    setDeletingKey]    = useState(false);
+
+  // Global email config snapshot — fetched in parallel with the per-form one
+  // so the UI can show "Inherits from global" badges and disable the empty
+  // state when a global key is configured. Null until the fetch resolves;
+  // missing/forbidden responses leave it null and the UI degrades gracefully.
+  const [globalCfg, setGlobalCfg] = useState<GlobalEmailSnapshot | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/email/provider")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setGlobalCfg(data); })
+      .catch(() => {});
+  }, []);
 
   // Fetch current key status on mount
   useEffect(() => {
@@ -280,8 +305,32 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
     return d !== null && d <= 30;
   })();
 
+  // Inheritance hint computed once per render — drives badge visibility on
+  // the form-level "from" inputs and the API key card. A field "inherits"
+  // when there's no per-form value AND the global config supplies one.
+  // The provider field is not surfaced here: the per-form provider picker
+  // always has a default ("resend"), so there's no "blank → inherit" state
+  // to badge.
+  const inherits = {
+    fromAddress: !fromAddress && !!globalCfg?.fromAddress,
+    fromName:    !fromName    && !!globalCfg?.fromName,
+    apiKey:      !apiKeySet   && !!globalCfg?.apiKeyConfigured,
+  };
+
   return (
     <div className="space-y-6">
+
+      {/* Inheritance banner — one line at the top so the operator immediately
+          understands the override model before touching any field. */}
+      <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs flex items-start gap-2">
+        <Info className="w-3.5 h-3.5 mt-0.5 text-blue-600 shrink-0" />
+        <p className="text-blue-900 dark:text-blue-200">
+          {n.overrideHint}{" "}
+          <Link href="/admin/email/provider" className="underline font-medium">
+            {n.globalConfigLink}
+          </Link>
+        </p>
+      </div>
 
       {/* Toggle + structural config */}
       <div className="bg-card rounded-xl border p-6">
@@ -323,30 +372,39 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
               <p className="text-xs text-muted-foreground mt-1.5">{PROVIDER_HELP[provider]}</p>
             </div>
 
-            {/* From */}
+            {/* From — both fields fall back to global when left empty.
+                When the global config supplies a value the placeholder shows
+                it as a hint so the operator can see what they're inheriting
+                without having to leave the page. */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="from-address" className="text-xs text-muted-foreground mb-1.5">
-                  {n.fromEmail} <span className="text-destructive">*</span>
+                <Label htmlFor="from-address" className="text-xs text-muted-foreground mb-1.5 inline-flex items-center gap-1.5">
+                  {n.fromEmail}
+                  {inherits.fromAddress && (
+                    <span className="text-[10px] font-normal text-blue-700 dark:text-blue-300">({n.inheritedFromGlobal})</span>
+                  )}
                 </Label>
                 <Input
                   id="from-address"
                   type="email"
                   value={fromAddress}
                   onChange={e => { setFromAddress(e.target.value); pushToParent({ fromAddress: e.target.value }); }}
-                  placeholder={n.fromPlaceholder}
+                  placeholder={globalCfg?.fromAddress ?? n.fromPlaceholder}
                 />
               </div>
               <div>
-                <Label htmlFor="from-name" className="text-xs text-muted-foreground mb-1.5">
+                <Label htmlFor="from-name" className="text-xs text-muted-foreground mb-1.5 inline-flex items-center gap-1.5">
                   {n.fromName}
+                  {inherits.fromName && (
+                    <span className="text-[10px] font-normal text-blue-700 dark:text-blue-300">({n.inheritedFromGlobal})</span>
+                  )}
                 </Label>
                 <Input
                   id="from-name"
                   type="text"
                   value={fromName}
                   onChange={e => { setFromName(e.target.value); pushToParent({ fromName: e.target.value }); }}
-                  placeholder={n.fromNamePlaceholder}
+                  placeholder={globalCfg?.fromName ?? n.fromNamePlaceholder}
                 />
               </div>
             </div>
@@ -397,6 +455,156 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
                 </p>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* API Key card — always visible (broadcasts also need this key, not just submission confirmations) */}
+      <div className="bg-card rounded-xl border p-6 space-y-5">
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">{n.apiKeyTitle}</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              {n.apiKeyDesc}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Key status badge — three states:
+                  - per-form override set → green
+                  - inheriting from global config → blue
+                  - no key anywhere → amber */}
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+              apiKeySet
+                ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
+                : inherits.apiKey
+                  ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+                  : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                apiKeySet ? "bg-green-500" : inherits.apiKey ? "bg-blue-500" : "bg-amber-500"
+              }`} />
+              {apiKeySet ? n.keyConfigured : inherits.apiKey ? n.inheritedFromGlobal : n.noKey}
+            </span>
+            {/* Expiry badge — only for the per-form key; the global config has
+                its own expiry display on the /admin/email/provider page. */}
+            {apiKeySet && <ExpiryBadge expiresAt={apiKeyExpiresAt} n={n} />}
+          </div>
+        </div>
+
+        {/* Expiry warning */}
+        {apiKeySet && expiredOrSoon && (
+          <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              {daysUntilExpiry(apiKeyExpiresAt)! < 0
+                ? n.expiredWarning
+                : n.expiringSoonWarning}
+            </p>
+          </div>
+        )}
+
+        {/* New key input */}
+        <div className="space-y-3">
+          <Label className="text-xs text-muted-foreground">
+            {apiKeySet ? n.replaceKey : n.addKey}
+          </Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                type={showKey ? "text" : "password"}
+                value={apiKeyInput}
+                onChange={e => setApiKeyInput(e.target.value)}
+                placeholder={apiKeySet ? n.newKeyPlaceholder : n.addKeyPlaceholder}
+                className="pr-10"
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey(v => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                tabIndex={-1}
+              >
+                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <Button
+              type="button"
+              onClick={handleSaveApiKey}
+              disabled={!apiKeyInput.trim() || savingKey}
+              size="sm"
+            >
+              {savingKey ? "…" : n.save}
+            </Button>
+          </div>
+
+          {/* Expiry date picker */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={noExpiry}
+                onChange={e => {
+                  setNoExpiry(e.target.checked);
+                  if (e.target.checked) setExpiryInput("");
+                }}
+                className="rounded border-input cursor-pointer"
+              />
+              {n.noExpireToggle}
+            </label>
+            {!noExpiry && (
+              <div className="flex items-center gap-2">
+                <Label htmlFor="key-expiry" className="text-xs text-muted-foreground whitespace-nowrap">
+                  {n.expiresAt}
+                </Label>
+                <Input
+                  id="key-expiry"
+                  type="date"
+                  value={expiryInput}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={e => setExpiryInput(e.target.value)}
+                  className="h-8 w-40 text-sm"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Delete key */}
+        {apiKeySet && (
+          <div className="border-t border-border pt-4">
+            {!confirmDelete ? (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1.5 text-xs text-destructive hover:text-destructive/80 cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {n.deleteKey}
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-destructive font-medium">{n.deleteKeyConfirm}</span>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="text-xs px-2 py-1 rounded border border-border hover:bg-muted cursor-pointer transition-colors"
+                >
+                  {n.cancel}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteKey}
+                  disabled={deletingKey}
+                  className="text-xs px-2 py-1 rounded bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer disabled:opacity-50 transition-colors"
+                >
+                  {deletingKey ? "…" : n.delete}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -513,149 +721,6 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
         )}
       </div>
 
-      {/* API Key card */}
-      {enabled && (
-        <div className="bg-card rounded-xl border p-6 space-y-5">
-
-          {/* Header */}
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">{n.apiKeyTitle}</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                {n.apiKeyDesc}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Key status badge */}
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                apiKeySet
-                  ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
-                  : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${apiKeySet ? "bg-green-500" : "bg-amber-500"}`} />
-                {apiKeySet ? n.keyConfigured : n.noKey}
-              </span>
-              {/* Expiry badge */}
-              {apiKeySet && <ExpiryBadge expiresAt={apiKeyExpiresAt} n={n} />}
-            </div>
-          </div>
-
-          {/* Expiry warning */}
-          {apiKeySet && expiredOrSoon && (
-            <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
-              <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              </svg>
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                {daysUntilExpiry(apiKeyExpiresAt)! < 0
-                  ? n.expiredWarning
-                  : n.expiringSoonWarning}
-              </p>
-            </div>
-          )}
-
-          {/* New key input */}
-          <div className="space-y-3">
-            <Label className="text-xs text-muted-foreground">
-              {apiKeySet ? n.replaceKey : n.addKey}
-            </Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type={showKey ? "text" : "password"}
-                  value={apiKeyInput}
-                  onChange={e => setApiKeyInput(e.target.value)}
-                  placeholder={apiKeySet ? n.newKeyPlaceholder : n.addKeyPlaceholder}
-                  className="pr-10"
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKey(v => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                  tabIndex={-1}
-                >
-                  {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <Button
-                type="button"
-                onClick={handleSaveApiKey}
-                disabled={!apiKeyInput.trim() || savingKey}
-                size="sm"
-              >
-                {savingKey ? "…" : n.save}
-              </Button>
-            </div>
-
-            {/* Expiry date picker */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={noExpiry}
-                  onChange={e => {
-                    setNoExpiry(e.target.checked);
-                    if (e.target.checked) setExpiryInput("");
-                  }}
-                  className="rounded border-input cursor-pointer"
-                />
-                {n.noExpireToggle}
-              </label>
-              {!noExpiry && (
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="key-expiry" className="text-xs text-muted-foreground whitespace-nowrap">
-                    {n.expiresAt}
-                  </Label>
-                  <Input
-                    id="key-expiry"
-                    type="date"
-                    value={expiryInput}
-                    min={new Date().toISOString().slice(0, 10)}
-                    onChange={e => setExpiryInput(e.target.value)}
-                    className="h-8 w-40 text-sm"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Delete key */}
-          {apiKeySet && (
-            <div className="border-t border-border pt-4">
-              {!confirmDelete ? (
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(true)}
-                  className="flex items-center gap-1.5 text-xs text-destructive hover:text-destructive/80 cursor-pointer transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  {n.deleteKey}
-                </button>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-destructive font-medium">{n.deleteKeyConfirm}</span>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDelete(false)}
-                    className="text-xs px-2 py-1 rounded border border-border hover:bg-muted cursor-pointer transition-colors"
-                  >
-                    {n.cancel}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDeleteKey}
-                    disabled={deletingKey}
-                    className="text-xs px-2 py-1 rounded bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer disabled:opacity-50 transition-colors"
-                  >
-                    {deletingKey ? "…" : n.delete}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

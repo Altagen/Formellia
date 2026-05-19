@@ -8,6 +8,8 @@ import {
   deleteFormInstance,
   listFormInstances,
 } from "@/lib/db/formInstanceLoader";
+import { removeAutoViewForForm } from "@/lib/admin/autoFormView";
+import { purgeFormReferences } from "@/lib/admin/purgeFormReferences";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { isReservedSlug } from "@/lib/config/reservedSlugs";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";
@@ -121,7 +123,50 @@ export async function DELETE(
   }
 
   await deleteFormInstance(id);
+
+  // Drop any auto-generated companion page bound to this form. Symmetric with
+  // the auto-create path on form creation.
+  let autoPagesRemoved = 0;
+  try {
+    autoPagesRemoved = await removeAutoViewForForm(id);
+  } catch {
+    /* ignore — form already deleted */
+  }
+
+  // Purge every jsonb/text reference outside the FK graph that would
+  // otherwise leak the deleted form id as a zombie:
+  //   - users.sidebar_layout (pinnedForms / formOrder / favorites / categories)
+  //   - saved_filters with this slug
+  //   - admin.views[] manual entries — unbinds formInstanceId so the view
+  //     turns into "all submissions" instead of disappearing
+  // Cascading FKs (submissions, grants, data_pool_sources …) are already
+  // handled by the schema; this fills the gaps for everything else.
+  let purge: Awaited<ReturnType<typeof purgeFormReferences>> = {
+    sidebarLayoutsUpdated: 0,
+    savedFiltersDeleted:   0,
+    manualViewsUnbound:    0,
+  };
+  try {
+    purge = await purgeFormReferences(id, instance.slug);
+  } catch (err) {
+    // Don't fail the whole delete — the form row is already gone, the
+    // leftovers will just need manual cleanup. Log loudly so it's visible.
+    console.error("[forms.delete] purgeFormReferences failed:", err);
+  }
+
   const actor = await validateAdminSession(req);
-  logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "form.delete", resourceType: "form", resourceId: id, details: { slug: instance.slug, name: instance.name } });
+  logAdminEvent({
+    userId: actor?.id ?? null,
+    userEmail: actor?.email ?? null,
+    action: "form.delete",
+    resourceType: "form",
+    resourceId: id,
+    details: {
+      slug: instance.slug,
+      name: instance.name,
+      autoPagesRemoved,
+      ...purge,
+    },
+  });
   return NextResponse.json({ success: true });
 }

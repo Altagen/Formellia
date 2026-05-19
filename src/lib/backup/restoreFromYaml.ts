@@ -14,12 +14,19 @@ import { listFormInstances, saveFormInstance, createFormInstance } from "@/lib/d
 import { yamlConfigSchema } from "@/lib/yaml/configSchema";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";
 import { getProtectedSlugs } from "@/lib/security/protectedSlugs";
-import { mergeAdminPages, mergeTableColumns } from "@/lib/admin/mergeAdminConfig";
+import { mergeAdminViews, mergeTableColumns } from "@/lib/admin/mergeAdminConfig";
+import { yamlDataPoolSchema } from "@/lib/datapools/validation";
+import {
+  getDataPoolBySlug,
+  createDataPool,
+  updateDataPool,
+} from "@/lib/datapools/crud";
+import { backfillAutoViews } from "@/lib/admin/autoFormView";
 import cron from "node-cron";
 import type { FormInstanceConfig } from "@/types/formInstance";
-import type { AdminPage, TableColumnDef } from "@/types/config";
+import type { AdminView, TableColumnDef } from "@/types/config";
 
-type RestoreSection = "forms" | "scheduledJobs" | "datasets" | "admin" | "app";
+type RestoreSection = "forms" | "scheduledJobs" | "datasets" | "admin" | "app" | "dataPools";
 
 export interface RestoreOptions {
   mode:     "append" | "replace";
@@ -111,7 +118,7 @@ export async function restoreFromObject(
   }
 
   // ── admin config ───────────────────────────────────────
-  // In "append" mode, `admin.pages` and `admin.tableColumns` are upserted by `id`
+  // In "append" mode, `admin.views` and `admin.tableColumns` are upserted by `id`
   // so a partial import only touches what it carries — re-importing one page no
   // longer wipes the rest. "replace" keeps the wholesale-replace semantics.
   // `branding`/`features` are singletons → replaced in both modes when present.
@@ -120,9 +127,12 @@ export async function restoreFromObject(
       const current = await getFormConfig();
       const inAdmin = incoming.admin as Record<string, unknown>;
       const updated = { ...current, admin: { ...current.admin } };
-      if (inAdmin.pages !== undefined) {
-        if (!Array.isArray(inAdmin.pages)) throw new Error("admin.pages must be an array");
-        updated.admin.pages = mergeAdminPages(current.admin.pages ?? [], inAdmin.pages as AdminPage[], mode);
+      // 0.3.0 fwd-compat: accept the legacy `admin.pages` key from older YAML
+      // backups. `views` wins when both are present (canonical).
+      const viewsPayload = inAdmin.views ?? inAdmin.pages;
+      if (viewsPayload !== undefined) {
+        if (!Array.isArray(viewsPayload)) throw new Error("admin.views must be an array");
+        updated.admin.views = mergeAdminViews(current.admin.views ?? [], viewsPayload as AdminView[], mode);
       }
       if (inAdmin.tableColumns !== undefined) {
         if (!Array.isArray(inAdmin.tableColumns)) throw new Error("admin.tableColumns must be an array");
@@ -130,8 +140,34 @@ export async function restoreFromObject(
       }
       if (inAdmin.branding !== undefined) updated.admin.branding = inAdmin.branding as typeof updated.admin.branding;
       if (inAdmin.features !== undefined) updated.admin.features = inAdmin.features as typeof updated.admin.features;
+      if (inAdmin.exclusionReasons !== undefined) {
+        if (!Array.isArray(inAdmin.exclusionReasons)) {
+          throw new Error("admin.exclusionReasons must be an array of strings");
+        }
+        // Wholesale replacement — these are deployment-level policy values,
+        // they don't merge well across imports (the policy is the whole list).
+        updated.admin.exclusionReasons = (inAdmin.exclusionReasons as unknown[])
+          .map((r) => String(r).trim())
+          .filter((r) => r.length > 0);
+      }
       await saveFormConfig(updated);
       results.admin = { success: true, mode };
+
+      // If the restore turned `autoCreateDashboardViewOnFormCreate` on, run a
+      // backfill so the operator gets the missing pages immediately — no need
+      // to re-trigger the button manually. The helper is idempotent and a
+      // no-op when the toggle remained off.
+      if (updated.admin.features?.autoCreateDashboardViewOnFormCreate) {
+        try {
+          const bf = await backfillAutoViews(actor);
+          if (bf.created.length > 0) {
+            results.adminAutoPagesBackfill = { created: bf.created, skipped: bf.skipped.length };
+          }
+        } catch (e: unknown) {
+          // Don't fail the whole restore over a non-critical backfill.
+          results.adminAutoPagesBackfill = { error: e instanceof Error ? e.message : "Erreur" };
+        }
+      }
     } catch (e: unknown) {
       results.admin = { error: e instanceof Error ? e.message : "Erreur" };
     }
@@ -203,7 +239,9 @@ export async function restoreFromObject(
     }
     results.scheduledJobs = { created: jCreated, updated: jUpdated, errors: jErrors };
     if (jCreated.length > 0 || jUpdated.length > 0) {
-      import("@/lib/scheduler/scheduler").then(({ reloadJobs }) => reloadJobs()).catch(() => {});
+      import("@/lib/scheduler/scheduler")
+        .then(({ reloadJobs }) => reloadJobs())
+        .catch((err) => console.error("[restoreFromYaml] scheduler reload failed:", err));
     }
   }
 
@@ -255,6 +293,83 @@ export async function restoreFromObject(
       }
     }
     results.datasets = { created: dCreated, updated: dUpdated, errors: dErrors };
+  }
+
+  // ── dataPools ──────────────────────────────────────────
+  // Pools are restored AFTER forms so the `formSlug → formInstanceId`
+  // resolution can hit forms that were just imported in the same payload.
+  // Mode semantics mirror the other sections:
+  //   - append  → skip pools whose slug already exists (reported as an error)
+  //   - replace → upsert by slug (sync sources to match exactly)
+  // Exclusions are *not* carried in YAML — they reference submission UUIDs
+  // which are not part of the config archive.
+  if (shouldRestore("dataPools") && Array.isArray(incoming.dataPools)) {
+    const pCreated: string[] = [];
+    const pUpdated: string[] = [];
+    const pErrors: Array<{ slug: string; message: string }> = [];
+
+    // We re-list forms here rather than reuse the snapshot from the `forms`
+    // section above — that list is stale if any forms were just created.
+    const formsAfter = await listFormInstances();
+    const formIdBySlug = new Map(formsAfter.map((f) => [f.slug, f.id]));
+
+    for (const raw of incoming.dataPools as unknown[]) {
+      const parsed = yamlDataPoolSchema.safeParse(raw);
+      if (!parsed.success) {
+        const issue = parsed.error.issues[0];
+        pErrors.push({
+          slug: typeof (raw as { slug?: unknown })?.slug === "string" ? (raw as { slug: string }).slug : "?",
+          message: issue ? `${issue.path.join(".")}: ${issue.message}` : "Invalid pool entry",
+        });
+        continue;
+      }
+      const pool = parsed.data;
+
+      // Resolve form slugs to ids. A missing slug is a hard error for the
+      // pool — restoring with no sources would produce an empty pool.
+      const resolvedSources: { formInstanceId: string }[] = [];
+      const missingSlugs: string[] = [];
+      for (const src of pool.sources) {
+        const id = formIdBySlug.get(src.formSlug);
+        if (!id) missingSlugs.push(src.formSlug);
+        else resolvedSources.push({ formInstanceId: id });
+      }
+      if (missingSlugs.length > 0) {
+        pErrors.push({ slug: pool.slug, message: `Unknown source form slug(s): ${missingSlugs.join(", ")}` });
+        continue;
+      }
+
+      try {
+        const existing = await getDataPoolBySlug(pool.slug);
+        if (existing && mode === "append") {
+          pErrors.push({ slug: pool.slug, message: `DataPool slug "${pool.slug}" already exists` });
+          continue;
+        }
+        if (existing) {
+          await updateDataPool(existing.id, {
+            name: pool.name,
+            description: pool.description ?? null,
+            keyField: pool.keyField,
+            additionalFields: pool.additionalFields,
+            sources: resolvedSources,
+          });
+          pUpdated.push(pool.slug);
+        } else {
+          await createDataPool({
+            slug: pool.slug,
+            name: pool.name,
+            description: pool.description ?? null,
+            keyField: pool.keyField,
+            additionalFields: pool.additionalFields,
+            sources: resolvedSources,
+          });
+          pCreated.push(pool.slug);
+        }
+      } catch (e: unknown) {
+        pErrors.push({ slug: pool.slug, message: e instanceof Error ? e.message : "Erreur" });
+      }
+    }
+    results.dataPools = { created: pCreated, updated: pUpdated, errors: pErrors };
   }
 
   return { success: true, mode, results };

@@ -8,25 +8,26 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { UserPreferencesProvider } from "@/lib/context/UserPreferencesContext";
 import { useUserCtx } from "@/lib/context/UserRoleContext";
 import { useTranslations } from "@/lib/context/LocaleContext";
-import type { AdminPage, AdminFeatures, AdminBrandingConfig } from "@/types/config";
+import type { AdminView, AdminFeatures, AdminBrandingConfig } from "@/types/config";
 import type { ThemeMode } from "@/types/config";
 import type { Locale } from "@/i18n";
 import type { SidebarLayout } from "@/types/sidebarLayout";
 
 interface AdminShellProps {
   userEmail: string;
-  pages: AdminPage[];
+  pages: AdminView[];
   features?: AdminFeatures;
   branding?: AdminBrandingConfig;
   initialThemeMode: ThemeMode;
   initialColorPreset: string;
   initialLocale: Locale;
   initialSidebarLayout?: SidebarLayout | null;
+  initialSidebarCollapsed?: boolean;
   pinnedFormMeta?: { id: string; name: string; slug: string }[];
   children: React.ReactNode;
 }
 
-export function AdminShell({ userEmail, pages, features, branding, initialThemeMode, initialColorPreset, initialLocale, initialSidebarLayout, pinnedFormMeta, children }: AdminShellProps) {
+export function AdminShell({ userEmail, pages, features, branding, initialThemeMode, initialColorPreset, initialLocale, initialSidebarLayout, initialSidebarCollapsed = false, pinnedFormMeta, children }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const appName = branding?.appName || "Formellia";
   const { hasEmail, hasRecoveryCodes } = useUserCtx();
@@ -97,6 +98,7 @@ export function AdminShell({ userEmail, pages, features, branding, initialThemeM
             features={features}
             branding={branding}
             initialSidebarLayout={initialSidebarLayout}
+            initialSidebarCollapsed={initialSidebarCollapsed}
             pinnedFormMeta={pinnedFormMeta}
             onClose={() => setSidebarOpen(false)}
           />

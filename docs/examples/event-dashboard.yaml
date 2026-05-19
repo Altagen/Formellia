@@ -4,7 +4,7 @@
 #
 # This file complements `event-signup.yaml`. It CANNOT be applied through
 # the boot YAML (`config.yaml`) — the boot schema does not accept
-# `admin.pages`. Import it via:
+# `admin.views`. Import it via:
 #
 #   Admin UI → Configuration → Restore from file
 #   (endpoint POST /api/admin/config/backup, mode=replace)
@@ -17,11 +17,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 admin:
-  defaultPage: "registrations"
+  defaultView: "registrations"
 
-  pages:
-    # ── Main page — Registrations ─────────────────────────────
-    - id: "page-registrations"
+  views:
+    # ── Main view — Registrations ─────────────────────────────
+    - id: "view-registrations"
       title: "Registrations"
       slug: "registrations"
       icon: "users"
@@ -115,8 +115,8 @@ admin:
           title: "All registrations"
           searchFields: ["email", "lastName", "firstName"]
 
-    # ── Secondary page — Talks (flattened view) ───────────────
-    - id: "page-talks"
+    # ── Secondary view — Talks (flattened view) ───────────────
+    - id: "view-talks"
       title: "Talks"
       slug: "talks"
       icon: "mic"

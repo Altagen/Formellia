@@ -26,7 +26,7 @@ async function getUserWithPrefs() {
     const { session, user } = await lucia.validateSession(sessionId);
     if (!session || !user) return null;
     const rows = await db
-      .select({ role: users.role, themeMode: users.themeMode, colorPreset: users.colorPreset, locale: users.locale, recoveryCodes: users.recoveryCodes, sidebarLayout: users.sidebarLayout })
+      .select({ role: users.role, themeMode: users.themeMode, colorPreset: users.colorPreset, locale: users.locale, recoveryCodes: users.recoveryCodes, sidebarLayout: users.sidebarLayout, sidebarCollapsed: users.sidebarCollapsed })
       .from(users).where(eq(users.id, user.id)).limit(1);
     const row = rows[0];
     if (!row) return null;
@@ -65,6 +65,7 @@ async function getUserWithPrefs() {
       hasRecoveryCodes: !!(row.recoveryCodes?.length),
       accessibleFormIds,
       sidebarLayout: row.sidebarLayout ?? null,
+      sidebarCollapsed: row.sidebarCollapsed ?? false,
       pinnedFormMeta,
     };
   } catch (error) {
@@ -97,13 +98,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         )}
         <AdminShell
           userEmail={user.email ?? ""}
-          pages={config.admin.pages}
+          pages={config.admin.views}
           features={config.admin.features}
           branding={config.admin.branding}
           initialThemeMode={user.themeMode}
           initialColorPreset={user.colorPreset}
           initialLocale={user.locale}
           initialSidebarLayout={user.sidebarLayout}
+          initialSidebarCollapsed={user.sidebarCollapsed}
           pinnedFormMeta={user.pinnedFormMeta}
         >
           <PrioritySettingsProvider settings={DEFAULT_THRESHOLDS}>

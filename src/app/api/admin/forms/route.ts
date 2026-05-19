@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { getAccessibleFormIds } from "@/lib/auth/permissions";
 import { listFormInstances, createFormInstance } from "@/lib/db/formInstanceLoader";
+import { ensureAutoViewForForm } from "@/lib/admin/autoFormView";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { isReservedSlug } from "@/lib/config/reservedSlugs";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";
@@ -78,5 +79,26 @@ export async function POST(req: NextRequest) {
   }
   const actor = await validateAdminSession(req);
   logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "form.create", resourceType: "form", resourceId: instance.id, details: { slug, name } });
+
+  // Auto-create the companion dashboard page when the toggle is on. Failures
+  // here MUST NOT bubble — the form was already created and the page is a
+  // convenience layer that the admin can always recreate from the backfill
+  // button. We swallow + log so the API response stays a clean 201.
+  try {
+    const created = await ensureAutoViewForForm({ id: instance.id, slug: instance.slug, name: instance.name });
+    if (created) {
+      logAdminEvent({
+        userId:    actor?.id    ?? null,
+        userEmail: actor?.email ?? null,
+        action:    "config.auto_page.create",
+        resourceType: "admin_config",
+        resourceId:   "pages",
+        details:   { formId: instance.id, formSlug: instance.slug },
+      });
+    }
+  } catch {
+    /* ignore — the form is already persisted */
+  }
+
   return NextResponse.json(instance, { status: 201 });
 }
