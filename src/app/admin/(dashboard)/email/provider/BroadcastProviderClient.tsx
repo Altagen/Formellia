@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useTranslations } from "@/lib/context/LocaleContext";
-import type { BroadcastEmailConfig } from "@/lib/email/broadcastConfig";
+import type { BroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
 
 interface Props { initial: BroadcastEmailConfig }
 

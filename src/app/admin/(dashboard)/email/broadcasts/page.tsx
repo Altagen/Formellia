@@ -1,6 +1,6 @@
 import { listBroadcasts } from "@/lib/email/broadcastCrud";
 import { listDataPools } from "@/lib/datapools/crud";
-import { getBroadcastEmailConfigSafe } from "@/lib/email/broadcastConfig";
+import { getBroadcastEmailConfigSafe } from "@/lib/email/globalEmailConfig";
 import { BroadcastsListClient } from "./BroadcastsListClient";
 
 export const dynamic = "force-dynamic";

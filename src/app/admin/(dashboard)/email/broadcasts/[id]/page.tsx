@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getBroadcast } from "@/lib/email/broadcastCrud";
 import { listDataPools } from "@/lib/datapools/crud";
-import { getBroadcastEmailConfigSafe } from "@/lib/email/broadcastConfig";
+import { getBroadcastEmailConfigSafe } from "@/lib/email/globalEmailConfig";
 import { BroadcastComposerClient } from "./BroadcastComposerClient";
 
 export const dynamic = "force-dynamic";

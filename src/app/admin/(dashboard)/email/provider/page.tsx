@@ -1,4 +1,4 @@
-import { getBroadcastEmailConfigSafe } from "@/lib/email/broadcastConfig";
+import { getBroadcastEmailConfigSafe } from "@/lib/email/globalEmailConfig";
 import { BroadcastProviderClient } from "./BroadcastProviderClient";
 
 export const dynamic = "force-dynamic";

@@ -16,7 +16,7 @@ import { getMergedDataPoolKeys } from "@/lib/datapools/compute";
 import { dedupKeysAcrossLists } from "@/lib/datapools/dedup";
 import { sanitizeBroadcastHtml, htmlToPlainText } from "./broadcastSanitize";
 import { sendBroadcast, type BroadcastSendReport } from "./broadcastSender";
-import { getBroadcastEmailConfig } from "./broadcastConfig";
+import { getBroadcastEmailConfig } from "./globalEmailConfig";
 import { markBroadcastSent, markBroadcastFailed } from "./broadcastCrud";
 import { normalizeAdditionalRecipients } from "./additionalRecipients";
 import type { EmailBroadcast } from "@/lib/db/schema";

@@ -20,7 +20,7 @@
  * and `last_error` to `email_broadcasts`.
  */
 import { decryptApiKey } from "./crypto";
-import type { BroadcastEmailConfigInternal } from "./broadcastConfig";
+import type { BroadcastEmailConfigInternal } from "./globalEmailConfig";
 
 const BATCH_SIZE: Record<string, number> = {
   resend:   50,

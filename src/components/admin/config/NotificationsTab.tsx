@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,17 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Info, Trash2, Loader2 } from "lucide-react";
 import type { FormInstance } from "@/types/formInstance";
 import { useTranslations } from "@/lib/context/LocaleContext";
+
+// Shape the /api/admin/email/provider endpoint returns. Mirrors `GlobalEmailConfig`
+// from globalEmailConfig.ts; declared here to keep this client component free
+// of server imports.
+interface GlobalEmailSnapshot {
+  provider:         "resend" | "sendgrid" | "mailgun" | null;
+  fromAddress:      string | null;
+  fromName:         string | null;
+  apiKeyConfigured: boolean;
+  apiKeyExpiresAt:  string | null;
+}
 
 interface NotificationsTabProps {
   instance: FormInstance;
@@ -106,6 +118,19 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
   const [savingKey,      setSavingKey]      = useState(false);
   const [confirmDelete,  setConfirmDelete]  = useState(false);
   const [deletingKey,    setDeletingKey]    = useState(false);
+
+  // Global email config snapshot — fetched in parallel with the per-form one
+  // so the UI can show "Inherits from global" badges and disable the empty
+  // state when a global key is configured. Null until the fetch resolves;
+  // missing/forbidden responses leave it null and the UI degrades gracefully.
+  const [globalCfg, setGlobalCfg] = useState<GlobalEmailSnapshot | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/email/provider")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setGlobalCfg(data); })
+      .catch(() => {});
+  }, []);
 
   // Fetch current key status on mount
   useEffect(() => {
@@ -280,8 +305,30 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
     return d !== null && d <= 30;
   })();
 
+  // Inheritance hint computed once per render — drives badge visibility on
+  // both the form-level "from" inputs and the API key card. A field "inherits"
+  // when there's no per-form value AND the global config supplies one.
+  const inherits = {
+    provider:    !provider    && !!globalCfg?.provider,
+    fromAddress: !fromAddress && !!globalCfg?.fromAddress,
+    fromName:    !fromName    && !!globalCfg?.fromName,
+    apiKey:      !apiKeySet   && !!globalCfg?.apiKeyConfigured,
+  };
+
   return (
     <div className="space-y-6">
+
+      {/* Inheritance banner — one line at the top so the operator immediately
+          understands the override model before touching any field. */}
+      <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs flex items-start gap-2">
+        <Info className="w-3.5 h-3.5 mt-0.5 text-blue-600 shrink-0" />
+        <p className="text-blue-900 dark:text-blue-200">
+          {n.overrideHint}{" "}
+          <Link href="/admin/email/provider" className="underline font-medium">
+            {n.globalConfigLink}
+          </Link>
+        </p>
+      </div>
 
       {/* Toggle + structural config */}
       <div className="bg-card rounded-xl border p-6">
@@ -323,30 +370,39 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
               <p className="text-xs text-muted-foreground mt-1.5">{PROVIDER_HELP[provider]}</p>
             </div>
 
-            {/* From */}
+            {/* From — both fields fall back to global when left empty.
+                When the global config supplies a value the placeholder shows
+                it as a hint so the operator can see what they're inheriting
+                without having to leave the page. */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="from-address" className="text-xs text-muted-foreground mb-1.5">
-                  {n.fromEmail} <span className="text-destructive">*</span>
+                <Label htmlFor="from-address" className="text-xs text-muted-foreground mb-1.5 inline-flex items-center gap-1.5">
+                  {n.fromEmail}
+                  {inherits.fromAddress && (
+                    <span className="text-[10px] font-normal text-blue-700 dark:text-blue-300">({n.inheritedFromGlobal})</span>
+                  )}
                 </Label>
                 <Input
                   id="from-address"
                   type="email"
                   value={fromAddress}
                   onChange={e => { setFromAddress(e.target.value); pushToParent({ fromAddress: e.target.value }); }}
-                  placeholder={n.fromPlaceholder}
+                  placeholder={globalCfg?.fromAddress ?? n.fromPlaceholder}
                 />
               </div>
               <div>
-                <Label htmlFor="from-name" className="text-xs text-muted-foreground mb-1.5">
+                <Label htmlFor="from-name" className="text-xs text-muted-foreground mb-1.5 inline-flex items-center gap-1.5">
                   {n.fromName}
+                  {inherits.fromName && (
+                    <span className="text-[10px] font-normal text-blue-700 dark:text-blue-300">({n.inheritedFromGlobal})</span>
+                  )}
                 </Label>
                 <Input
                   id="from-name"
                   type="text"
                   value={fromName}
                   onChange={e => { setFromName(e.target.value); pushToParent({ fromName: e.target.value }); }}
-                  placeholder={n.fromNamePlaceholder}
+                  placeholder={globalCfg?.fromName ?? n.fromNamePlaceholder}
                 />
               </div>
             </div>
@@ -413,16 +469,24 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {/* Key status badge */}
+            {/* Key status badge — three states:
+                  - per-form override set → green
+                  - inheriting from global config → blue
+                  - no key anywhere → amber */}
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
               apiKeySet
                 ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
-                : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
+                : inherits.apiKey
+                  ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+                  : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${apiKeySet ? "bg-green-500" : "bg-amber-500"}`} />
-              {apiKeySet ? n.keyConfigured : n.noKey}
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                apiKeySet ? "bg-green-500" : inherits.apiKey ? "bg-blue-500" : "bg-amber-500"
+              }`} />
+              {apiKeySet ? n.keyConfigured : inherits.apiKey ? n.inheritedFromGlobal : n.noKey}
             </span>
-            {/* Expiry badge */}
+            {/* Expiry badge — only for the per-form key; the global config has
+                its own expiry display on the /admin/email/provider page. */}
             {apiKeySet && <ExpiryBadge expiresAt={apiKeyExpiresAt} n={n} />}
           </div>
         </div>

@@ -134,16 +134,17 @@ export const appConfig = pgTable("app_config", {
   loginRateLimitWindowMinutes: integer("login_rate_limit_window_minutes").notNull().default(15),
   useCustomRoot: boolean("use_custom_root").notNull().default(false),
   protectedSlugs: jsonb("protected_slugs").$type<string[]>().notNull().default([]),
-  // ── Global broadcast email config (0.3.0) ──────────────────────────────
-  // Used by the manual email composer to send to a deduplicated audience
-  // pulled from DataPools. Separate from `form_instances.config.notifications.email`
-  // which is per-form transactional. Both go through the same provider HTTP layer
-  // but the encryption key, identity ("from") and quotas are independent.
-  broadcastEmailProvider:          text("broadcast_email_provider"),                                   // 'resend' | 'sendgrid' | 'mailgun'
-  broadcastEmailFromAddress:       text("broadcast_email_from_address"),
-  broadcastEmailFromName:          text("broadcast_email_from_name"),
-  broadcastEmailApiKeyEncrypted:   text("broadcast_email_api_key_encrypted"),                          // AES-256-GCM, "cur:" prefix
-  broadcastEmailApiKeyExpiresAt:   date("broadcast_email_api_key_expires_at"),
+  // ── Global email config (0.3.0) ────────────────────────────────────────
+  // One provider, one API key, one identity for the whole instance. Used by
+  // both the manual email composer (broadcasts) AND the per-form transactional
+  // notifications when the form has no override. A form may still override
+  // any of these fields via `form_instances.config.notifications.email`
+  // — useful when one form sends from a different domain.
+  emailProvider:          text("email_provider"),                                   // 'resend' | 'sendgrid' | 'mailgun'
+  emailFromAddress:       text("email_from_address"),
+  emailFromName:          text("email_from_name"),
+  emailApiKeyEncrypted:   text("email_api_key_encrypted"),                          // AES-256-GCM, "cur:" prefix
+  emailApiKeyExpiresAt:   date("email_api_key_expires_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (t) => [
   check("app_config_single_row", sql`${t.id} = 1`),

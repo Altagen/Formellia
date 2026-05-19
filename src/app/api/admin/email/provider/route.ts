@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { logAdminEvent } from "@/lib/db/adminAudit";
-import { getBroadcastEmailConfigSafe, saveBroadcastEmailConfig } from "@/lib/email/broadcastConfig";
+import { getBroadcastEmailConfigSafe, saveBroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
 import { updateBroadcastConfigSchema } from "@/lib/email/broadcastValidation";
 
 /**

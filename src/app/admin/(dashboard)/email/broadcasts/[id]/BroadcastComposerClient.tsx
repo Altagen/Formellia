@@ -23,7 +23,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { RichTextEditor } from "@/components/admin/email/RichTextEditor";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import type { EmailBroadcast } from "@/lib/db/schema";
-import type { BroadcastEmailConfig } from "@/lib/email/broadcastConfig";
+import type { BroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
 import {
   ADDITIONAL_RECIPIENTS_MAX,
   parseAdditionalRecipients,
@@ -226,10 +226,23 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
     try {
       const res = await fetch(`/api/admin/email/broadcasts/${broadcast.id}/send`, { method: "POST" });
       if (!res.ok) throw new Error(await res.text());
-      const r = await res.json();
-      toast.success(
-        t.sendResultToast.replace("{sent}", String(r.sent)).replace("{failed}", String(r.failed)),
-      );
+      const r = (await res.json()) as { sent: number; failed: number; error?: string };
+      // When the provider returned errors for some/all recipients the
+      // executeBroadcast result still has a 200 status (the row was claimed
+      // and updated) but `r.error` carries the first provider message. Surface
+      // it as a toast.error so the operator doesn't have to crack open the DB
+      // row to find out why nothing arrived.
+      if (r.failed > 0) {
+        const detail = r.error ? `: ${r.error}` : "";
+        toast.error(
+          t.sendResultToast.replace("{sent}", String(r.sent)).replace("{failed}", String(r.failed)) + detail,
+          { duration: 10_000 },
+        );
+      } else {
+        toast.success(
+          t.sendResultToast.replace("{sent}", String(r.sent)).replace("{failed}", String(r.failed)),
+        );
+      }
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t.sendFailedToast);

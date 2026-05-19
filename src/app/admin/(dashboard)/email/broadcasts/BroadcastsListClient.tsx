@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Mail, Plus, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { EmailBroadcast } from "@/lib/db/schema";
-import type { BroadcastEmailConfig } from "@/lib/email/broadcastConfig";
+import type { BroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
 import { useTranslations } from "@/lib/context/LocaleContext";
 
 interface PoolOpt { id: string; name: string; slug: string }
