@@ -45,7 +45,11 @@ export async function POST(req: NextRequest, { params }: Props) {
   const existing = await getBroadcast(id);
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (existing.status !== "draft") {
+  // Both `draft` and `failed` are eligible — a failed row had zero deliveries
+  // so re-sending it is the same operation as sending a draft for the first
+  // time. `sending` is already in flight, `sent` is an archive of what
+  // landed in inboxes.
+  if (existing.status !== "draft" && existing.status !== "failed") {
     return NextResponse.json(
       { error: `Cannot send a broadcast in "${existing.status}" state` },
       { status: 409 },

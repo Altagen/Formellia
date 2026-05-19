@@ -115,8 +115,10 @@ describe("claimForSend SQL contract", () => {
       fs.readFile(new URL("../lib/email/broadcastCrud.ts", import.meta.url), "utf8"),
     );
     expect(src).toMatch(/claimForSend/);
-    // The fix is meaningful only if both predicates are present, so assert
-    // explicitly that the update is gated on status='draft'.
-    expect(src).toMatch(/eq\(emailBroadcasts\.status,\s*"draft"\)/);
+    // Both predicates must be present — id AND status. The status check now
+    // accepts `draft` or `failed` (a failed row is re-sendable because it
+    // had zero successful deliveries by definition), so we match the SQL
+    // `IN ('draft', 'failed')` fragment rather than a single eq().
+    expect(src).toMatch(/emailBroadcasts\.status\}\s*IN\s*\(\s*'draft'\s*,\s*'failed'\s*\)/i);
   });
 });

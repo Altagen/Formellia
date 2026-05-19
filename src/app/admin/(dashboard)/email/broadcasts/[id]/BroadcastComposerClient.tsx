@@ -84,7 +84,12 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
   );
   const additionalCapped = additionalParsed.valid.length >= ADDITIONAL_RECIPIENTS_MAX;
 
-  const readOnly = broadcast.status !== "draft";
+  // `failed` is treated as editable: by definition (sent_count === 0) nothing
+  // reached an inbox, so this is functionally the same situation as a draft —
+  // the operator just needs to fix the config and try again. Editing or
+  // re-sending transitions the row back through draft → sending → sent/failed
+  // on the next attempt, and the existing lastError is cleared by the PATCH.
+  const readOnly = broadcast.status !== "draft" && broadcast.status !== "failed";
 
   // ── Auto-save on idle ─────────────────────────────────────
   // Build a debounced save so every keystroke doesn't hit the API. 800 ms is
@@ -114,6 +119,22 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
           }),
         });
         if (!res.ok) throw new Error(await res.text());
+        // Merge the server's view of the row back into local state. This is
+        // what flips a `failed` row back to `draft` (and clears lastError /
+        // failed_count) once an edit is saved, so the red banner at the top
+        // of the page disappears immediately rather than waiting for a
+        // navigation. We keep the user-visible buffers (subject / body /
+        // dataPoolIds) as-is because they're already the source of truth
+        // in the local state.
+        const saved = (await res.json()) as EmailBroadcast;
+        setBroadcast(b => ({
+          ...b,
+          status:      saved.status,
+          lastError:   saved.lastError,
+          failedCount: saved.failedCount,
+          sentCount:   saved.sentCount,
+          updatedAt:   saved.updatedAt,
+        }));
         setDirty(false);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : t.autoSaveFailed);
