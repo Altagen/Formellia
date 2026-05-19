@@ -23,7 +23,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { RichTextEditor } from "@/components/admin/email/RichTextEditor";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import type { EmailBroadcast } from "@/lib/db/schema";
-import type { BroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
+import type { GlobalEmailConfig } from "@/lib/email/globalEmailConfig";
 import {
   ADDITIONAL_RECIPIENTS_MAX,
   parseAdditionalRecipients,
@@ -34,7 +34,7 @@ interface PoolOpt { id: string; name: string; slug: string }
 interface Props {
   broadcast:      EmailBroadcast;
   pools:          PoolOpt[];
-  providerConfig: BroadcastEmailConfig;
+  providerConfig: GlobalEmailConfig;
 }
 
 interface PreviewState {

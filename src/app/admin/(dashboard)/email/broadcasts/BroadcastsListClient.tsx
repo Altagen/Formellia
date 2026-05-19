@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Mail, Plus, AlertTriangle, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { EmailBroadcast } from "@/lib/db/schema";
-import type { BroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
+import type { GlobalEmailConfig } from "@/lib/email/globalEmailConfig";
 import { useTranslations } from "@/lib/context/LocaleContext";
 
 interface PoolOpt { id: string; name: string; slug: string }
@@ -15,7 +15,7 @@ interface PoolOpt { id: string; name: string; slug: string }
 interface Props {
   initialBroadcasts: EmailBroadcast[];
   pools:             PoolOpt[];
-  providerConfig:    BroadcastEmailConfig;
+  providerConfig:    GlobalEmailConfig;
 }
 
 const STATUS_BADGE_CLS: Record<string, string> = {

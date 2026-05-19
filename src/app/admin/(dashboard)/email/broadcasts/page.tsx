@@ -1,6 +1,6 @@
 import { listBroadcasts } from "@/lib/email/broadcastCrud";
 import { listDataPools } from "@/lib/datapools/crud";
-import { getBroadcastEmailConfigSafe } from "@/lib/email/globalEmailConfig";
+import { getGlobalEmailConfigSafe } from "@/lib/email/globalEmailConfig";
 import { BroadcastsListClient } from "./BroadcastsListClient";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export default async function BroadcastsPage() {
   const [broadcasts, pools, providerCfg] = await Promise.all([
     listBroadcasts(),
     listDataPools(),
-    getBroadcastEmailConfigSafe(),
+    getGlobalEmailConfigSafe(),
   ]);
   return (
     <BroadcastsListClient

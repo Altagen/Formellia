@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getBroadcast } from "@/lib/email/broadcastCrud";
 import { listDataPools } from "@/lib/datapools/crud";
-import { getBroadcastEmailConfigSafe } from "@/lib/email/globalEmailConfig";
+import { getGlobalEmailConfigSafe } from "@/lib/email/globalEmailConfig";
 import { BroadcastComposerClient } from "./BroadcastComposerClient";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export default async function BroadcastPage({ params }: { params: Promise<{ id: 
   const [broadcast, pools, providerCfg] = await Promise.all([
     getBroadcast(id),
     listDataPools(),
-    getBroadcastEmailConfigSafe(),
+    getGlobalEmailConfigSafe(),
   ]);
   if (!broadcast) notFound();
 

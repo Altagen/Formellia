@@ -93,20 +93,3 @@ export async function saveGlobalEmailConfig(patch: UpdateGlobalEmailConfigInput)
     .onConflictDoUpdate({ target: appConfig.id, set: updates });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Back-compat aliases — keep the old names exported while existing callers
-// migrate. Remove in 0.4.0 once nothing else references them.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** @deprecated use {@link GlobalEmailConfig}. */
-export type BroadcastEmailConfig         = GlobalEmailConfig;
-/** @deprecated use {@link GlobalEmailConfigInternal}. */
-export type BroadcastEmailConfigInternal = GlobalEmailConfigInternal;
-/** @deprecated use {@link EmailProvider}. */
-export type BroadcastProvider            = EmailProvider;
-/** @deprecated use {@link getGlobalEmailConfig}. */
-export const getBroadcastEmailConfig     = getGlobalEmailConfig;
-/** @deprecated use {@link getGlobalEmailConfigSafe}. */
-export const getBroadcastEmailConfigSafe = getGlobalEmailConfigSafe;
-/** @deprecated use {@link saveGlobalEmailConfig}. */
-export const saveBroadcastEmailConfig    = saveGlobalEmailConfig;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { logAdminEvent } from "@/lib/db/adminAudit";
-import { getBroadcastEmailConfigSafe, saveBroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
+import { getGlobalEmailConfigSafe, saveGlobalEmailConfig } from "@/lib/email/globalEmailConfig";
 import { updateBroadcastConfigSchema } from "@/lib/email/broadcastValidation";
 
 /**
@@ -15,7 +15,7 @@ import { updateBroadcastConfigSchema } from "@/lib/email/broadcastValidation";
 export async function GET(req: NextRequest) {
   const guard = await requireRole("admin", req);
   if (guard) return guard;
-  const cfg = await getBroadcastEmailConfigSafe();
+  const cfg = await getGlobalEmailConfigSafe();
   return NextResponse.json(cfg);
 }
 
@@ -29,7 +29,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, { status: 422 });
   }
 
-  await saveBroadcastEmailConfig(parsed.data);
+  await saveGlobalEmailConfig(parsed.data);
 
   const actor = await validateAdminSession(req);
   logAdminEvent({
@@ -45,5 +45,5 @@ export async function PUT(req: NextRequest) {
     },
   });
 
-  return NextResponse.json(await getBroadcastEmailConfigSafe());
+  return NextResponse.json(await getGlobalEmailConfigSafe());
 }

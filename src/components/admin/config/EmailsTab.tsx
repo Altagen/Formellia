@@ -16,18 +16,18 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { BroadcastProviderClient } from "@/app/admin/(dashboard)/email/provider/BroadcastProviderClient";
-import type { BroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
+import type { GlobalEmailConfig } from "@/lib/email/globalEmailConfig";
 import { useTranslations } from "@/lib/context/LocaleContext";
 
 export function EmailsTab() {
   const tr = useTranslations();
-  const [config, setConfig] = useState<BroadcastEmailConfig | null>(null);
+  const [config, setConfig] = useState<GlobalEmailConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/email/provider")
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then((data: BroadcastEmailConfig) => setConfig(data))
+      .then((data: GlobalEmailConfig) => setConfig(data))
       // Swap the raw thrown message for the localized "Could not load…" copy;
       // the original error is dropped on purpose — there's nothing actionable
       // an operator can do with "HTTP 500" beyond retrying.

@@ -20,7 +20,7 @@
  * and `last_error` to `email_broadcasts`.
  */
 import { decryptApiKey } from "./crypto";
-import type { BroadcastEmailConfigInternal } from "./globalEmailConfig";
+import type { GlobalEmailConfigInternal } from "./globalEmailConfig";
 
 const BATCH_SIZE: Record<string, number> = {
   resend:   50,
@@ -29,7 +29,7 @@ const BATCH_SIZE: Record<string, number> = {
 };
 
 export interface SendBroadcastOptions {
-  config:   BroadcastEmailConfigInternal;
+  config:   GlobalEmailConfigInternal;
   /** Recipients — already deduplicated and free of empty strings. */
   to:       string[];
   subject:  string;

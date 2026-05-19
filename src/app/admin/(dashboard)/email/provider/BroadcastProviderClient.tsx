@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useTranslations } from "@/lib/context/LocaleContext";
-import type { BroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
+import type { GlobalEmailConfig } from "@/lib/email/globalEmailConfig";
 
 interface Props {
-  initial: BroadcastEmailConfig;
+  initial: GlobalEmailConfig;
   /**
    * When true, the page-level title + back-link are skipped — used by the
    * Configuration → Emails tab where the chrome is supplied by the parent
@@ -53,7 +53,7 @@ export function BroadcastProviderClient({ initial, embedded = false }: Props) {
         body:    JSON.stringify(body),
       });
       if (!res.ok) throw new Error(await res.text());
-      const updated = (await res.json()) as BroadcastEmailConfig;
+      const updated = (await res.json()) as GlobalEmailConfig;
       setApiKey("");                                  // clear the plaintext field after save
       setApiKeyConfigured(updated.apiKeyConfigured);
       toast.success(t.savedToast);

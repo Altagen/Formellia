@@ -16,7 +16,7 @@ import { getMergedDataPoolKeys } from "@/lib/datapools/compute";
 import { dedupKeysAcrossLists } from "@/lib/datapools/dedup";
 import { sanitizeBroadcastHtml, htmlToPlainText } from "./broadcastSanitize";
 import { sendBroadcast, type BroadcastSendReport } from "./broadcastSender";
-import { getBroadcastEmailConfig } from "./globalEmailConfig";
+import { getGlobalEmailConfig } from "./globalEmailConfig";
 import { markBroadcastSent, markBroadcastFailed } from "./broadcastCrud";
 import { normalizeAdditionalRecipients } from "./additionalRecipients";
 import type { EmailBroadcast } from "@/lib/db/schema";
@@ -94,7 +94,7 @@ export interface ExecuteBroadcastResult extends BroadcastSendReport {
  * marks the row as `failed`.
  */
 export async function executeBroadcast(broadcast: EmailBroadcast): Promise<ExecuteBroadcastResult> {
-  const config = await getBroadcastEmailConfig();
+  const config = await getGlobalEmailConfig();
   if (!config.provider || !config.fromAddress || !config.apiKeyEncrypted) {
     // `code:` prefix is read by the composer client to look up a translated
     // string; the human text after is the fallback for log readers and any
