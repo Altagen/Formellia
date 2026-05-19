@@ -22,6 +22,11 @@ type Props = { params: Promise<{ id: string }> };
  * audiences (< 1k recipients) this is acceptable — typical provider
  * round-trip is a couple of seconds. A queue/job pattern is left for the
  * future newsletter feature where audiences are larger.
+ *
+ * Error responses always carry a stable `code` field. The composer client
+ * uses that code to look up the user-facing string in its i18n bundle —
+ * the English `error` field is a fallback for callers that don't (yet)
+ * speak the code vocabulary.
  */
 export async function POST(req: NextRequest, { params }: Props) {
   const guard = (await requireAdminMutation(req)) ?? (await requireRole("admin", req));
@@ -36,14 +41,16 @@ export async function POST(req: NextRequest, { params }: Props) {
   const rl = checkAdminRateLimit(rlKey, 10, 60_000);
   if (rl.blocked) {
     return NextResponse.json(
-      { error: "Too many broadcast send attempts. Try again shortly." },
+      { code: "rateLimit", error: "Too many broadcast send attempts. Try again shortly." },
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
     );
   }
 
   const { id } = await params;
   const existing = await getBroadcast(id);
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!existing) {
+    return NextResponse.json({ code: "notFound", error: "Not found" }, { status: 404 });
+  }
 
   // Both `draft` and `failed` are eligible — a failed row had zero deliveries
   // so re-sending it is the same operation as sending a draft for the first
@@ -51,7 +58,11 @@ export async function POST(req: NextRequest, { params }: Props) {
   // landed in inboxes.
   if (existing.status !== "draft" && existing.status !== "failed") {
     return NextResponse.json(
-      { error: `Cannot send a broadcast in "${existing.status}" state` },
+      {
+        code:   "wrongState",
+        error:  `Cannot send a broadcast in "${existing.status}" state`,
+        status: existing.status,   // surfaced verbatim in the translated message
+      },
       { status: 409 },
     );
   }
@@ -65,14 +76,14 @@ export async function POST(req: NextRequest, { params }: Props) {
   const hasExtras = (existing.additionalRecipients ?? []).length > 0;
   if (!hasPool && !hasExtras) {
     return NextResponse.json(
-      { error: "Cannot send: pick at least one DataPool or add a manual address." },
+      { code: "noRecipients", error: "Cannot send: pick at least one DataPool or add a manual address." },
       { status: 422 },
     );
   }
 
   const claimed = await claimForSend(id);
   if (!claimed) {
-    return NextResponse.json({ error: "Could not claim broadcast" }, { status: 409 });
+    return NextResponse.json({ code: "claimFailed", error: "Could not claim broadcast" }, { status: 409 });
   }
 
   try {
@@ -101,7 +112,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       details:      { error: e instanceof Error ? e.message : String(e) },
     });
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Send failed" },
+      { code: "sendFailed", error: e instanceof Error ? e.message : "Send failed" },
       { status: 500 },
     );
   }

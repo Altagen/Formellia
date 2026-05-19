@@ -242,19 +242,32 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
     setPendingConfirm({ kind: "send", count: total });
   }
 
-  async function confirmSend(total: number) {
+  async function confirmSend() {
     setSending(true);
     try {
       const res = await fetch(`/api/admin/email/broadcasts/${broadcast.id}/send`, { method: "POST" });
-      if (!res.ok) throw new Error(await res.text());
+      // Non-OK: the API returns a structured `{ code, error, ...args }` body.
+      // We translate the code to a localized string, falling back to the raw
+      // English `error` if the code is unknown (forward-compat).
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as {
+          code?: keyof typeof t.errors; error?: string; status?: string;
+        };
+        const localized = body.code && t.errors[body.code]
+          ? t.errors[body.code].replace("{status}", body.status ?? "")
+          : (body.error ?? t.sendFailedToast);
+        throw new Error(localized);
+      }
       const r = (await res.json()) as { sent: number; failed: number; error?: string };
       // When the provider returned errors for some/all recipients the
       // executeBroadcast result still has a 200 status (the row was claimed
-      // and updated) but `r.error` carries the first provider message. Surface
-      // it as a toast.error so the operator doesn't have to crack open the DB
-      // row to find out why nothing arrived.
+      // and updated) but `r.error` carries the first provider message. The
+      // service prefixes well-known reasons with "code:<key> — " so we strip
+      // that prefix and translate when possible; raw provider errors (like
+      // Resend's "401 invalid api key") fall through untouched.
       if (r.failed > 0) {
-        const detail = r.error ? `: ${r.error}` : "";
+        const localized = localizeServiceError(r.error, t.errors);
+        const detail = localized ? `: ${localized}` : "";
         toast.error(
           t.sendResultToast.replace("{sent}", String(r.sent)).replace("{failed}", String(r.failed)) + detail,
           { duration: 10_000 },
@@ -270,7 +283,6 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
     } finally {
       setSending(false);
     }
-    void total;
   }
 
   function destroy() {
@@ -332,7 +344,10 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
 
       {broadcast.status === "failed" && broadcast.lastError && (
         <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-900 dark:text-red-200">
-          {t.lastSendFailure} <span className="font-mono">{broadcast.lastError}</span>
+          {t.lastSendFailure}{" "}
+          <span className="font-mono">
+            {localizeServiceError(broadcast.lastError, t.errors) ?? broadcast.lastError}
+          </span>
         </div>
       )}
 
@@ -578,13 +593,33 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
         destructive={pendingConfirm?.kind === "delete"}
         onOpenChange={(open) => { if (!open) setPendingConfirm(null); }}
         onConfirm={() => {
-          if (pendingConfirm?.kind === "send")   confirmSend(pendingConfirm.count);
+          if (pendingConfirm?.kind === "send")   confirmSend();
           if (pendingConfirm?.kind === "delete") confirmDelete();
           setPendingConfirm(null);
         }}
       />
     </div>
   );
+}
+
+/**
+ * Translate a `code:<key> — <fallback>` string that the executeBroadcast
+ * service writes into `email_broadcasts.last_error` and returns in the send
+ * response. Falls back to the raw text when the code isn't recognised — that
+ * way provider errors (e.g. "Resend 401: API key is invalid") still surface
+ * verbatim instead of being silently swallowed.
+ */
+function localizeServiceError(
+  raw: string | undefined,
+  errors: Record<string, string>,
+): string | undefined {
+  if (!raw) return undefined;
+  // `[\s\S]` instead of `.` so the fallback portion can contain newlines
+  // without needing the `s` (dotAll) flag, which requires ES2018+.
+  const match = /^code:([a-zA-Z]+)\s*(?:[—-]\s*([\s\S]*))?$/.exec(raw);
+  if (!match) return raw;
+  const [, code, fallback] = match;
+  return errors[code] ?? fallback ?? raw;
 }
 
 /**

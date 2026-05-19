@@ -306,10 +306,12 @@ export function NotificationsTab({ instance, onChange }: NotificationsTabProps) 
   })();
 
   // Inheritance hint computed once per render — drives badge visibility on
-  // both the form-level "from" inputs and the API key card. A field "inherits"
+  // the form-level "from" inputs and the API key card. A field "inherits"
   // when there's no per-form value AND the global config supplies one.
+  // The provider field is not surfaced here: the per-form provider picker
+  // always has a default ("resend"), so there's no "blank → inherit" state
+  // to badge.
   const inherits = {
-    provider:    !provider    && !!globalCfg?.provider,
     fromAddress: !fromAddress && !!globalCfg?.fromAddress,
     fromName:    !fromName    && !!globalCfg?.fromName,
     apiKey:      !apiKeySet   && !!globalCfg?.apiKeyConfigured,

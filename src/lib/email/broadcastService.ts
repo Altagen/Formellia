@@ -96,8 +96,11 @@ export interface ExecuteBroadcastResult extends BroadcastSendReport {
 export async function executeBroadcast(broadcast: EmailBroadcast): Promise<ExecuteBroadcastResult> {
   const config = await getBroadcastEmailConfig();
   if (!config.provider || !config.fromAddress || !config.apiKeyEncrypted) {
-    await markBroadcastFailed(broadcast.id, "Broadcast provider is not configured");
-    throw new Error("Broadcast provider is not configured");
+    // `code:` prefix is read by the composer client to look up a translated
+    // string; the human text after is the fallback for log readers and any
+    // caller that doesn't speak the code vocabulary.
+    await markBroadcastFailed(broadcast.id, "code:providerNotConfigured — Global email provider is not configured");
+    throw new Error("code:providerNotConfigured — Global email provider is not configured");
   }
 
   const preview = await buildBroadcastPreview(broadcast);
@@ -106,8 +109,8 @@ export async function executeBroadcast(broadcast: EmailBroadcast): Promise<Execu
     // draft, but a pool that resolves to zero addresses (e.g. all submissions
     // excluded) only surfaces here. We still want a clear message in the
     // archived row.
-    await markBroadcastFailed(broadcast.id, "No recipients after pool dedup + manual list merge");
-    throw new Error("No recipients to send to");
+    await markBroadcastFailed(broadcast.id, "code:noRecipientsAfterMerge — No recipients after pool dedup + manual list merge");
+    throw new Error("code:noRecipientsAfterMerge — No recipients to send to");
   }
 
   try {

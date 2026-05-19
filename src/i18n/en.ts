@@ -249,6 +249,20 @@ export const en: TranslationKeys = {
         confirmCancel: "Cancel",
         sendResultToast: "Sent: {sent} succeeded, {failed} failed",
         sendFailedToast: "Send failed",
+        // Stable error codes returned by /api/admin/email/broadcasts/:id/send
+        // and by the executeBroadcast service (the latter prefixes them in
+        // last_error as "code:<key> — <fallback>"). The composer client maps
+        // the code to one of these strings before rendering the toast.
+        errors: {
+          rateLimit:              "Too many send attempts. Try again in a minute.",
+          notFound:               "Broadcast not found.",
+          wrongState:             "Cannot send a broadcast in \"{status}\" state.",
+          noRecipients:           "No recipients — tick a DataPool or add a manual address.",
+          claimFailed:            "Could not claim this broadcast (already sending?).",
+          sendFailed:             "Send failed.",
+          providerNotConfigured:  "Global email provider is not configured — set it in Settings → Emails.",
+          noRecipientsAfterMerge: "No recipients after merging DataPools and manual addresses (empty pools?).",
+        },
         autoSaveFailed: "Auto-save failed",
         previewLoading: "Computing recipients…",
         previewRecipientsCount: "{count} recipient(s)",
@@ -287,6 +301,8 @@ export const en: TranslationKeys = {
         savingButton: "Saving…",
         savedToast: "Configuration saved",
         saveFailedToast: "Save failed",
+        loading: "Loading…",
+        loadFailedToast: "Could not load configuration.",
       },
       editor: {
         boldTooltip: "Bold",

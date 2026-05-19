@@ -28,7 +28,11 @@ export function EmailsTab() {
     fetch("/api/admin/email/provider")
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then((data: BroadcastEmailConfig) => setConfig(data))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "fetch failed"));
+      // Swap the raw thrown message for the localized "Could not load…" copy;
+      // the original error is dropped on purpose — there's nothing actionable
+      // an operator can do with "HTTP 500" beyond retrying.
+      .catch(() => setError(tr.admin.email.provider.loadFailedToast));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {
@@ -38,7 +42,7 @@ export function EmailsTab() {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
         <Loader2 className="w-4 h-4 animate-spin" />
-        {tr.admin.email.provider.savingButton}
+        {tr.admin.email.provider.loading}
       </div>
     );
   }

@@ -256,6 +256,20 @@ export const fr = {
         confirmCancel: "Annuler",
         sendResultToast: "Envoyé : {sent} succès, {failed} échec(s)",
         sendFailedToast: "Envoi échoué",
+        // Stable error codes returned by /api/admin/email/broadcasts/:id/send
+        // and by the executeBroadcast service (the latter prefixes them in
+        // last_error as "code:<key> — <fallback>"). The composer client maps
+        // the code to one of these strings before rendering the toast.
+        errors: {
+          rateLimit:              "Trop de tentatives d'envoi. Réessayer dans une minute.",
+          notFound:               "Diffusion introuvable.",
+          wrongState:             "Impossible d'envoyer une diffusion en état \"{status}\".",
+          noRecipients:           "Aucun destinataire — coche un DataPool ou ajoute une adresse manuelle.",
+          claimFailed:            "Impossible de réserver cette diffusion (déjà en cours d'envoi ?).",
+          sendFailed:             "Envoi échoué.",
+          providerNotConfigured:  "Provider d'envoi global non configuré — renseigne-le dans Réglages → Emails.",
+          noRecipientsAfterMerge: "Aucun destinataire après fusion des DataPools et adresses manuelles (pools vides ?).",
+        },
         autoSaveFailed: "Auto-save échouée",
         previewLoading: "Calcul des destinataires…",
         previewRecipientsCount: "{count} destinataire(s)",
@@ -295,6 +309,8 @@ export const fr = {
         savingButton: "Enregistrement…",
         savedToast: "Configuration enregistrée",
         saveFailedToast: "Sauvegarde échouée",
+        loading: "Chargement…",
+        loadFailedToast: "Impossible de charger la configuration.",
       },
       // HTML editor (dual-mode: visual TipTap + code textarea)
       editor: {
