@@ -731,6 +731,7 @@ export const en: TranslationKeys = {
         forms: "Forms",
         views: "Views",
         dataPools: "DataPools",
+        emails: "Emails",
         sources: "Sources",
         priorities: "Priorities",
         users: "Admin accounts",

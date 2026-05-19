@@ -14,6 +14,7 @@ import { ScheduledJobsTab } from "@/components/admin/config/ScheduledJobsTab";
 import { AdminBrandingTab } from "@/components/admin/config/AdminBrandingTab";
 import { BackupTab } from "@/components/admin/config/BackupTab";
 import { AdminTab } from "@/components/admin/config/AdminTab";
+import { EmailsTab } from "@/components/admin/config/EmailsTab";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import { useUserRole, useUserCtx } from "@/lib/context/UserRoleContext";
 
@@ -26,7 +27,7 @@ interface ConfigEditorProps {
   initialTab?: string;
 }
 
-const ALL_TAB_IDS = ["general", "forms", "pages", "datapools", "sources", "taches", "backup", "danger", "administration"] as const;
+const ALL_TAB_IDS = ["general", "forms", "pages", "datapools", "emails", "sources", "taches", "backup", "danger", "administration"] as const;
 type TabId = (typeof ALL_TAB_IDS)[number];
 
 export function ConfigEditor({ config, formInstances = [], admins = [], initialTab }: ConfigEditorProps) {
@@ -48,6 +49,7 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
       { id: "pages" as const, label: cfg.tabs.views },
       ...(adminOnly ? [
         { id: "datapools" as const,      label: cfg.tabs.dataPools },
+        { id: "emails" as const,         label: cfg.tabs.emails },
         { id: "general" as const,        label: cfg.tabs.general },
         { id: "sources" as const,        label: cfg.tabs.sources },
         { id: "taches" as const,         label: cfg.tabs.jobs },
@@ -351,6 +353,9 @@ export function ConfigEditor({ config, formInstances = [], admins = [], initialT
             exclusionReasons={draft.admin.exclusionReasons}
             onChangeExclusionReasons={(exclusionReasons) => setDraft({ ...draft, admin: { ...draft.admin, exclusionReasons } })}
           />
+        )}
+        {activeTab === "emails" && (
+          <EmailsTab />
         )}
         {activeTab === "sources" && (
           <DataSourcesTab />

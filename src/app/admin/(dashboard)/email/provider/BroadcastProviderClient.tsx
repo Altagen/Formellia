@@ -10,9 +10,17 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import type { BroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
 
-interface Props { initial: BroadcastEmailConfig }
+interface Props {
+  initial: BroadcastEmailConfig;
+  /**
+   * When true, the page-level title + back-link are skipped — used by the
+   * Configuration → Emails tab where the chrome is supplied by the parent
+   * ConfigEditor.
+   */
+  embedded?: boolean;
+}
 
-export function BroadcastProviderClient({ initial }: Props) {
+export function BroadcastProviderClient({ initial, embedded = false }: Props) {
   const trEmail = useTranslations().admin.email;
   const t = trEmail.provider;
   const [provider,    setProvider]    = useState<string>(initial.provider ?? "");
@@ -69,13 +77,15 @@ export function BroadcastProviderClient({ initial }: Props) {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <Link href="/admin/email/broadcasts" className="text-xs text-muted-foreground hover:underline inline-flex items-center gap-1">
-          <ChevronLeft className="w-3 h-3" /> {t.backLink}
-        </Link>
-        <h1 className="text-2xl font-bold tracking-tight mt-2">{t.title}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t.description}</p>
-      </div>
+      {!embedded && (
+        <div>
+          <Link href="/admin/email/broadcasts" className="text-xs text-muted-foreground hover:underline inline-flex items-center gap-1">
+            <ChevronLeft className="w-3 h-3" /> {t.backLink}
+          </Link>
+          <h1 className="text-2xl font-bold tracking-tight mt-2">{t.title}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t.description}</p>
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-md p-5 space-y-4">
         <div>

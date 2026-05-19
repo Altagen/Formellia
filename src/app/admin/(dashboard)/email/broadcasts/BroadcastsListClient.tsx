@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Mail, Plus, AlertTriangle } from "lucide-react";
+import { Mail, Plus, AlertTriangle, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { EmailBroadcast } from "@/lib/db/schema";
 import type { BroadcastEmailConfig } from "@/lib/email/globalEmailConfig";
@@ -74,9 +74,19 @@ export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig 
             {t.list.description}
           </p>
         </div>
-        <Button onClick={createDraft} disabled={creating || noProvider}>
-          <Plus className="w-4 h-4 mr-1" /> {creating ? "…" : t.list.newDraft}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Always-visible escape hatch into the provider config. Without
+              this the operator can only get there via the warning banner
+              below — which disappears as soon as the provider is set. */}
+          <Link href="/admin/email/provider">
+            <Button variant="outline" size="sm">
+              <Settings2 className="w-4 h-4 mr-1" /> {t.provider.title}
+            </Button>
+          </Link>
+          <Button onClick={createDraft} disabled={creating || noProvider}>
+            <Plus className="w-4 h-4 mr-1" /> {creating ? "…" : t.list.newDraft}
+          </Button>
+        </div>
       </div>
 
       {/* Only the provider is a hard pre-requisite now — pools are merely a

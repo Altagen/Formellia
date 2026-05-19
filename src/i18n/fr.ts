@@ -740,6 +740,7 @@ export const fr = {
         forms: "Formulaires",
         views: "Vues",
         dataPools: "DataPools",
+        emails: "Emails",
         sources: "Sources",
         priorities: "Priorités",
         users: "Comptes admin",
