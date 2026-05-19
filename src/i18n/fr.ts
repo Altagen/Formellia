@@ -259,7 +259,9 @@ export const fr = {
         // Stable error codes returned by /api/admin/email/broadcasts/:id/send
         // and by the executeBroadcast service (the latter prefixes them in
         // last_error as "code:<key> — <fallback>"). The composer client maps
-        // the code to one of these strings before rendering the toast.
+        // the code to one of these strings before rendering the toast. The
+        // keys MUST match the BroadcastErrorCode union in broadcastErrors.ts —
+        // a typed `satisfies` clause downstream pins them together.
         errors: {
           rateLimit:              "Trop de tentatives d'envoi. Réessayer dans une minute.",
           notFound:               "Diffusion introuvable.",

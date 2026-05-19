@@ -28,6 +28,10 @@ import {
   ADDITIONAL_RECIPIENTS_MAX,
   parseAdditionalRecipients,
 } from "@/lib/email/additionalRecipients";
+import type { BroadcastErrorCode } from "@/lib/email/broadcastErrors";
+
+/** Compile-time pin: every BroadcastErrorCode must have an i18n entry. */
+type ErrorsMap = Record<BroadcastErrorCode, string>;
 
 interface PoolOpt { id: string; name: string; slug: string }
 
@@ -242,6 +246,11 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
     setPendingConfirm({ kind: "send", count: total });
   }
 
+  // Pin the i18n error bundle to the canonical union — if either side adds a
+  // code without the other, this assignment fails to compile. The runtime
+  // value is the same `t.errors` object; only the static type narrows.
+  const errors: ErrorsMap = t.errors;
+
   async function confirmSend() {
     setSending(true);
     try {
@@ -251,10 +260,10 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
       // English `error` if the code is unknown (forward-compat).
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as {
-          code?: keyof typeof t.errors; error?: string; status?: string;
+          code?: BroadcastErrorCode; error?: string; status?: string;
         };
-        const localized = body.code && t.errors[body.code]
-          ? t.errors[body.code].replace("{status}", body.status ?? "")
+        const localized = body.code && errors[body.code]
+          ? errors[body.code].replace("{status}", body.status ?? "")
           : (body.error ?? t.sendFailedToast);
         throw new Error(localized);
       }
@@ -266,7 +275,7 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
       // that prefix and translate when possible; raw provider errors (like
       // Resend's "401 invalid api key") fall through untouched.
       if (r.failed > 0) {
-        const localized = localizeServiceError(r.error, t.errors);
+        const localized = localizeServiceError(r.error, errors);
         const detail = localized ? `: ${localized}` : "";
         toast.error(
           t.sendResultToast.replace("{sent}", String(r.sent)).replace("{failed}", String(r.failed)) + detail,
@@ -346,7 +355,7 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
         <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-900 dark:text-red-200">
           {t.lastSendFailure}{" "}
           <span className="font-mono">
-            {localizeServiceError(broadcast.lastError, t.errors) ?? broadcast.lastError}
+            {localizeServiceError(broadcast.lastError, errors) ?? broadcast.lastError}
           </span>
         </div>
       )}

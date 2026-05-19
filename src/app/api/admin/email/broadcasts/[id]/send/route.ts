@@ -4,6 +4,13 @@ import { checkAdminRateLimit } from "@/lib/security/adminRateLimit";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { getBroadcast, claimForSend } from "@/lib/email/broadcastCrud";
 import { executeBroadcast } from "@/lib/email/broadcastService";
+import type { BroadcastErrorCode } from "@/lib/email/broadcastErrors";
+
+/** Builds a `{code, error, ...extra}` body — code is type-checked against the
+ *  shared union so a typo here would fail the build before reaching prod. */
+function errorBody<T extends Record<string, unknown>>(code: BroadcastErrorCode, error: string, extra?: T) {
+  return { code, error, ...(extra ?? {}) };
+}
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -41,7 +48,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   const rl = checkAdminRateLimit(rlKey, 10, 60_000);
   if (rl.blocked) {
     return NextResponse.json(
-      { code: "rateLimit", error: "Too many broadcast send attempts. Try again shortly." },
+      errorBody("rateLimit", "Too many broadcast send attempts. Try again shortly."),
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
     );
   }
@@ -49,7 +56,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   const { id } = await params;
   const existing = await getBroadcast(id);
   if (!existing) {
-    return NextResponse.json({ code: "notFound", error: "Not found" }, { status: 404 });
+    return NextResponse.json(errorBody("notFound", "Not found"), { status: 404 });
   }
 
   // Both `draft` and `failed` are eligible — a failed row had zero deliveries
@@ -58,11 +65,9 @@ export async function POST(req: NextRequest, { params }: Props) {
   // landed in inboxes.
   if (existing.status !== "draft" && existing.status !== "failed") {
     return NextResponse.json(
-      {
-        code:   "wrongState",
-        error:  `Cannot send a broadcast in "${existing.status}" state`,
+      errorBody("wrongState", `Cannot send a broadcast in "${existing.status}" state`, {
         status: existing.status,   // surfaced verbatim in the translated message
-      },
+      }),
       { status: 409 },
     );
   }
@@ -76,14 +81,14 @@ export async function POST(req: NextRequest, { params }: Props) {
   const hasExtras = (existing.additionalRecipients ?? []).length > 0;
   if (!hasPool && !hasExtras) {
     return NextResponse.json(
-      { code: "noRecipients", error: "Cannot send: pick at least one DataPool or add a manual address." },
+      errorBody("noRecipients", "Cannot send: pick at least one DataPool or add a manual address."),
       { status: 422 },
     );
   }
 
   const claimed = await claimForSend(id);
   if (!claimed) {
-    return NextResponse.json({ code: "claimFailed", error: "Could not claim broadcast" }, { status: 409 });
+    return NextResponse.json(errorBody("claimFailed", "Could not claim broadcast"), { status: 409 });
   }
 
   try {
@@ -112,7 +117,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       details:      { error: e instanceof Error ? e.message : String(e) },
     });
     return NextResponse.json(
-      { code: "sendFailed", error: e instanceof Error ? e.message : "Send failed" },
+      errorBody("sendFailed", e instanceof Error ? e.message : "Send failed"),
       { status: 500 },
     );
   }

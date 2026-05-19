@@ -28,6 +28,22 @@ const BATCH_SIZE: Record<string, number> = {
   mailgun:  1000,
 };
 
+/**
+ * Provider error responses occasionally echo the recipient address back in
+ * the body (e.g. SendGrid's `{"errors":[{"message":"…email '<addr>' is
+ * blocked…"}]}`). We persist those bodies verbatim into
+ * `email_broadcasts.last_error` so the operator can debug, but storing a
+ * recipient address in a long-lived row would defeat the "we don't keep
+ * recipient lists" guarantee that the broadcast model relies on for GDPR.
+ *
+ * Strip anything that looks like an email address before persisting; keep
+ * the rest of the response so the operator still sees the provider's reason.
+ */
+const REDACT_EMAIL_RE = /[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+function redactErrorBody(s: string): string {
+  return s.replace(REDACT_EMAIL_RE, "[email redacted]");
+}
+
 export interface SendBroadcastOptions {
   config:   GlobalEmailConfigInternal;
   /** Recipients — already deduplicated and free of empty strings. */
@@ -118,7 +134,7 @@ async function sendViaResend({ apiKey, from, to, bcc, subject, html, text }: {
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Resend error ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`Resend error ${res.status}: ${redactErrorBody(body).slice(0, 200)}`);
   }
 }
 
@@ -150,7 +166,7 @@ async function sendViaSendGrid({ apiKey, fromAddress, fromName, to, bcc, subject
   });
   if (!res.ok && res.status !== 202) {
     const body = await res.text().catch(() => "");
-    throw new Error(`SendGrid error ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`SendGrid error ${res.status}: ${redactErrorBody(body).slice(0, 200)}`);
   }
 }
 
@@ -186,6 +202,6 @@ async function sendViaMailgun({ apiKey, from, fromAddress, to, subject, html, te
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Mailgun error ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`Mailgun error ${res.status}: ${redactErrorBody(body).slice(0, 200)}`);
   }
 }

@@ -19,6 +19,7 @@ import { sendBroadcast, type BroadcastSendReport } from "./broadcastSender";
 import { getGlobalEmailConfig } from "./globalEmailConfig";
 import { markBroadcastSent, markBroadcastFailed } from "./broadcastCrud";
 import { normalizeAdditionalRecipients } from "./additionalRecipients";
+import { formatServiceError } from "./broadcastErrors";
 import type { EmailBroadcast } from "@/lib/db/schema";
 
 export interface BroadcastPreview {
@@ -96,11 +97,13 @@ export interface ExecuteBroadcastResult extends BroadcastSendReport {
 export async function executeBroadcast(broadcast: EmailBroadcast): Promise<ExecuteBroadcastResult> {
   const config = await getGlobalEmailConfig();
   if (!config.provider || !config.fromAddress || !config.apiKeyEncrypted) {
-    // `code:` prefix is read by the composer client to look up a translated
-    // string; the human text after is the fallback for log readers and any
-    // caller that doesn't speak the code vocabulary.
-    await markBroadcastFailed(broadcast.id, "code:providerNotConfigured — Global email provider is not configured");
-    throw new Error("code:providerNotConfigured — Global email provider is not configured");
+    // Built via `formatServiceError` so the `code:` token is checked by
+    // TypeScript against the union in broadcastErrors.ts. The composer
+    // client strips the prefix and renders the translated string; the
+    // human fallback after the dash is for log readers.
+    const msg = formatServiceError("providerNotConfigured", "Global email provider is not configured");
+    await markBroadcastFailed(broadcast.id, msg);
+    throw new Error(msg);
   }
 
   const preview = await buildBroadcastPreview(broadcast);
@@ -109,8 +112,9 @@ export async function executeBroadcast(broadcast: EmailBroadcast): Promise<Execu
     // draft, but a pool that resolves to zero addresses (e.g. all submissions
     // excluded) only surfaces here. We still want a clear message in the
     // archived row.
-    await markBroadcastFailed(broadcast.id, "code:noRecipientsAfterMerge — No recipients after pool dedup + manual list merge");
-    throw new Error("code:noRecipientsAfterMerge — No recipients to send to");
+    const msg = formatServiceError("noRecipientsAfterMerge", "No recipients after pool dedup + manual list merge");
+    await markBroadcastFailed(broadcast.id, msg);
+    throw new Error(msg);
   }
 
   try {

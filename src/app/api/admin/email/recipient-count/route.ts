@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminMutation, requireRole } from "@/lib/auth/validateSession";
+import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
+import { checkAdminRateLimit } from "@/lib/security/adminRateLimit";
 import { getMergedDataPoolKeys } from "@/lib/datapools/compute";
 import { dedupKeysAcrossLists } from "@/lib/datapools/dedup";
 import { ADDITIONAL_RECIPIENTS_MAX, normalizeAdditionalRecipients } from "@/lib/email/additionalRecipients";
@@ -23,6 +24,19 @@ const bodySchema = z.object({
 export async function POST(req: NextRequest) {
   const guard = (await requireAdminMutation(req)) ?? (await requireRole("admin", req));
   if (guard) return guard;
+
+  // Per-admin rate limit — each call runs `getMergedDataPoolKeys` which fans
+  // out one query per pool against `submissions`. The composer debounces at
+  // 400ms but a misbehaving client could still hammer the endpoint and tie
+  // up the DB. 120/min matches the posture of other admin POST routes.
+  const actor = await validateAdminSession(req);
+  const rl = checkAdminRateLimit(`recipient-count:${actor?.id ?? "anon"}`, 120, 60_000);
+  if (rl.blocked) {
+    return NextResponse.json(
+      { error: "Too many recipient-count requests. Try again shortly." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
 
   const body = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(body);
