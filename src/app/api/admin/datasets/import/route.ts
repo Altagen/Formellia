@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
   const actor = await validateAdminSession(req);
   logAdminEvent({
     userId: actor?.id ?? null, userEmail: actor?.email ?? null,
-    action: "datasets.import", resourceType: "external_datasets", resourceId: "batch",
+    action: "dataset.import.batch", resourceType: "external_datasets", resourceId: "batch",
     details: { created: created.length, updated: updated.length, errors: errors.length, mode },
   });
 

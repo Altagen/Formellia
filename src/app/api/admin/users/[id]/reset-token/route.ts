@@ -36,7 +36,7 @@ export async function POST(
     .limit(1);
 
   if (!targetUser) {
-    return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   // Invalidate any previous tokens for this user

@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       .limit(1);
 
     if (!instance) {
-      return NextResponse.json({ error: "Formulaire introuvable" }, { status: 404 });
+      return NextResponse.json({ error: "Form not found" }, { status: 404 });
     }
 
     if (instance.slug === "/") {

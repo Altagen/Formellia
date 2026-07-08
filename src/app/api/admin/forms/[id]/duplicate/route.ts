@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { getFormInstanceById, createFormInstance, listFormInstances } from "@/lib/db/formInstanceLoader";
@@ -23,7 +24,7 @@ export async function POST(
   if (!source) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
@@ -59,6 +60,8 @@ export async function POST(
     }
     throw e;
   }
+
+  revalidatePath("/admin", "layout");
 
   const actor = await validateAdminSession(req);
   logAdminEvent({

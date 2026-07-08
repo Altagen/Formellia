@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { checkAdminRateLimit } from "@/lib/security/adminRateLimit";
 import { db } from "@/lib/db";
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Corps JSON invalide" }, { status: 422 });
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 422 });
 
   const parsed = restoreSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 422 });
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   const { providerId, key, mode, sections } = parsed.data;
 
   const [providerRow] = await db.select().from(backupProviders).where(eq(backupProviders.id, providerId)).limit(1);
-  if (!providerRow) return NextResponse.json({ error: "Fournisseur introuvable" }, { status: 404 });
+  if (!providerRow) return NextResponse.json({ error: "Provider not found" }, { status: 404 });
 
   // Download ZIP
   const provider = await buildProvider(providerRow.type as "local" | "s3", providerRow.encryptedConfig);
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
   try {
     zipBuffer = await provider.download(key);
   } catch (e: unknown) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Fichier introuvable" }, { status: 404 });
+    return NextResponse.json({ error: e instanceof Error ? e.message : "File not found" }, { status: 404 });
   }
 
   // Guard against oversized files that could exhaust server memory
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
     }
     incoming = parsed as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ error: "YAML invalide dans config.yaml" }, { status: 422 });
+    return NextResponse.json({ error: "Invalid YAML in config.yaml" }, { status: 422 });
   }
 
   // Call the restore logic directly — avoids any HTTP self-call
@@ -120,11 +121,36 @@ export async function POST(req: NextRequest) {
   const actor = await import("@/lib/auth/validateSession").then(m => m.validateAdminSession(req));
   const restoreBody = await restoreFromObject(incoming, { mode, sections }, actor);
 
+  // Re-hydrate submissions and dataset records from the JSONL streams packaged
+  // in the same ZIP. Users are archive-only (composer omits password hashes).
+  // Skipped when the caller narrowed sections and neither is in scope.
+  const restoreData = !sections;
+  let dataResult: Awaited<ReturnType<typeof import("@/lib/backup/restoreDataArchives").restoreDataArchives>> | undefined;
+  if (restoreData) {
+    try {
+      const { restoreDataArchives } = await import("@/lib/backup/restoreDataArchives");
+      dataResult = await restoreDataArchives(zip);
+    } catch (e: unknown) {
+      dataResult = {
+        submissions:    { restored: 0, skipped: 0, errors: 1 },
+        datasetRecords: { restored: 0, skipped: 0, errors: 1 },
+        usersArchived:  0,
+      };
+      logAdminEvent({
+        userId: actor?.id ?? null, userEmail: actor?.email ?? null,
+        action: "backup.restore.data_error", resourceType: "backup_provider", resourceId: providerId,
+        details: { key, message: e instanceof Error ? e.message : "data-archive restore failed" },
+      });
+    }
+  }
+
+  revalidatePath("/admin", "layout");
+
   logAdminEvent({
     userId: actor?.id ?? null, userEmail: actor?.email ?? null,
     action: "backup.restore", resourceType: "backup_provider", resourceId: providerId,
-    details: { key, mode, sections: sections ?? "all" },
+    details: { key, mode, sections: sections ?? "all", data: dataResult },
   });
 
-  return NextResponse.json(restoreBody);
+  return NextResponse.json({ ...restoreBody, data: dataResult });
 }

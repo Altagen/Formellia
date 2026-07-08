@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdminSession, requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { requireFormAccess } from "@/lib/auth/permissions";
@@ -12,6 +13,8 @@ import { logAdminEvent } from "@/lib/db/adminAudit";
 import { isReservedSlug } from "@/lib/config/reservedSlugs";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";
 import { getProtectedSlugs } from "@/lib/security/protectedSlugs";
+import { removeAutoViewForForm } from "@/lib/admin/autoFormView";
+import { purgeFormReferences } from "@/lib/admin/purgeFormReferences";
 import type { FormInstanceConfig } from "@/types/formInstance";
 
 const putBodySchema = z.object({
@@ -98,6 +101,7 @@ export async function PUT(
   const details: Record<string, unknown> = { oldSlug: current.slug, name: parsed.data.name };
   if (newSlug && newSlug !== current.slug) details.newSlug = newSlug;
   logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "form.update", resourceType: "form", resourceId: id, details });
+  revalidatePath("/admin", "layout");
   return NextResponse.json(updated);
 }
 
@@ -121,7 +125,39 @@ export async function DELETE(
   }
 
   await deleteFormInstance(id);
+
+  let autoPagesRemoved = 0;
+  try {
+    autoPagesRemoved = await removeAutoViewForForm(id);
+  } catch {
+    /* ignore — form already deleted */
+  }
+
+  let purge: Awaited<ReturnType<typeof purgeFormReferences>> = {
+    sidebarLayoutsUpdated: 0,
+    savedFiltersDeleted:   0,
+    manualViewsUnbound:    0,
+  };
+  try {
+    purge = await purgeFormReferences(id, instance.slug);
+  } catch (err) {
+    console.error("[forms.delete] purgeFormReferences failed:", err);
+  }
+
   const actor = await validateAdminSession(req);
-  logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "form.delete", resourceType: "form", resourceId: id, details: { slug: instance.slug, name: instance.name } });
+  logAdminEvent({
+    userId: actor?.id ?? null,
+    userEmail: actor?.email ?? null,
+    action: "form.delete",
+    resourceType: "form",
+    resourceId: id,
+    details: {
+      slug: instance.slug,
+      name: instance.name,
+      autoPagesRemoved,
+      ...purge,
+    },
+  });
+  revalidatePath("/admin", "layout");
   return NextResponse.json({ success: true });
 }

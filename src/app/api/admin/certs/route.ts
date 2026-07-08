@@ -8,7 +8,7 @@ const createSchema = z.object({
   name: z.string().min(1).max(200),
   pem:  z.string().min(1).refine(
     v => v.includes("-----BEGIN CERTIFICATE-----"),
-    "Le champ PEM doit contenir un certificat PEM valide."
+    "PEM field must contain a valid PEM certificate."
   ),
   enabled: z.boolean().optional().default(true),
 });
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (guard) return guard;
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Corps JSON invalide" }, { status: 422 });
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 422 });
 
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 422 });

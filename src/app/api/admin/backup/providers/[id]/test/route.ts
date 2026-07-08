@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const [provider] = await db.select().from(backupProviders).where(eq(backupProviders.id, id)).limit(1);
-  if (!provider) return NextResponse.json({ error: "Fournisseur introuvable" }, { status: 404 });
+  if (!provider) return NextResponse.json({ error: "Provider not found" }, { status: 404 });
 
   try {
     const impl = await buildProvider(provider.type as "local" | "s3", provider.encryptedConfig);

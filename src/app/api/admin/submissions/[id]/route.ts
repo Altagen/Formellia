@@ -28,7 +28,7 @@ export async function PATCH(
   const { id } = await params;
 
   if (!UUID_RE.test(id)) {
-    return NextResponse.json({ error: "ID invalide" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
   }
 
   // Fetch submission to know which form it belongs to (needed for requireFormAccess)
@@ -36,7 +36,7 @@ export async function PATCH(
     .select({ id: submissions.id, status: submissions.status, priority: submissions.priority, dueDate: submissions.dueDate, notes: submissions.notes, formInstanceId: submissions.formInstanceId })
     .from(submissions).where(eq(submissions.id, id)).limit(1);
   if (existing.length === 0) {
-    return NextResponse.json({ error: "Soumission introuvable" }, { status: 404 });
+    return NextResponse.json({ error: "Submission not found" }, { status: 404 });
   }
 
   // Agent+ access required — scoped users must have a grant on this form.

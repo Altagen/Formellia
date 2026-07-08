@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { checkAdminRateLimit } from "@/lib/security/adminRateLimit";
 import { getFormConfig } from "@/lib/config";
@@ -56,14 +57,10 @@ export async function GET(req: NextRequest) {
           ...(cfg.notifications.email
             ? {
                 email: {
-                  enabled:     cfg.notifications.email.enabled,
-                  provider:    cfg.notifications.email.provider,
-                  fromAddress: cfg.notifications.email.fromAddress,
-                  ...(cfg.notifications.email.fromName ? { fromName: cfg.notifications.email.fromName } : {}),
-                  ...(cfg.notifications.email.subject  ? { subject:  cfg.notifications.email.subject  } : {}),
-                  ...(cfg.notifications.email.bodyText ? { bodyText: cfg.notifications.email.bodyText } : {}),
-                  ...(cfg.notifications.email.apiKeyExpiresAt !== undefined ? { apiKeyExpiresAt: cfg.notifications.email.apiKeyExpiresAt } : {}),
-                  // encryptedApiKey intentionally omitted
+                  enabled: cfg.notifications.email.enabled,
+                  ...(cfg.notifications.email.providerId ? { providerId: cfg.notifications.email.providerId } : {}),
+                  ...(cfg.notifications.email.subject    ? { subject:    cfg.notifications.email.subject }    : {}),
+                  ...(cfg.notifications.email.bodyText   ? { bodyText:   cfg.notifications.email.bodyText }   : {}),
                 },
               }
             : {}),
@@ -153,6 +150,7 @@ export async function POST(req: NextRequest) {
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Erreur" }, { status: 422 });
   }
+  revalidatePath("/admin", "layout");
 
   logAdminEvent({
     userId: actor?.id ?? null, userEmail: actor?.email ?? null,

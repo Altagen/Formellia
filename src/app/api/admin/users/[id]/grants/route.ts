@@ -59,7 +59,7 @@ export async function PUT(req: NextRequest, { params }: Props) {
   // Verify target user exists
   const targetUser = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
   if (targetUser.length === 0) {
-    return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   const body = await req.json().catch(() => null);
@@ -83,7 +83,7 @@ export async function PUT(req: NextRequest, { params }: Props) {
     const existingIds = new Set(existing.map(r => r.id));
     const missing = formIds.filter(id => !existingIds.has(id));
     if (missing.length > 0) {
-      return NextResponse.json({ error: `Formulaire(s) introuvable(s) : ${missing.join(", ")}` }, { status: 400 });
+      return NextResponse.json({ error: `Form(s) not found: ` }, { status: 400 });
     }
   }
 

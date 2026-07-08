@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { sessions } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { requireAdminSession, requireAdminMutation, validateAdminSession } from "@/lib/auth/validateSession";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { lucia } from "@/lib/auth/lucia";
@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
   const userSessions = await db
     .select()
     .from(sessions)
-    .where(eq(sessions.userId, user.id));
+    .where(eq(sessions.userId, user.id))
+    .orderBy(desc(sessions.expiresAt));
 
   const cookieStore = await cookies();
   const currentSessionId = cookieStore.get(lucia.sessionCookieName)?.value;

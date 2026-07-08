@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { getFormConfig, saveFormConfig, isConfigEditable } from "@/lib/config";
 import { parseBody } from "@/lib/serialization/parseBody";
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
   const sectionParam = req.nextUrl.searchParams.get("section") ?? "full";
   const sectionParsed = sectionSchema.safeParse(sectionParam);
   if (!sectionParsed.success) {
-    return NextResponse.json({ error: `Section invalide : "${sectionParam}"` }, { status: 400 });
+    return NextResponse.json({ error: `Invalid section: "${sectionParam}"` }, { status: 400 });
   }
   const section = sectionParsed.data;
 
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
     details:      { section },
   });
 
+  revalidatePath("/admin", "layout");
   return NextResponse.json({ success: true, section });
 }
 
@@ -105,7 +107,7 @@ function validatePages(pages: unknown): string | null {
   if (!Array.isArray(pages)) return "pages must be an array";
   const ids = new Set<string>();
   for (const page of pages) {
-    if (!page?.id || typeof page.id !== "string") return "Chaque page doit avoir un id";
+    if (!page?.id || typeof page.id !== "string") return "Each page must have an id";
     if (ids.has(page.id)) return `ID de page en double : "${page.id}"`;
     ids.add(page.id);
     if (!page.slug) return `Page "${page.id}" : slug manquant`;

@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest) {
   const email = body.email === "" ? null : (body.email ?? null);
 
   if (email !== null && !EMAIL_RE.test(email)) {
-    return NextResponse.json({ error: "Format d'email invalide" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
   }
 
   if (email !== null) {

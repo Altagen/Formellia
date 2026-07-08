@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const instance = await getFormInstanceById(id);
-  if (!instance) return NextResponse.json({ error: "Formulaire introuvable" }, { status: 404 });
+  if (!instance) return NextResponse.json({ error: "Form not found" }, { status: 404 });
 
   const webhookUrl = instance.config.notifications?.webhookUrl;
   if (!webhookUrl) return NextResponse.json({ error: "No webhook configured" }, { status: 400 });
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   let payload: Record<string, unknown>;
   if (submissionId) {
     const [sub] = await db.select().from(submissions).where(eq(submissions.id, submissionId)).limit(1);
-    if (!sub) return NextResponse.json({ error: "Soumission introuvable" }, { status: 404 });
+    if (!sub) return NextResponse.json({ error: "Submission not found" }, { status: 404 });
     payload = {
       form: { slug: instance.slug, name: instance.config.meta.name },
       submission: { email: sub.email, formData: sub.formData, submittedAt: sub.submittedAt.toISOString() },

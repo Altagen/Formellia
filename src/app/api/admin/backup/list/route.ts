@@ -14,10 +14,10 @@ export async function GET(req: NextRequest) {
   if (guard) return guard;
 
   const providerId = req.nextUrl.searchParams.get("providerId");
-  if (!providerId) return NextResponse.json({ error: "providerId est requis" }, { status: 400 });
+  if (!providerId) return NextResponse.json({ error: "providerId is required" }, { status: 400 });
 
   const [providerRow] = await db.select().from(backupProviders).where(eq(backupProviders.id, providerId)).limit(1);
-  if (!providerRow) return NextResponse.json({ error: "Fournisseur introuvable" }, { status: 404 });
+  if (!providerRow) return NextResponse.json({ error: "Provider not found" }, { status: 404 });
 
   const provider = await buildProvider(providerRow.type as "local" | "s3", providerRow.encryptedConfig);
 

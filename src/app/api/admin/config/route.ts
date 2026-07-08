@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { getFormConfig, saveFormConfig, resetFormConfig, isConfigEditable } from "@/lib/config";
 import { logAdminEvent } from "@/lib/db/adminAudit";
@@ -27,7 +28,7 @@ export async function PUT(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   // Structural validation
@@ -50,22 +51,22 @@ export async function PUT(req: NextRequest) {
   const pageIds = new Set<string>();
   for (const page of body.admin.pages) {
     if (!page.id || typeof page.id !== "string") {
-      return NextResponse.json({ error: "Chaque page doit avoir un identifiant (id)" }, { status: 400 });
+      return NextResponse.json({ error: "Each page must have an identifier (id)" }, { status: 400 });
     }
     if (pageIds.has(page.id)) {
-      return NextResponse.json({ error: `ID de page en double : "${page.id}"` }, { status: 400 });
+      return NextResponse.json({ error: `Duplicate page id: "${page.id}"` }, { status: 400 });
     }
     pageIds.add(page.id);
     if (!page.slug || typeof page.slug !== "string") {
-      return NextResponse.json({ error: `Page "${page.id}" : slug manquant` }, { status: 400 });
+      return NextResponse.json({ error: `Page "${page.id}": slug missing` }, { status: 400 });
     }
     if (!Array.isArray(page.widgets)) {
-      return NextResponse.json({ error: `Page "${page.id}" : widgets must be an array` }, { status: 400 });
+      return NextResponse.json({ error: `Page "${page.id}": widgets must be an array` }, { status: 400 });
     }
     for (const widget of page.widgets) {
       if (!widget.type || !KNOWN_WIDGET_TYPES.has(widget.type)) {
         return NextResponse.json(
-          { error: `Page "${page.id}" : type de widget inconnu "${widget.type}"` },
+          { error: `Page "${page.id}": unknown widget type "${widget.type}"` },
           { status: 400 }
         );
       }
@@ -73,6 +74,12 @@ export async function PUT(req: NextRequest) {
   }
 
   await saveFormConfig(body);
+
+  // Invalidate the RSC cache for the whole admin tree. Without this, the
+  // dashboard layout can render with a stale `config` fetched from a cached
+  // segment of a sibling worker/module instance, which surfaces as the newly
+  // saved title reverting on the next navigation.
+  revalidatePath("/admin", "layout");
 
   const actor = await validateAdminSession(req);
   logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "config.update", resourceType: "config", resourceId: "global" });
@@ -92,6 +99,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   await resetFormConfig();
+  revalidatePath("/admin", "layout");
 
   const actor = await validateAdminSession(req);
   logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "config.reset", resourceType: "config", resourceId: "global" });

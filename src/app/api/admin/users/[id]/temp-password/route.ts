@@ -49,7 +49,7 @@ export async function POST(
   }
 
   const existing = await db.select({ id: users.id, username: users.username }).from(users).where(eq(users.id, id)).limit(1);
-  if (existing.length === 0) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
+  if (existing.length === 0) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   const tempPassword = generateTempPassword();
   const hashedPassword = await bcrypt.hash(tempPassword, 13);

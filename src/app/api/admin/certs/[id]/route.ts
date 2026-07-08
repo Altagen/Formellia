@@ -17,13 +17,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Corps JSON invalide" }, { status: 422 });
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 422 });
 
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 422 });
 
   const [existing] = await db.select({ id: customCaCerts.id }).from(customCaCerts).where(eq(customCaCerts.id, id)).limit(1);
-  if (!existing) return NextResponse.json({ error: "Certificat introuvable" }, { status: 404 });
+  if (!existing) return NextResponse.json({ error: "Certificate not found" }, { status: 404 });
 
   await db.update(customCaCerts).set({
     ...(parsed.data.enabled !== undefined ? { enabled: parsed.data.enabled } : {}),
@@ -43,7 +43,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params;
   const [existing] = await db.select({ id: customCaCerts.id }).from(customCaCerts).where(eq(customCaCerts.id, id)).limit(1);
-  if (!existing) return NextResponse.json({ error: "Certificat introuvable" }, { status: 404 });
+  if (!existing) return NextResponse.json({ error: "Certificate not found" }, { status: 404 });
 
   await db.delete(customCaCerts).where(eq(customCaCerts.id, id));
 

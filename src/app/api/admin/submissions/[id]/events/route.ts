@@ -16,7 +16,7 @@ export async function GET(
 
   const { id } = await params;
   if (!UUID_RE.test(id)) {
-    return NextResponse.json({ error: "ID invalide" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
   }
 
   // Fetch submission to resolve formInstanceId for access check
@@ -24,7 +24,7 @@ export async function GET(
     .from(submissions)
     .where(eq(submissions.id, id))
     .limit(1);
-  if (!sub[0]) return NextResponse.json({ error: "Soumission introuvable" }, { status: 404 });
+  if (!sub[0]) return NextResponse.json({ error: "Submission not found" }, { status: 404 });
   if (sub[0].formInstanceId) {
     const accessGuard = await requireFormAccess(req, sub[0].formInstanceId, "viewer");
     if (accessGuard) return accessGuard;
