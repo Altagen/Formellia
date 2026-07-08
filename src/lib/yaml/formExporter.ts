@@ -16,16 +16,10 @@ export function buildFormExportData(form: FormInstance): Record<string, unknown>
         ...(cfg.notifications.email
           ? {
               email: {
-                enabled:         cfg.notifications.email.enabled,
-                provider:        cfg.notifications.email.provider,
-                fromAddress:     cfg.notifications.email.fromAddress,
-                ...(cfg.notifications.email.fromName        ? { fromName:        cfg.notifications.email.fromName }        : {}),
-                ...(cfg.notifications.email.subject         ? { subject:         cfg.notifications.email.subject }         : {}),
-                ...(cfg.notifications.email.bodyText        ? { bodyText:        cfg.notifications.email.bodyText }        : {}),
-                ...(cfg.notifications.email.apiKeyExpiresAt !== undefined
-                  ? { apiKeyExpiresAt: cfg.notifications.email.apiKeyExpiresAt }
-                  : {}),
-                // apiKeyEncrypted intentionally omitted
+                enabled: cfg.notifications.email.enabled,
+                ...(cfg.notifications.email.providerId ? { providerId: cfg.notifications.email.providerId } : {}),
+                ...(cfg.notifications.email.subject    ? { subject:    cfg.notifications.email.subject }    : {}),
+                ...(cfg.notifications.email.bodyText   ? { bodyText:   cfg.notifications.email.bodyText }   : {}),
               },
             }
           : {}),

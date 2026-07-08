@@ -28,24 +28,16 @@ export interface FormFeatures {
 
 export interface EmailNotificationConfig {
   enabled: boolean;
-  provider: "resend" | "sendgrid" | "mailgun";
-  /** AES-256-GCM encrypted API key — never sent to client */
-  apiKeyEncrypted: string;
-  /** ISO date string (YYYY-MM-DD) — null means no expiration */
-  apiKeyExpiresAt?: string | null;
-  fromAddress: string;
-  fromName?: string;
+  /**
+   * UUID of the row in `email_providers` that supplies provider/apiKey/from.
+   * If undefined at send time, the resolver falls back to the default preset
+   * (email_providers.is_default = true). See src/lib/email/providers.ts.
+   */
+  providerId?: string;
   /** Supports {{email}}, {{formName}}, {{submittedAt}}, {{fieldId}} */
   subject: string;
   /** Plain text body — same variable substitution as subject */
   bodyText: string;
-}
-
-export interface SubmitterConfirmationConfig {
-  enabled: boolean;
-  subject: string;
-  bodyText: string;
-  // Reuses provider/apiKey from notifications.email
 }
 
 export interface FormNotifications {
@@ -53,7 +45,6 @@ export interface FormNotifications {
   webhookUrl?: string;
   enabled?: boolean;
   email?: EmailNotificationConfig;
-  submitterConfirmation?: SubmitterConfirmationConfig;
 }
 
 // ─────────────────────────────────────────────────────────

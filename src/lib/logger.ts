@@ -43,5 +43,4 @@ export const dbLogger        = logger.child({ module: "db" });
 export const schedulerLogger = logger.child({ module: "scheduler" });
 export const startupLogger   = logger.child({ module: "startup" });
 export const configLogger    = logger.child({ module: "config" });
-export const backupLogger    = logger.child({ module: "backup" });
 export const formLogger      = logger.child({ module: "form" });

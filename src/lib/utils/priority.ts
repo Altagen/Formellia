@@ -1,4 +1,4 @@
-import type { SubmissionPriority } from "@/types";
+import type { SubmissionPriority } from "@/types/config";
 
 export interface PriorityThresholds {
   redMaxDays: number;    // 0 to N days → red

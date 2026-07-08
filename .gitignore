@@ -49,8 +49,21 @@ backups/
 # Claude Code local settings (machine-specific)
 .claude/
 
+# AI assistant workspace context (per-machine, symlink target)
+CLAUDE.md
+
+# Local session cookies / API test artifacts
+cookies.txt
+
 # Internal planning docs
 tasks/
+
+# Playwright MCP / Claude screenshots (local audits)
+.screenshots/
+.playwright-mcp/
+
+# Design mock (HTML/CSS/JS reference, served on localhost:8765 — not part of the Next.js app)
+.mock/
 
 # typescript
 *.tsbuildinfo

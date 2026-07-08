@@ -23,7 +23,7 @@ function buildRepeaterSchema(field: FieldDef): z.ZodTypeAny {
           cell = (cell as z.ZodString).max(v.maxLength, v.message ?? `${col.label} : maximum ${v.maxLength} characters`);
         if (v.pattern != null) {
           try {
-            cell = (cell as z.ZodString).regex(new RegExp(v.pattern), v.message ?? `${col.label} : format invalide`);
+            cell = (cell as z.ZodString).regex(new RegExp(v.pattern), v.message ?? `: invalid format`);
           } catch {
             console.warn(`[validation] Invalid regex pattern for repeater column "${col.id}":`, v.pattern);
           }
@@ -73,7 +73,7 @@ export function buildDynamicZodSchema(steps: StepDef[]): z.ZodObject<Record<stri
       let schema: z.ZodTypeAny;
       switch (field.type) {
         case "email":
-          schema = z.string().email(`${field.label} : email invalide`);
+          schema = z.string().email(`: invalid email`);
           break;
         case "number":
           schema = z.coerce.number();
@@ -102,7 +102,7 @@ export function buildDynamicZodSchema(steps: StepDef[]): z.ZodObject<Record<stri
           try {
             schema = (schema as z.ZodString).regex(
               new RegExp(v.pattern),
-              v.message ?? `${field.label} : format invalide`
+              v.message ?? `: invalid format`
             );
           } catch {
             // Invalid regex in config — skip pattern validation rather than crashing
