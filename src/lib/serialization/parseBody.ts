@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 
 /**
  * Parses a request body as JSON or YAML depending on Content-Type.

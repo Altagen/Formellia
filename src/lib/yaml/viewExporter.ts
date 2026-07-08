@@ -1,4 +1,4 @@
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import type { AdminPage } from "@/types/config";
 
 export function buildViewExportData(view: AdminPage): Record<string, unknown> {

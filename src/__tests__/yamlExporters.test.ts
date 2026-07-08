@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import { buildFormExportData, serializeFormInstanceToYaml } from "@/lib/yaml/formExporter";
 import { buildViewExportData, serializeViewToYaml } from "@/lib/yaml/viewExporter";
 import type { FormInstance } from "@/types/formInstance";

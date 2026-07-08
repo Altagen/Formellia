@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { X } from "lucide-react";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/context/LocaleContext";
 

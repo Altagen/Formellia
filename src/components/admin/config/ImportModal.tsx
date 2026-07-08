@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import type { FormInstance } from "@/types/formInstance";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 
 // ─────────────────────────────────────────────────────────
 
