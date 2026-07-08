@@ -2,7 +2,7 @@ import AdmZip from "adm-zip";
 import { db } from "@/lib/db";
 import { submissions, externalRecords, externalDatasets, users, scheduledJobs, appSettings, appConfig } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { listFormInstances, getFormInstanceById } from "@/lib/db/formInstanceLoader";
+import { listFormInstances } from "@/lib/db/formInstanceLoader";
 import { getFormConfig } from "@/lib/config";
 import { serializeConfigToString } from "@/lib/serialization/serializeConfig";
 import type { BackupManifest } from "./types";
@@ -54,13 +54,10 @@ export async function composeBackup(options: ComposeOptions = {}): Promise<Buffe
           ...(cfg.notifications.email
             ? {
                 email: {
-                  enabled:     cfg.notifications.email.enabled,
-                  provider:    cfg.notifications.email.provider,
-                  fromAddress: cfg.notifications.email.fromAddress,
-                  ...(cfg.notifications.email.fromName     ? { fromName:     cfg.notifications.email.fromName }     : {}),
-                  ...(cfg.notifications.email.subject      ? { subject:      cfg.notifications.email.subject }      : {}),
-                  ...(cfg.notifications.email.bodyText     ? { bodyText:     cfg.notifications.email.bodyText }     : {}),
-                  ...(cfg.notifications.email.apiKeyExpiresAt !== undefined ? { apiKeyExpiresAt: cfg.notifications.email.apiKeyExpiresAt } : {}),
+                  enabled: cfg.notifications.email.enabled,
+                  ...(cfg.notifications.email.providerId ? { providerId: cfg.notifications.email.providerId } : {}),
+                  ...(cfg.notifications.email.subject    ? { subject:    cfg.notifications.email.subject }    : {}),
+                  ...(cfg.notifications.email.bodyText   ? { bodyText:   cfg.notifications.email.bodyText }   : {}),
                 },
               }
             : {}),
@@ -155,6 +152,13 @@ export async function composeBackup(options: ComposeOptions = {}): Promise<Buffe
     sections,
     forms:    formsMeta,
     datasets: datasetsMeta,
+    restorable: {
+      config:         true,
+      submissions:    true,
+      datasetRecords: true,
+      users:          false,
+    },
+    userCount: allUsers.length,
   };
   zip.addFile("manifest.json", Buffer.from(JSON.stringify(manifest, null, 2), "utf8"));
 

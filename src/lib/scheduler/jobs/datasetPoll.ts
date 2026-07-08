@@ -13,7 +13,7 @@ export async function datasetPoll(config: DatasetPollConfig): Promise<{ inserted
   const [dataset] = await db.select().from(externalDatasets)
     .where(eq(externalDatasets.id, config.datasetId)).limit(1);
 
-  if (!dataset) throw new Error(`Dataset ${config.datasetId} introuvable`);
+  if (!dataset) throw new Error(`Dataset  not found`);
   if (dataset.sourceType !== "api") throw new Error("Only API-type datasets are supported");
   if (!dataset.apiUrl) throw new Error("Dataset has no API URL configured");
 

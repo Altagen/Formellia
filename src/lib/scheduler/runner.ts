@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { scheduledJobs, jobRuns } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-export type JobAction = "retention_cleanup" | "export_json" | "export_csv" | "export_backup" | "dataset_poll";
+export type JobAction = "retention_cleanup" | "export_json" | "export_csv" | "export_backup" | "dataset_poll" | "audit_purge";
 
 export interface JobConfig {
   // retention_cleanup
@@ -65,6 +65,9 @@ export async function runJob(jobId: string): Promise<void> {
     } else if (job.action === "dataset_poll") {
       const { datasetPoll } = await import("./jobs/datasetPoll");
       result = await datasetPoll(config as import("./jobs/datasetPoll").DatasetPollConfig);
+    } else if (job.action === "audit_purge") {
+      const { auditPurge } = await import("./jobs/auditPurge");
+      result = await auditPurge(config);
     } else {
       throw new Error(`Unknown action: ${job.action}`);
     }

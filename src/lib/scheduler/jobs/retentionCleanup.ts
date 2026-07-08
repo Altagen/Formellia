@@ -4,7 +4,9 @@ import { and, lt, eq } from "drizzle-orm";
 import type { JobConfig, JobResult } from "../runner";
 
 export async function retentionCleanup(config: JobConfig): Promise<JobResult> {
-  const days = config.olderThanDays ?? 365;
+  // Floor at 1 day so that misconfigured jobs (0, negatives, NaN) never wipe live data.
+  const raw = typeof config.olderThanDays === "number" ? config.olderThanDays : 365;
+  const days = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 365;
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
   let condition = lt(submissions.submittedAt, cutoff);
