@@ -8,7 +8,7 @@ to fix something on a live deploy without re-reading the whole source.
 | Layer | Choice | Why |
 |---|---|---|
 | Framework | **Next.js 16** (App Router, Turbopack, standalone build) | Server Components for the admin, file-system routing for the public form, single deployable artifact |
-| Language | **TypeScript 7** | strict mode on, zod for runtime validation at the API edge |
+| Language | **TypeScript 6** | strict mode on, zod for runtime validation at the API edge |
 | Database | **Postgres 16** via **Drizzle ORM** | typed schema, idempotent migrations applied at boot |
 | Auth | **Lucia v3** session cookies + Argon2id passwords | self-hosted sessions, no external IdP dependency |
 | Styling | **Tailwind 4** + shadcn/ui primitives (Radix UI) | utility-first, predictable diffs |

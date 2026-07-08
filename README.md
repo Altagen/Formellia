@@ -96,7 +96,7 @@ Topical index → **[docs/](docs/)**.
 
 ## Stack
 
-Next.js 16 (App Router, Turbopack, React 19, standalone output) · TypeScript 7 ·
+Next.js 16 (App Router, Turbopack, React 19, standalone output) · TypeScript 6 ·
 Drizzle ORM on Postgres 16 · Lucia v3 sessions · zod · Tailwind 4 · Pino
 logging · node-cron 4 · Vitest. Runs on Node 26-alpine in production
 (LTS-aligned via `.nvmrc`).
