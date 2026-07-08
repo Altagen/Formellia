@@ -35,11 +35,15 @@ one container, a YAML file in git, and full control of the data — this is.
 | Area | Highlights |
 |---|---|
 | **Forms** | 12 field types · multi-step wizard · `visibleWhen` (AND/OR) · repeater rows · `computed` fields (DSL: `date_diff`, `date_add`, `sum`, `field`, `literal`) · `section_header` navigation · `completionBar` · GDPR consent block |
-| **Dashboards** | Stats cards · charts (bar / line / area / pie) · stats tables grouped by any field · submissions table with search · interactive filters · per-page form scoping · external dataset support |
-| **Configuration** | Boot from `config.yaml` (file mode) or seed-then-edit (DB mode) · upsert by slug · zod-validated · `restoreFromYaml` for partial reimports (append by `id`) |
-| **Security** | Lucia v3 sessions · CSRF for mutations · AES-256-GCM for encrypted secrets (API keys, recovery tokens) · Argon2id passwords · per-route rate limiting · structured audit log · honeypot + bot filtering |
-| **Notifications** | Resend / SendGrid / Mailgun via HTTP · per-form API key resolution (`apiKeyEncrypted` in DB → `EMAIL_API_KEY_<SLUG>` → `EMAIL_API_KEY`) · template variables `{{firstName}}` etc. |
-| **Ops** | Single Docker image · Drizzle migrations applied at boot under advisory lock · dual-stack IPv6 listener · health endpoint with DB / encryption / scheduler / storage checks · scheduled jobs (export, retention cleanup) · backup providers (local / S3) |
+| **Views** (dashboards) | Stats cards · charts (bar / line / area / pie) · stats tables grouped by any field · submissions table with search · interactive filters · per-view form scoping · external dataset support · DataPool as a source |
+| **DataPools** | Read-time deduplicated audiences derived from one or more forms · per-pool exclusion lists (with reasons) · CSV export · powers broadcasts + rosters ([datapools.md](docs/datapools.md)) |
+| **Broadcasts** | Curated bulk email to a DataPool union · rich-text composer with juice→sanitize preview · batched fan-out per provider (Resend 50 / SendGrid 999 / Mailgun 1000) · stuck-send reaper ([broadcasts.md](docs/broadcasts.md)) |
+| **Audit log** | Timeline view with per-day grouping · retention policy + nightly purge · CSV/JSON/YAML export · labelled action taxonomy ([audit-log.md](docs/audit-log.md)) |
+| **Admin UI** | Collapsible sidebar with pin/folders · master/detail Configuration + form editor · Forms and Views card routes with sort/search/folders · Administration split (users / security / audit retention) |
+| **Configuration** | Boot from `config.yaml` (file mode) or seed-then-edit (DB mode) · upsert by slug · zod-validated · `restoreFromYaml` for partial reimports (append by `id`) · forward-compat `admin.views` reads as `admin.pages` |
+| **Security** | Lucia v3 sessions · CSRF for mutations · AES-256-GCM for encrypted secrets (API keys, recovery tokens) · Argon2id passwords · per-route rate limiting · structured audit log with retention policy · honeypot + bot filtering |
+| **Notifications** | Provider CRUD (Resend / SendGrid / Mailgun) with encrypted API keys and expiry warning · per-form `providerId` with a default-provider fallback · template variables `{{firstName}}` etc. |
+| **Ops** | Single Docker image · Drizzle migrations applied at boot under advisory lock · dual-stack IPv6 listener · health endpoint with DB / encryption / scheduler / storage checks · scheduled jobs (export, retention cleanup, audit purge, stuck-broadcast reaper) · backup providers (local / S3) |
 
 ## Quick start (local)
 
@@ -78,9 +82,12 @@ Topical index → **[docs/](docs/)**.
 |---|---|
 | Spin it up locally for the first time | [docs/getting-started.md](docs/getting-started.md) |
 | Understand the stack and the boot pipeline | [docs/architecture.md](docs/architecture.md) |
-| Write `config.yaml` (forms, dashboards, all fields) | [docs/yaml-schema.md](docs/yaml-schema.md) |
+| Write `config.yaml` (forms, views, all fields) | [docs/yaml-schema.md](docs/yaml-schema.md) |
 | Pick between DB-mode and file-mode | [docs/config-as-code.md](docs/config-as-code.md) |
-| Configure outgoing email (Resend / SendGrid / Mailgun) | [docs/email-setup.md](docs/email-setup.md) |
+| Configure outgoing email and providers | [docs/email-setup.md](docs/email-setup.md) |
+| Send a curated bulk email | [docs/broadcasts.md](docs/broadcasts.md) |
+| Build a deduplicated audience or an export list | [docs/datapools.md](docs/datapools.md) |
+| Read the audit trail or configure retention | [docs/audit-log.md](docs/audit-log.md) |
 | Deploy to a VPS in one afternoon | [docs/deployment.md](docs/deployment.md) |
 | Understand auth, secrets, rate limiting | [docs/security.md](docs/security.md) |
 | Contribute or run the dev environment | [CONTRIBUTING.md](CONTRIBUTING.md) |
@@ -88,7 +95,7 @@ Topical index → **[docs/](docs/)**.
 
 ## Stack
 
-Next.js 16 (App Router, Turbopack, React 19, standalone output) · TypeScript 6 ·
+Next.js 16 (App Router, Turbopack, React 19, standalone output) · TypeScript 7 ·
 Drizzle ORM on Postgres 16 · Lucia v3 sessions · zod · Tailwind 4 · Pino
 logging · node-cron 4 · Vitest. Runs on Node 26-alpine in production
 (LTS-aligned via `.nvmrc`).
