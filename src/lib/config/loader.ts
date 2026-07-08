@@ -6,7 +6,14 @@ const CONFIG_SOURCE = process.env.CONFIG_SOURCE ?? "db";
 // ─────────────────────────────────────────────────────────
 // Module-level cache (DB mode only)
 // ─────────────────────────────────────────────────────────
-const CACHE_TTL_MS = 60_000; // 60 seconds
+//
+// Per-request cache only. Next.js under Turbopack (and prod hot-swaps) can
+// duplicate module state across worker instances, which made a longer TTL
+// cache misbehave: mutations invalidated the cache in one instance while the
+// RSC render read a stale copy from another. Keeping the window tight enough
+// that all reads inside one request hit the cache but a subsequent request
+// after a mutation always sees fresh data eliminates the entire race.
+const CACHE_TTL_MS = 100; // ms
 
 let cache: FormConfig | null = null;
 let cacheAt = 0;
@@ -141,6 +148,11 @@ export async function ensureConfigSeeded(): Promise<void> {
   // Bootstrap admin user from env vars (no-op if user already exists or vars absent)
   const { ensureAdminUserSeeded } = await import("@/lib/db/seedAdminUser");
   await ensureAdminUserSeeded();
+
+  // UI-11 one-shot: strip legacy per-form email credentials + submitterConfirmation.
+  // Idempotent — only forms still carrying the deprecated fields get touched.
+  const { stripLegacyEmailFieldsOnBoot } = await import("@/lib/email/legacyMigration");
+  await stripLegacyEmailFieldsOnBoot();
 }
 
 /**

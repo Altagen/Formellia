@@ -84,14 +84,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const effectiveLocale = user.locale ?? "fr";
   const presetCss = buildPresetCssVars(user.colorPreset);
 
-  // Inline script injected before page render to avoid FOUC on dark mode
-  const themeScript = `(function(){var m=${JSON.stringify(user.themeMode)};if(m==="dark")document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");})()`;
-
   return (
     <LocaleProvider locale={effectiveLocale}>
       <UserRoleProvider role={user.role} hasEmail={!!user.email} hasRecoveryCodes={user.hasRecoveryCodes} accessibleFormIds={user.accessibleFormIds}>
-        {/* FOUC prevention: apply theme class synchronously before first paint */}
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         {presetCss && (
           <style id="admin-user-preset-css" dangerouslySetInnerHTML={{ __html: presetCss }} />
         )}

@@ -21,7 +21,7 @@ describe("parseBody — JSON path", () => {
   });
 
   it("throws on invalid JSON", async () => {
-    await expect(parseBody(makeReq("{bad json}", "application/json"))).rejects.toThrow("JSON invalide");
+    await expect(parseBody(makeReq("{bad json}", "application/json"))).rejects.toThrow("Invalid JSON");
   });
 });
 
@@ -37,7 +37,7 @@ describe("parseBody — YAML path", () => {
   });
 
   it("throws on invalid YAML", async () => {
-    await expect(parseBody(makeReq("key: [\nunclosed"))).rejects.toThrow("YAML invalide");
+    await expect(parseBody(makeReq("key: [\nunclosed"))).rejects.toThrow("Invalid YAML");
   });
 
   it("js-yaml v4 DEFAULT schema does NOT execute !!js/undefined tags", async () => {

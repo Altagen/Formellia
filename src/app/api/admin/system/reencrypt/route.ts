@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { db } from "@/lib/db";
-import { backupProviders, formInstances } from "@/lib/db/schema";
+import { backupProviders, emailProviders } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import {
@@ -26,7 +26,6 @@ import {
   decryptApiKey,
   needsReencrypt as emailNeedsReencrypt,
 } from "@/lib/email/crypto";
-import type { FormInstanceConfig } from "@/types/formInstance";
 
 export async function POST(req: NextRequest) {
   const guardMutation = await requireAdminMutation(req) ?? await requireRole("admin", req);
@@ -59,34 +58,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── 2. Email API keys in form instances ──────────────────────────────────
-  const instances = await db.select().from(formInstances);
-  for (const instance of instances) {
-    const config = instance.config as FormInstanceConfig;
-    const apiKeyEncrypted = config?.notifications?.email?.apiKeyEncrypted;
-
-    if (!apiKeyEncrypted?.trim()) continue; // no key set — nothing to migrate
-    if (!emailNeedsReencrypt(apiKeyEncrypted)) {
+  // ── 2. Email API keys in provider presets ────────────────────────────────
+  const presets = await db.select().from(emailProviders);
+  for (const preset of presets) {
+    if (!preset.apiKeyEncrypted?.trim()) continue;
+    if (!emailNeedsReencrypt(preset.apiKeyEncrypted)) {
       skipped++;
       continue;
     }
-
     try {
-      const plain = decryptApiKey(apiKeyEncrypted);
+      const plain = decryptApiKey(preset.apiKeyEncrypted);
       const reencrypted = encryptApiKey(plain);
-      const existingEmail = config.notifications?.email;
-      const updatedConfig: FormInstanceConfig = {
-        ...config,
-        notifications: {
-          ...config.notifications,
-          email: existingEmail
-            ? { ...existingEmail, apiKeyEncrypted: reencrypted }
-            : undefined,
-        },
-      };
-      await db.update(formInstances)
-        .set({ config: updatedConfig })
-        .where(eq(formInstances.id, instance.id));
+      await db.update(emailProviders)
+        .set({ apiKeyEncrypted: reencrypted })
+        .where(eq(emailProviders.id, preset.id));
       migratedEmailKeys++;
     } catch {
       skipped++;

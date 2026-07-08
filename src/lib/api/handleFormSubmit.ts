@@ -127,26 +127,17 @@ export async function handleFormSubmit(
     // ── Email notification (fire-and-forget) ──
     const emailConf = notif?.email;
     if (emailConf?.enabled && email) {
-      import("@/lib/email/sender")
-        .then(({ sendEmailNotification }) =>
-          sendEmailNotification(emailConf, email, formDataPayload, config.meta.name, instance.slug)
-        )
+      import("@/lib/email/resolveFormEmailConfig")
+        .then(async ({ resolveFormEmailConfigFromDb }) => {
+          const resolved = await resolveFormEmailConfigFromDb(emailConf);
+          if (!resolved.ok) {
+            log.warn({ reason: resolved.gap.reason, slug: instance.slug }, "Email notification skipped — provider preset unavailable");
+            return;
+          }
+          const { sendEmailNotification } = await import("@/lib/email/sender");
+          await sendEmailNotification(resolved.config, email, formDataPayload, config.meta.name, instance.slug);
+        })
         .catch(err => log.error({ err }, "Email notification failed"));
-    }
-
-    // ── Submitter confirmation email (fire-and-forget) ──
-    const confirmConf = notif?.submitterConfirmation;
-    if (confirmConf?.enabled && notif?.email?.enabled && email) {
-      const confirmEmailConf = {
-        ...notif.email,
-        subject: confirmConf.subject,
-        bodyText: confirmConf.bodyText,
-      };
-      import("@/lib/email/sender")
-        .then(({ sendEmailNotification }) =>
-          sendEmailNotification(confirmEmailConf, email, formDataPayload, config.meta.name, instance.slug)
-        )
-        .catch(err => log.error({ err }, "Submitter confirmation email failed"));
     }
 
     return NextResponse.json({ success: true }, { status: 201 });

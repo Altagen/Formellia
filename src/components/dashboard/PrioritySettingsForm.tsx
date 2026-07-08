@@ -5,10 +5,30 @@ import type { PriorityThresholds } from "@/lib/utils/priority";
 import { useTranslations } from "@/lib/context/LocaleContext";
 
 const PRIORITY_COLORS = {
-  red: { bg: "bg-red-500", text: "text-red-700", border: "border-red-300", light: "bg-red-50" },
-  orange: { bg: "bg-orange-500", text: "text-orange-700", border: "border-orange-300", light: "bg-orange-50" },
-  yellow: { bg: "bg-yellow-400", text: "text-yellow-700", border: "border-yellow-300", light: "bg-yellow-50" },
-  green: { bg: "bg-green-500", text: "text-green-700", border: "border-green-300", light: "bg-green-50" },
+  red: {
+    bg:     "bg-red-500",
+    text:   "text-red-700 dark:text-red-300",
+    border: "border-red-300 dark:border-red-800",
+    light:  "bg-red-50 dark:bg-red-950/30",
+  },
+  orange: {
+    bg:     "bg-orange-500",
+    text:   "text-orange-700 dark:text-orange-300",
+    border: "border-orange-300 dark:border-orange-800",
+    light:  "bg-orange-50 dark:bg-orange-950/30",
+  },
+  yellow: {
+    bg:     "bg-yellow-400",
+    text:   "text-yellow-700 dark:text-yellow-300",
+    border: "border-yellow-300 dark:border-yellow-800",
+    light:  "bg-yellow-50 dark:bg-yellow-950/30",
+  },
+  green: {
+    bg:     "bg-green-500",
+    text:   "text-green-700 dark:text-green-300",
+    border: "border-green-300 dark:border-green-800",
+    light:  "bg-green-50 dark:bg-green-950/30",
+  },
 };
 
 interface Props {

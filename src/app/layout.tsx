@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { getFormConfig, ensureConfigSeeded } from "@/lib/config";
 import { getFormInstance } from "@/lib/db/formInstanceLoader";
 import { buildCssVars } from "@/lib/theme/cssVars";
 import { LocaleProvider } from "@/lib/context/LocaleContext";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +51,7 @@ export default async function RootLayout({
   void globalConfig;
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} className={inter.variable} suppressHydrationWarning>
       <head>
         {cssVars && <style dangerouslySetInnerHTML={{ __html: cssVars }} />}
       </head>

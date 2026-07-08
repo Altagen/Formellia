@@ -6,7 +6,7 @@ import { handleFormSubmit } from "@/lib/api/handleFormSubmit";
 export async function POST(req: NextRequest) {
   const instance = await getFormInstance("/");
   if (!instance) {
-    return NextResponse.json({ error: "Formulaire introuvable" }, { status: 404 });
+    return NextResponse.json({ error: "Form not found" }, { status: 404 });
   }
   return handleFormSubmit(req, instance);
 }
