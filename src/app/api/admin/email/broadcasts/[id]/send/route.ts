@@ -1,0 +1,124 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
+import { checkAdminRateLimit } from "@/lib/security/adminRateLimit";
+import { logAdminEvent } from "@/lib/db/adminAudit";
+import { getBroadcast, claimForSend } from "@/lib/email/broadcastCrud";
+import { executeBroadcast } from "@/lib/email/broadcastService";
+import type { BroadcastErrorCode } from "@/lib/email/broadcastErrors";
+
+/** Builds a `{code, error, ...extra}` body — code is type-checked against the
+ *  shared union so a typo here would fail the build before reaching prod. */
+function errorBody<T extends Record<string, unknown>>(code: BroadcastErrorCode, error: string, extra?: T) {
+  return { code, error, ...(extra ?? {}) };
+}
+
+type Props = { params: Promise<{ id: string }> };
+
+/**
+ * POST /api/admin/email/broadcasts/:id/send
+ *
+ * Fires the broadcast. Flow:
+ *   1. Verify the row is in `draft` state (reject 409 otherwise).
+ *   2. Atomically transition to `sending` so a concurrent click can't
+ *      double-send.
+ *   3. Execute — the service layer fans out to the provider, then writes
+ *      back counts / status.
+ *   4. Audit log.
+ *
+ * The endpoint blocks until the send completes. For most operator-driven
+ * audiences (< 1k recipients) this is acceptable — typical provider
+ * round-trip is a couple of seconds. A queue/job pattern is left for the
+ * future newsletter feature where audiences are larger.
+ *
+ * Error responses always carry a stable `code` field. The composer client
+ * uses that code to look up the user-facing string in its i18n bundle —
+ * the English `error` field is a fallback for callers that don't (yet)
+ * speak the code vocabulary.
+ */
+export async function POST(req: NextRequest, { params }: Props) {
+  const guard = (await requireAdminMutation(req)) ?? (await requireRole("admin", req));
+  if (guard) return guard;
+
+  // Per-user rate limit — sending a broadcast triggers an outbound provider
+  // call that costs money and floods recipient mailboxes. Cap at 10 sends per
+  // minute per admin to prevent both accidental retry loops and abuse via
+  // stolen credentials.
+  const actor = await validateAdminSession(req);
+  const rlKey = `broadcast-send:${actor?.id ?? "anon"}`;
+  const rl = checkAdminRateLimit(rlKey, 10, 60_000);
+  if (rl.blocked) {
+    return NextResponse.json(
+      errorBody("rateLimit", "Too many broadcast send attempts. Try again shortly."),
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
+  const { id } = await params;
+  const existing = await getBroadcast(id);
+  if (!existing) {
+    return NextResponse.json(errorBody("notFound", "Not found"), { status: 404 });
+  }
+
+  // Both `draft` and `failed` are eligible — a failed row had zero deliveries
+  // so re-sending it is the same operation as sending a draft for the first
+  // time. `sending` is already in flight, `sent` is an archive of what
+  // landed in inboxes.
+  if (existing.status !== "draft" && existing.status !== "failed") {
+    return NextResponse.json(
+      errorBody("wrongState", `Cannot send a broadcast in "${existing.status}" state`, {
+        status: existing.status,   // surfaced verbatim in the translated message
+      }),
+      { status: 409 },
+    );
+  }
+
+  // Block sending a draft that has nothing to send to — surface as 422 with
+  // a clear message rather than wasting a `claimForSend` + provider round-trip
+  // just to write back "no recipients" to the row. Either source (pool or
+  // free-text) is enough; `executeBroadcast` runs a second post-dedup check
+  // to catch the case where pools resolve to zero distinct addresses.
+  const hasPool   = (existing.dataPoolIds ?? []).length > 0;
+  const hasExtras = (existing.additionalRecipients ?? []).length > 0;
+  if (!hasPool && !hasExtras) {
+    return NextResponse.json(
+      errorBody("noRecipients", "Cannot send: pick at least one DataPool or add a manual address."),
+      { status: 422 },
+    );
+  }
+
+  const claimed = await claimForSend(id);
+  if (!claimed) {
+    return NextResponse.json(errorBody("claimFailed", "Could not claim broadcast"), { status: 409 });
+  }
+
+  try {
+    const result = await executeBroadcast(claimed);
+    logAdminEvent({
+      userId:       actor?.id ?? null,
+      userEmail:    actor?.email ?? null,
+      action:       "email.broadcast.send",
+      resourceType: "email_broadcast",
+      resourceId:   id,
+      details:      {
+        recipientCount: result.recipientCount,
+        sent:           result.sent,
+        failed:         result.failed,
+        ...(result.error ? { error: result.error } : {}),
+      },
+    });
+    return NextResponse.json(result);
+  } catch (e: unknown) {
+    logAdminEvent({
+      userId:       actor?.id ?? null,
+      userEmail:    actor?.email ?? null,
+      action:       "email.broadcast.send.failed",
+      resourceType: "email_broadcast",
+      resourceId:   id,
+      details:      { error: e instanceof Error ? e.message : String(e) },
+    });
+    return NextResponse.json(
+      errorBody("sendFailed", e instanceof Error ? e.message : "Send failed"),
+      { status: 500 },
+    );
+  }
+}

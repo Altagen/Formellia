@@ -1,0 +1,1 @@
+ALTER TABLE "email_broadcasts" ADD COLUMN "additional_recipients" jsonb DEFAULT '[]'::jsonb NOT NULL;
