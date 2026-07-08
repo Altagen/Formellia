@@ -18,6 +18,11 @@ import { mergeAdminPages, mergeTableColumns } from "@/lib/admin/mergeAdminConfig
 import cron from "node-cron";
 import type { FormInstanceConfig } from "@/types/formInstance";
 import type { AdminPage, TableColumnDef } from "@/types/config";
+import type { JobAction } from "@/lib/scheduler/runner";
+
+const VALID_JOB_ACTIONS: readonly JobAction[] = [
+  "retention_cleanup", "export_json", "export_csv", "export_backup", "dataset_poll", "audit_purge",
+] as const;
 
 type RestoreSection = "forms" | "scheduledJobs" | "datasets" | "admin" | "app";
 
@@ -145,7 +150,7 @@ export async function restoreFromObject(
       const orangeMaxDays = Number(pt.orangeMaxDays);
       const yellowMaxDays = Number(pt.yellowMaxDays);
       if (isNaN(redMaxDays) || isNaN(orangeMaxDays) || isNaN(yellowMaxDays)) {
-        results.app = { error: "Valeurs priorityThresholds invalides — des nombres entiers sont attendus" };
+        results.app = { error: "Invalid priorityThresholds values — integers are expected" };
       } else {
         await db.insert(appSettings)
           .values({ id: 1, redMaxDays, orangeMaxDays, yellowMaxDays })
@@ -177,11 +182,10 @@ export async function restoreFromObject(
     for (const job of incoming.scheduledJobs as Array<Record<string, unknown>>) {
       if (!job.name || !job.action || !job.schedule) continue;
       if (!cron.validate(String(job.schedule))) {
-        jErrors.push({ name: String(job.name), message: "Expression cron invalide" });
+        jErrors.push({ name: String(job.name), message: "Invalid cron expression" });
         continue;
       }
-      const VALID_JOB_ACTIONS = ["retention_cleanup", "export_json", "export_csv", "export_backup"];
-      if (!VALID_JOB_ACTIONS.includes(String(job.action))) {
+      if (!VALID_JOB_ACTIONS.includes(String(job.action) as JobAction)) {
         jErrors.push({ name: String(job.name), message: `Action inconnue : ${job.action}` });
         continue;
       }
@@ -189,7 +193,7 @@ export async function restoreFromObject(
       try {
         const values = {
           name:    String(job.name),
-          action:  String(job.action) as "retention_cleanup" | "export_json" | "export_csv" | "export_backup",
+          action:  String(job.action) as JobAction,
           config:  (job.config as Record<string, unknown>) ?? {},
           schedule: String(job.schedule),
           enabled: Boolean(job.enabled ?? false),
@@ -220,11 +224,11 @@ export async function restoreFromObject(
       const VALID_SOURCE_TYPES = ["file", "api"];
       const VALID_IMPORT_MODES = ["append", "replace", "dedup"];
       if (!VALID_SOURCE_TYPES.includes(String(ds.sourceType))) {
-        dErrors.push({ name: String(ds.name), message: `Type de source invalide : ${ds.sourceType}` });
+        dErrors.push({ name: String(ds.name), message: `Invalid source type: ` });
         continue;
       }
       if (!VALID_IMPORT_MODES.includes(String(ds.importMode ?? "append"))) {
-        dErrors.push({ name: String(ds.name), message: `Mode d'import invalide : ${ds.importMode}` });
+        dErrors.push({ name: String(ds.name), message: `Invalid import mode: ` });
         continue;
       }
       const existingId = dsMap.get(String(ds.name));

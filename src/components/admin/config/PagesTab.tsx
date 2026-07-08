@@ -19,7 +19,7 @@ import type { FormInstance } from "@/types/formInstance";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Star, X, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Star, X, Eye, EyeOff, Globe } from "lucide-react";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import { stepsForPage } from "@/lib/dashboard/scopedFields";
 
@@ -30,10 +30,19 @@ interface PagesTabProps {
   formSteps: StepDef[];
   formInstances?: FormInstance[];
   features?: AdminFeatures;
+  autoGenerateView?: boolean;
+  initialExpandedPageId?: string;
+  /** UI variant:
+   *   - "settings" (default): global options only (features + autoGen). List
+   *     and per-view editors live on the dedicated /admin/views routes.
+   *   - "single": renders ONLY the target view's editor (no global settings,
+   *     no header, no other pages). Used by /admin/views/[id]/edit. */
+  variant?: "settings" | "single";
   onChangePages: (pages: AdminPage[]) => void;
   onChangeDefault: (slug: string | undefined) => void;
   onChangeColumns: (cols: TableColumnDef[]) => void;
   onChangeFeatures: (f: AdminFeatures) => void;
+  onChangeAutoGenerateView: (v: boolean) => void;
 }
 
 const WIDGET_TYPE_ICONS: Record<WidgetDef["type"], string> = {
@@ -75,7 +84,7 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40) || "page";
 }
 
-export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInstances = [], features, onChangePages, onChangeDefault, onChangeColumns, onChangeFeatures }: PagesTabProps) {
+export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInstances = [], features, autoGenerateView, initialExpandedPageId, variant = "settings", onChangePages, onChangeDefault, onChangeColumns, onChangeFeatures, onChangeAutoGenerateView }: PagesTabProps) {
   const tr = useTranslations();
   const p = tr.admin.config.pages;
   const w = tr.admin.config.widgets;
@@ -181,7 +190,10 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
     return WIDGET_TYPE_LABELS[widget.type];
   }
 
-  const [expandedPageId, setExpandedPageId] = useState<string | null>(pages[0]?.id ?? null);
+  const [expandedPageId, setExpandedPageId] = useState<string | null>(() => {
+    if (initialExpandedPageId && pages.some(p => p.id === initialExpandedPageId)) return initialExpandedPageId;
+    return pages[0]?.id ?? null;
+  });
   const [expandedWidgetId, setExpandedWidgetId] = useState<string | null>(null);
   const [datasets, setDatasets] = useState<ExternalDataset[]>([]);
   // Cache of dataset field keys by dataSourceId
@@ -229,6 +241,31 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
     if (pages.length >= 10) return;
     const id = `p-${Date.now()}`;
     const newPage: AdminPage = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
+    onChangePages([...pages, newPage]);
+    setExpandedPageId(id);
+    setExpandedWidgetId(null);
+  }
+
+  // Pre-configured "Global view" template : aggregates submissions across all
+  // forms (no formInstanceId), with the same widgets the legacy /admin/global
+  // page used to render. Generated on demand from the "+ Vue globale" button.
+  function addGlobalViewPreset() {
+    if (pages.length >= 10) return;
+    const now = Date.now();
+    const id = `p-${now}`;
+    const newPage: AdminPage = {
+      id,
+      title: p.globalViewLabel,
+      slug: "global",
+      icon: "globe",
+      widgets: [
+        { type: "stats_card", id: `w-${now}-total`,    statsConfig: { id: `s-${now}-total`,    title: p.globalViewKpiTotal,      icon: "list",    query: { fn: "count", filters: [],                                                       filterLogic: "and", scope: "all" }, accent: "gray"   } },
+        { type: "stats_card", id: `w-${now}-pending`,  statsConfig: { id: `s-${now}-pending`,  title: p.globalViewKpiPending,    icon: "clock",   query: { fn: "count", filters: [{ field: "status", op: "eq", value: "pending"     }], filterLogic: "and", scope: "all" }, accent: "orange" } },
+        { type: "stats_card", id: `w-${now}-progress`, statsConfig: { id: `s-${now}-progress`, title: p.globalViewKpiInProgress, icon: "loader",  query: { fn: "count", filters: [{ field: "status", op: "eq", value: "in_progress" }], filterLogic: "and", scope: "all" }, accent: "blue"   } },
+        { type: "stats_card", id: `w-${now}-done`,     statsConfig: { id: `s-${now}-done`,     title: p.globalViewKpiDone,       icon: "check",   query: { fn: "count", filters: [{ field: "status", op: "eq", value: "done"        }], filterLogic: "and", scope: "all" }, accent: "green"  } },
+        { type: "submissions_table", id: `w-${now}-table`,   title: p.globalViewTableTitle },
+      ],
+    };
     onChangePages([...pages, newPage]);
     setExpandedPageId(id);
     setExpandedWidgetId(null);
@@ -316,6 +353,8 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
   return (
     <div className="space-y-4">
 
+      {variant === "settings" && (
+      <>
       {/* ── Optional features ── */}
       <div className="bg-card rounded-xl border border-border p-5">
         <h2 className="text-sm font-semibold text-foreground mb-1">{p.optionalFeatures}</h2>
@@ -324,11 +363,6 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
         </p>
         <div className="space-y-3">
           {([
-            {
-              key: "globalView" as const,
-              label: p.globalViewLabel,
-              desc: p.globalViewDesc,
-            },
             {
               key: "auditLog" as const,
               label: p.auditLogLabel,
@@ -359,19 +393,37 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
         </div>
       </div>
 
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">{p.dashboardPages}</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            {p.dashboardPagesDesc}
-            {pages.length >= 10 && <span className="text-destructive ml-1">{p.maxPages}</span>}
-          </p>
+      {/* ── Auto-generate view (global setting) ── */}
+      <div className="bg-card rounded-xl border border-border p-5">
+        <h2 className="text-sm font-semibold text-foreground mb-1">{p.autoGenSection}</h2>
+        <p className="text-xs text-muted-foreground mb-4">{p.autoGenDesc}</p>
+        <div className="flex items-start justify-between gap-4">
+          <p className="text-sm text-foreground font-medium">{p.autoGenLabel}</p>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!autoGenerateView}
+            onClick={() => onChangeAutoGenerateView(!autoGenerateView)}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring/50 mt-0.5 ${
+              autoGenerateView ? "bg-blue-600" : "bg-muted"
+            }`}
+          >
+            <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${autoGenerateView ? "translate-x-4" : "translate-x-0"}`} />
+          </button>
         </div>
-        <Button type="button" size="sm" onClick={addPage} disabled={pages.length >= 10} className="gap-1.5 shrink-0">
-          <Plus className="w-4 h-4" />
-          {p.addPage}
-        </Button>
+        <div className="mt-3 pt-3 border-t border-border/50">
+          <Button type="button" size="sm" variant="outline" disabled title={p.autoGenBackfillHint} className="gap-1.5">
+            <Plus className="w-4 h-4" />
+            {p.autoGenBackfill}
+          </Button>
+        </div>
       </div>
+      </>
+      )}
+
+      {variant === "single" && (
+      <>
+
 
 {pages.length === 0 && (
         <div className="text-center py-10 border-2 border-dashed rounded-xl text-sm text-muted-foreground">
@@ -380,8 +432,8 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
       )}
 
       <div className="space-y-2">
-        {pages.map((page, i) => {
-          const isPageExpanded = expandedPageId === page.id;
+        {(variant === "single" ? pages.filter(pg => pg.id === initialExpandedPageId) : pages).map((page, i) => {
+          const isPageExpanded = variant === "single" ? true : expandedPageId === page.id;
           const isDefault = defaultPage === page.slug;
           const dsFields = page.dataSourceId ? (dataSourceFields[page.dataSourceId] ?? []) : [];
           const isExternal = !!page.dataSourceId && dsFields.length > 0;
@@ -436,10 +488,12 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                     <Star className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button type="button" onClick={() => deletePage(page.id)} disabled={pages.length <= 1}
-                  className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-20 transition-colors shrink-0">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {variant !== "single" && (
+                  <button type="button" onClick={() => deletePage(page.id)} disabled={pages.length <= 1}
+                    className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-20 transition-colors shrink-0">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Expanded page editor */}
@@ -449,7 +503,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1.5">{p.titleLabel}</label>
-                      <Input value={page.title} onChange={e => updatePage(page.id, { title: e.target.value, slug: slugify(e.target.value) })} className="text-sm" />
+                      <Input value={page.title} onChange={e => updatePage(page.id, { title: e.target.value })} className="text-sm" />
                     </div>
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1.5">{p.slugLabel}</label>
@@ -461,7 +515,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1.5">{p.iconLabel}</label>
-                      <Input value={page.icon ?? ""} onChange={e => updatePage(page.id, { icon: e.target.value || undefined })} placeholder="layout-dashboard, inbox, bar-chart-2…" className="text-sm font-mono" />
+                      <Input value={page.icon ?? ""} onChange={e => updatePage(page.id, { icon: e.target.value || undefined })} placeholder={p.iconPlaceholder} className="text-sm font-mono" />
                     </div>
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1.5">{p.autoRefresh}</label>
@@ -479,7 +533,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                   </div>
 
                   {/* Data source selector (3 options: all native, external dataset, form instance) */}
-                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 min-w-0">
                     <label className="text-xs font-medium text-muted-foreground shrink-0">{p.sourceLabel}</label>
                     <select
                       value={
@@ -497,7 +551,7 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
                           updatePage(page.id, { dataSourceId: v, formInstanceId: undefined });
                         }
                       }}
-                      className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-[3px] focus:ring-ring/50"
+                      className="h-8 min-w-0 flex-1 max-w-xs rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-[3px] focus:ring-ring/50"
                     >
                       <option value="">{p.allSubmissions}</option>
                       {formInstances.length > 0 && (
@@ -733,6 +787,8 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
           );
         })}
       </div>
+      </>
+      )}
     </div>
   );
 }
@@ -820,7 +876,7 @@ function SubmissionsTableEditor({
         <Input
           value={widget.title ?? ""}
           onChange={e => onChange({ title: e.target.value || undefined })}
-          placeholder="List"
+          placeholder={p.tableTitlePlaceholder}
           className="text-sm"
         />
       </div>
@@ -1085,7 +1141,7 @@ function StatsTableEditor({
         {cfg.columns.map(col => (
           <div key={col.id} className="flex items-center gap-1.5">
             <Input value={col.label} onChange={e => updateColumn(col.id, { label: e.target.value })}
-              placeholder="Label" className="h-8 text-xs w-24 shrink-0" />
+              placeholder={p.columnLabelPlaceholder} className="h-8 text-xs w-24 shrink-0" />
             <select value={col.fn} onChange={e => updateColumn(col.id, { fn: e.target.value as StatsTableColumn["fn"], field: e.target.value === "count" ? undefined : col.field })}
               className="h-8 text-xs rounded-md border border-input bg-background px-1.5 w-24 shrink-0 focus:outline-none focus:ring-[3px] focus:ring-ring/50">
               {(Object.entries(TABLE_FN_LABELS) as [StatsTableColumn["fn"], string][]).map(([v, l]) => (
@@ -1371,7 +1427,7 @@ function StatsCardEditor({
       <div>
         <label className="block text-xs text-muted-foreground mb-1">{p.iconLabel}</label>
         <Input value={widget.statsConfig.icon} onChange={e => updateStats({ icon: e.target.value })}
-          placeholder="hash, clock, alert-circle…" className="text-sm font-mono w-48" />
+          placeholder={p.statsIconPlaceholder} className="text-sm font-mono w-48" />
       </div>
     </div>
   );
