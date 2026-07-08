@@ -88,6 +88,7 @@ Topical index → **[docs/](docs/)**.
 | Send a curated bulk email | [docs/broadcasts.md](docs/broadcasts.md) |
 | Build a deduplicated audience or an export list | [docs/datapools.md](docs/datapools.md) |
 | Read the audit trail or configure retention | [docs/audit-log.md](docs/audit-log.md) |
+| Navigate the admin UI (sidebar, folders, cards) | [docs/admin-ui.md](docs/admin-ui.md) |
 | Deploy to a VPS in one afternoon | [docs/deployment.md](docs/deployment.md) |
 | Understand auth, secrets, rate limiting | [docs/security.md](docs/security.md) |
 | Contribute or run the dev environment | [CONTRIBUTING.md](CONTRIBUTING.md) |

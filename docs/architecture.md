@@ -8,7 +8,7 @@ to fix something on a live deploy without re-reading the whole source.
 | Layer | Choice | Why |
 |---|---|---|
 | Framework | **Next.js 16** (App Router, Turbopack, standalone build) | Server Components for the admin, file-system routing for the public form, single deployable artifact |
-| Language | **TypeScript 6** | strict mode on, zod for runtime validation at the API edge |
+| Language | **TypeScript 7** | strict mode on, zod for runtime validation at the API edge |
 | Database | **Postgres 16** via **Drizzle ORM** | typed schema, idempotent migrations applied at boot |
 | Auth | **Lucia v3** session cookies + Argon2id passwords | self-hosted sessions, no external IdP dependency |
 | Styling | **Tailwind 4** + shadcn/ui primitives (Radix UI) | utility-first, predictable diffs |
@@ -39,12 +39,16 @@ to fix something on a live deploy without re-reading the whole source.
 │   │   ├── auth/                  # Lucia, session validation, role gates
 │   │   ├── config/                # FormConfig loader, getFormConfig()
 │   │   ├── db/                    # Drizzle schema, queries, instance loader
-│   │   ├── yaml/                  # YAML parsing + zod schema
+│   │   ├── yaml/                  # YAML parsing + zod schema + form/view exporters
 │   │   ├── startup/               # bootstrap pipeline (instrumentation hook)
-│   │   ├── backup/                # restoreFromYaml, mergeAdminConfig
-│   │   ├── email/                 # provider clients, template engine
-│   │   ├── scheduler/             # node-cron jobs
+│   │   ├── backup/                # composeBackup, restoreFromYaml, restoreDataArchives
+│   │   ├── email/                 # providers, broadcast composer + batched sender
+│   │   ├── datapools/             # dedup pipeline, exclusions, preview + CSV
+│   │   ├── audit/                 # localized action labels
+│   │   ├── csv/                   # RFC 4180 escape helpers (shared)
+│   │   ├── scheduler/             # node-cron jobs (retention, audit purge, reaper)
 │   │   ├── security/              # rate limit, CSRF, encryption, password policy
+│   │   ├── admin/                 # mergeAdminConfig, autoFormView, purgeFormReferences
 │   │   └── utils/                 # flattenRepeater, priority thresholds, etc.
 │   ├── types/                     # config.ts, formInstance.ts (TS types)
 │   ├── i18n/                      # fr.ts, en.ts (UI labels)
@@ -131,15 +135,27 @@ Two stable layers separated by the bootstrap:
   `notifications`, `priorityThresholds`. Editable from the admin UI
   unless `_managedBy: "yaml"` (file mode).
 - **Global admin config** — one singleton row in `app_config_doc`:
-  `admin.pages` (dashboards), `admin.tableColumns`, `admin.branding`,
-  `admin.features`, `useCustomRoot`. Edited from the admin UI; can be
-  reset via `restoreFromYaml` (`append` upserts by `id`, `replace`
-  wipes-and-sets).
+  `admin.views` (dashboards, alias `admin.pages` accepted for fwd-compat),
+  `admin.tableColumns`, `admin.branding`, `admin.features`,
+  `admin.folders`, `admin.dataPools`, `admin.exclusionReasons`,
+  `admin.auditRetention`, `useCustomRoot`. Edited from the admin UI;
+  can be reset via `restoreFromYaml` (`append` upserts by `id`,
+  `replace` wipes-and-sets).
 
 `src/lib/yaml/configSchema.ts` is the canonical schema for what the
 boot YAML accepts. `src/types/config.ts` is the canonical typed shape
 the rest of the code consumes. See [yaml-schema.md](./yaml-schema.md)
 and [config-as-code.md](./config-as-code.md) for the operator's view.
+
+### Feature-scoped tables
+
+| Table | Purpose | See |
+|---|---|---|
+| `data_pools` + `data_pool_sources` + `data_pool_submission_exclusions` | Read-time deduplicated audiences with per-pool opt-outs | [datapools.md](./datapools.md) |
+| `email_providers` | AES-256-GCM-encrypted provider presets (Resend / SendGrid / Mailgun) | [email-setup.md](./email-setup.md) |
+| `email_broadcasts` | Composed bulk sends with status + counts + last error | [broadcasts.md](./broadcasts.md) |
+| `admin_events` | Frozen audit trail with time-based retention | [audit-log.md](./audit-log.md) |
+| `folders` | Nested folders for sidebar and forms/views grids | — |
 
 ## Caching strategy
 
@@ -157,10 +173,20 @@ Server-side caches are minimal and per-process:
 
 ## Scheduler
 
-`src/lib/scheduler/scheduler.ts` registers `scheduled_jobs` rows as
-node-cron tasks. Built-in actions: `retention_cleanup`, `export_json`,
-`export_csv`, `export_backup`. The scheduler reloads every 5 minutes so
-config changes don't require a restart.
+`src/lib/scheduler/scheduler.ts` runs node-cron and combines two kinds
+of tasks:
+
+- **`scheduled_jobs` rows** (operator-configured) with actions
+  `retention_cleanup`, `export_json`, `export_csv`, `export_backup`,
+  `dataset_poll`, `audit_purge`. The scheduler reloads every 5 minutes
+  so config changes don't require a restart.
+- **Built-in ticks**:
+  - Every minute — process the webhook delivery retry queue.
+  - Every 5 minutes — reap broadcasts stuck in `sending > 10 min` back
+    to `failed` (kicks the composer's edit + resend path).
+  - 03:00 daily — purge completed webhook deliveries older than 30 days.
+  - 03:15 daily — audit purge, honours `admin.auditRetention.policy`
+    (no-op when `keep_all` or unset).
 
 The image runs as PID 1 — there's no separate worker container. If you
 need multi-replica deployments, the scheduler should run on exactly one

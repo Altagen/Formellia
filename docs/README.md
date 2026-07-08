@@ -53,6 +53,12 @@ Production on a VPS:
 - **[audit-log.md](./audit-log.md)** — timeline view, retention policy
   and manual purge, CSV/JSON/YAML export, action label taxonomy.
 
+### I want to learn the admin UI
+
+- **[admin-ui.md](./admin-ui.md)** — sidebar layout, folders,
+  master/detail Configuration, forms and views cards, Administration
+  split, destructive-flow confirmations.
+
 ### I want to understand how the system works
 
 - **[architecture.md](./architecture.md)** — component map, request flow,
@@ -77,6 +83,7 @@ Production on a VPS:
 | [broadcasts.md](./broadcasts.md) | Bulk sends composer + sender | Operators |
 | [datapools.md](./datapools.md) | Deduplicated audiences | Operators |
 | [audit-log.md](./audit-log.md) | Timeline + retention + export | Operators / ops |
+| [admin-ui.md](./admin-ui.md) | Sidebar, folders, master/detail, cards | Operators |
 | [deployment.md](./deployment.md) | VPS production checklist | Operators |
 | [security.md](./security.md) | Auth, secrets, rate limit, audit | Devs / ops |
 | [examples/](./examples/) | Copy-paste YAML | Operators |
