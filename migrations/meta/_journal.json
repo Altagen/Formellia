@@ -8,6 +8,55 @@
       "when": 1774944673730,
       "tag": "0000_lowly_blue_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778838445975,
+      "tag": "0001_old_ultimo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778877314658,
+      "tag": "0002_amusing_nocturne",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779034553649,
+      "tag": "0003_user-sidebar-collapsed",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779147508614,
+      "tag": "0004_broadcast-additional-recipients",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779148000000,
+      "tag": "0005_email-config-global",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783282670296,
+      "tag": "0006_email-providers-unification",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783286960475,
+      "tag": "0007_email-broadcasts-provider-id",
+      "breakpoints": true
     }
   ]
 }

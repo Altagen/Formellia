@@ -1,4 +1,4 @@
-import { pgTable, varchar, jsonb, timestamp, uuid, date, text, integer, smallint, boolean, index, check } from "drizzle-orm/pg-core";
+import { pgTable, varchar, jsonb, timestamp, uuid, date, text, integer, smallint, boolean, index, uniqueIndex, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type { SidebarLayout } from "@/types/sidebarLayout";
 
@@ -29,6 +29,11 @@ export const submissions = pgTable("submissions", {
   assignedToId:    varchar("assigned_to_id",    { length: 21 }).references(() => users.id, { onDelete: "set null" }),
   assignedToEmail: varchar("assigned_to_email", { length: 255 }),
   formInstanceId: uuid("form_instance_id").references(() => formInstances.id, { onDelete: "cascade" }),
+  // Soft-exclude from every DataPool — keeps the submission and its data intact
+  // but makes it invisible to the aggregation queries. The per-pool exclusion
+  // table lives next to dataPools below for the narrower "block this address
+  // for that one audience" case.
+  excludedFromDataPools: boolean("excluded_from_data_pools").notNull().default(false),
 }, (t) => [
   index("idx_submissions_form_instance_id").on(t.formInstanceId),
   index("idx_submissions_status_priority").on(t.status, t.priority),
@@ -50,6 +55,8 @@ export const users = pgTable("users", {
   recoveryCodes: jsonb("recovery_codes").$type<string[]>(),
   /** Per-user sidebar customization: favorites, pinned forms, custom links, categories. */
   sidebarLayout: jsonb("sidebar_layout").$type<SidebarLayout>(),
+  /** Per-user toggle for the collapsed (icons-only) admin sidebar. */
+  sidebarCollapsed: boolean("sidebar_collapsed").notNull().default(false),
 });
 
 export const sessions = pgTable("sessions", {
@@ -127,6 +134,17 @@ export const appConfig = pgTable("app_config", {
   loginRateLimitWindowMinutes: integer("login_rate_limit_window_minutes").notNull().default(15),
   useCustomRoot: boolean("use_custom_root").notNull().default(false),
   protectedSlugs: jsonb("protected_slugs").$type<string[]>().notNull().default([]),
+  // ── Global email config (0.3.0) ────────────────────────────────────────
+  // One provider, one API key, one identity for the whole instance. Used by
+  // both the manual email composer (broadcasts) AND the per-form transactional
+  // notifications when the form has no override. A form may still override
+  // any of these fields via `form_instances.config.notifications.email`
+  // — useful when one form sends from a different domain.
+  emailProvider:          text("email_provider"),                                   // 'resend' | 'sendgrid' | 'mailgun'
+  emailFromAddress:       text("email_from_address"),
+  emailFromName:          text("email_from_name"),
+  emailApiKeyEncrypted:   text("email_api_key_encrypted"),                          // AES-256-GCM, "cur:" prefix
+  emailApiKeyExpiresAt:   date("email_api_key_expires_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (t) => [
   check("app_config_single_row", sql`${t.id} = 1`),
@@ -352,6 +370,172 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
   index("idx_wh_delivery_status_retry").on(t.status, t.nextRetryAt),
   index("idx_wh_delivery_submission").on(t.submissionId),
 ]);
+
+// ─────────────────────────────────────────────────────────
+// DataPools — read-time deduplicated views over submission fields
+// ─────────────────────────────────────────────────────────
+//
+// A DataPool exposes one distinct value of `keyField` per matching submission,
+// optionally enriched with `additionalFields`. Rows are computed on read
+// (see src/lib/datapools/compute.ts) — there is no materialisation, so a
+// fresh submission propagates immediately and a deleted one disappears.
+//
+// Three places where a value can be hidden:
+//   - the submission row itself sets `excludedFromDataPools = true` → drops
+//     it from every pool at once ("block this person from all my audiences");
+//   - a `data_pool_submission_exclusions(poolId, submissionId)` row masks one
+//     specific submission from one specific pool ("exclude alice's edition-5
+//     submission from the 1st-edition audience, but keep her in others");
+//   - the submission is hard-deleted from `submissions` — same outcome,
+//     less reversible.
+//
+// We deliberately do NOT keep a hashed suppression list keyed by email value.
+// That pattern is only legally required for direct marketing (GDPR Art. 21)
+// and the 0.3.0 broadcasts are operational comms (Art. 17 territory only —
+// see project_newsletter_future_groundwork.md for the planned upgrade path
+// when a real newsletter feature ships later).
+
+export const dataPools = pgTable("data_pools", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  slug:             varchar("slug",       { length: 100 }).notNull().unique(),
+  name:             varchar("name",       { length: 255 }).notNull(),
+  description:      text("description"),
+  // The form-field id whose distinct values populate the pool (e.g. "email").
+  keyField:         varchar("key_field",  { length: 100 }).notNull(),
+  // Other field ids carried alongside each entry, e.g. ["firstName", "lastName"].
+  additionalFields: jsonb("additional_fields").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  createdAt:        timestamp("created_at").defaultNow().notNull(),
+  updatedAt:        timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const dataPoolSources = pgTable("data_pool_sources", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  dataPoolId:     uuid("data_pool_id").notNull().references(() => dataPools.id, { onDelete: "cascade" }),
+  formInstanceId: uuid("form_instance_id").notNull().references(() => formInstances.id, { onDelete: "cascade" }),
+  createdAt:      timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_dps_data_pool_id").on(t.dataPoolId),
+  index("idx_dps_form_instance_id").on(t.formInstanceId),
+  // (pool, form) is the natural key — one form can only source a pool once.
+  uniqueIndex("uniq_dps_pool_form").on(t.dataPoolId, t.formInstanceId),
+]);
+
+// Per-pool exclusion: which specific submissions are hidden from which pool.
+// FK-only, no PII duplicated — the submission is the single source of truth
+// for the email value. If the submission is hard-deleted (Art. 17 erasure),
+// the exclusion cascades away too; if the same person re-submits, the new
+// submission has a new id and re-enters the pool — which is a fresh act of
+// consent under GDPR doctrine.
+export const dataPoolSubmissionExclusions = pgTable("data_pool_submission_exclusions", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  dataPoolId:       uuid("data_pool_id").notNull().references(() => dataPools.id, { onDelete: "cascade" }),
+  submissionId:     uuid("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
+  reason:           text("reason"),
+  excludedByUserId: varchar("excluded_by_user_id", { length: 21 }).references(() => users.id, { onDelete: "set null" }),
+  excludedAt:       timestamp("excluded_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_dpse_data_pool_id").on(t.dataPoolId),
+  index("idx_dpse_submission_id").on(t.submissionId),
+  uniqueIndex("uniq_dpse_pool_submission").on(t.dataPoolId, t.submissionId),
+]);
+
+export type DataPool = typeof dataPools.$inferSelect;
+export type DataPoolSource = typeof dataPoolSources.$inferSelect;
+export type DataPoolSubmissionExclusion = typeof dataPoolSubmissionExclusions.$inferSelect;
+
+/**
+ * email_broadcasts — manual one-shot mailings composed in the admin UI and
+ * sent to the deduplicated union of one or more DataPools.
+ *
+ * Lifecycle (status column):
+ *   draft   → freshly created, not yet sent; freely editable.
+ *   sending → /send was invoked, the engine is processing batches.
+ *   sent    → all batches accepted by the provider; counts populated.
+ *   failed  → engine aborted (e.g. provider auth failure); `last_error` set.
+ *
+ * `data_pool_ids` is captured at send time so a later DataPool edit doesn't
+ * retroactively change the recipient set of an already-sent broadcast.
+ *
+ * GDPR: the email values themselves are NEVER stored here — recipients are
+ * recomputed at send time from the referenced pools, and the *count* (not the
+ * addresses) is the only post-send artefact. Erasure of a submission propagates
+ * transparently because the pool aggregation is a view, not a copy.
+ */
+export const emailBroadcasts = pgTable("email_broadcasts", {
+  id:              uuid("id").primaryKey().defaultRandom(),
+  name:            text("name").notNull(),
+  subject:         text("subject").notNull().default(""),
+  bodyHtml:        text("body_html").notNull().default(""),
+  bodyText:        text("body_text").notNull().default(""),
+  status:          text("status").notNull().default("draft"),
+  dataPoolIds:     jsonb("data_pool_ids").$type<string[]>().notNull().default([]),
+  // Free-text email addresses the operator added by hand in the composer.
+  // Merged with the DataPool-resolved recipients at preview/send time and
+  // case-insensitively deduplicated against them, so a person who appears
+  // both in a pool and in this list still receives one mail.
+  additionalRecipients: jsonb("additional_recipients").$type<string[]>().notNull().default([]),
+  /**
+   * UUID of the row in `email_providers` that supplies provider/apiKey/from.
+   * Nullable so a draft can exist before the operator picks a preset. Null at
+   * send time falls back to the default preset (email_providers.is_default).
+   * ON DELETE SET NULL — deleting a preset leaves the historical broadcast
+   * intact but flags it as needing reassignment before it can be re-sent.
+   */
+  providerId:      uuid("provider_id").references(() => emailProviders.id, { onDelete: "set null" }),
+  recipientCount:  integer("recipient_count").notNull().default(0),
+  sentCount:       integer("sent_count").notNull().default(0),
+  failedCount:     integer("failed_count").notNull().default(0),
+  lastError:       text("last_error"),
+  sentAt:          timestamp("sent_at"),
+  createdByUserId: varchar("created_by_user_id", { length: 21 }).references(() => users.id, { onDelete: "set null" }),
+  createdAt:       timestamp("created_at").notNull().defaultNow(),
+  updatedAt:       timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  check("email_broadcasts_status_check",
+        sql`${t.status} IN ('draft', 'sending', 'sent', 'failed')`),
+  index("idx_email_broadcasts_status_created_at").on(t.status, t.createdAt),
+]);
+
+export type EmailBroadcast = typeof emailBroadcasts.$inferSelect;
+
+/**
+ * Named email provider presets — 0.3.1 unification.
+ *
+ * Before: forms and broadcasts each stored their own {provider, apiKey,
+ * fromAddress, fromName}, with an app_config-level fallback. Impossible to
+ * reuse the same Resend account across N forms without pasting the key
+ * everywhere; impossible to have a separate SendGrid identity for the
+ * newsletter without duplicating it back into each form.
+ *
+ * Now: one row per {name, provider, apiKey, fromAddress[, fromName]}
+ * identity. Forms + broadcasts hold only a `providerId` reference plus the
+ * template (subject + bodyText + enabled). Zero credentials outside this
+ * table.
+ *
+ * The legacy `app_config.email_*` columns and `form_instances.config.
+ * notifications.email.apiKeyEncrypted` are dropped at migration time — see
+ * migrations/PENDING_DROPS.md. A single migration seeds the first preset
+ * from the previous global config if it existed.
+ */
+export const emailProviders = pgTable("email_providers", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  name:             text("name").notNull().unique(),
+  provider:         text("provider").notNull(),        // 'resend' | 'sendgrid' | 'mailgun'
+  fromAddress:      text("from_address").notNull(),
+  fromName:         text("from_name"),
+  apiKeyEncrypted:  text("api_key_encrypted").notNull(),
+  apiKeyExpiresAt:  date("api_key_expires_at"),
+  isDefault:        boolean("is_default").notNull().default(false),
+  createdAt:        timestamp("created_at").notNull().defaultNow(),
+  updatedAt:        timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  check("email_providers_provider_check",
+        sql`${t.provider} IN ('resend', 'sendgrid', 'mailgun')`),
+  // Cheap way to enforce "at most one default" — Postgres partial unique index.
+  uniqueIndex("email_providers_default_unique").on(t.isDefault).where(sql`${t.isDefault} = true`),
+]);
+
+export type EmailProviderRow = typeof emailProviders.$inferSelect;
 
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type CustomCaCert = typeof customCaCerts.$inferSelect;
