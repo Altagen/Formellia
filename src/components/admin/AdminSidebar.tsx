@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUserPreferences } from "@/lib/context/UserPreferencesContext";
 import { useUserRole, useUserCtx } from "@/lib/context/UserRoleContext";
@@ -12,6 +12,7 @@ import {
   Settings2, LogOut,
   LayoutDashboard, Inbox, BarChart2, FileText, Info, Globe, User, ClipboardList,
   Link2, ChevronDown, ChevronRight, Pencil, Plus, Trash2, Check, X, FolderPlus,
+  Database, Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,6 +30,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { AdminPage, AdminFeatures, AdminBrandingConfig } from "@/types/config";
 import type { SidebarLayout, SidebarCustomLink, SidebarCategory } from "@/types/sidebarLayout";
 import type { FormInstance } from "@/types/formInstance";
+import { AdminThemeToggle } from "@/components/admin/AdminThemeToggle";
 
 const UNCAT = "__uncategorized__";
 
@@ -154,6 +156,9 @@ function SortableCatBlock(props: SortableCatBlockProps) {
     collapsed, onToggleCollapse, inputClass,
   } = props;
 
+  const tr = useTranslations();
+  const s = tr.admin.sidebarNav;
+
   const { setNodeRef, listeners, attributes, transform, transition, isDragging } =
     useSortable({ id: `cat:${cat.id}` });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -185,7 +190,7 @@ function SortableCatBlock(props: SortableCatBlockProps) {
               onMouseDown={stop}
               onChange={e => onRenameDraftChange({ ...renameDraft, name: e.target.value })}
               onKeyDown={e => { if (e.key === "Enter") onSaveRename(); if (e.key === "Escape") onCancelRename(); }}
-              placeholder="Nom" />
+              placeholder={s.categoryNamePlaceholder} />
             <button type="button" onMouseDown={stop} onClick={onSaveRename} className="shrink-0 p-0.5 rounded text-green-600 hover:bg-accent/50"><Check className="w-3.5 h-3.5" /></button>
             <button type="button" onMouseDown={stop} onClick={onCancelRename} className="shrink-0 p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3.5 h-3.5" /></button>
           </>
@@ -215,7 +220,7 @@ function SortableCatBlock(props: SortableCatBlockProps) {
                 icon={item.icon} label={item.label} onRemove={item.onRemove} />
             ))}
             {orderedItems.length === 0 && !isAddOpen && (
-              <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">Vide</p>
+              <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">{s.empty}</p>
             )}
             {isAddOpen && addPanel}
           </div>
@@ -236,6 +241,8 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
   onClose: () => void;
   inputClass: string;
 }) {
+  const tr = useTranslations();
+  const s = tr.admin.sidebarNav;
   const [mode, setMode] = useState<"pick" | "page" | "form" | "link">("pick");
   const [label, setLabel] = useState("");
   const [href, setHref] = useState("");
@@ -245,16 +252,16 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
       {availablePages.length > 0 && (
         <button type="button" onMouseDown={e => e.stopPropagation()} onClick={() => setMode("page")}
           className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-border hover:bg-accent/50 transition-colors">
-          <LayoutDashboard className="w-3 h-3" /> Page
+          <LayoutDashboard className="w-3 h-3" /> {s.addPage}
         </button>
       )}
       <button type="button" onMouseDown={e => e.stopPropagation()} disabled={availableForms.length === 0} onClick={() => setMode("form")}
         className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-border hover:bg-accent/50 disabled:opacity-40 transition-colors">
-        <FileText className="w-3 h-3" /> Form
+        <FileText className="w-3 h-3" /> {s.addForm}
       </button>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={() => setMode("link")}
         className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-border hover:bg-accent/50 transition-colors">
-        <Link2 className="w-3 h-3" /> Lien
+        <Link2 className="w-3 h-3" /> {s.addLink}
       </button>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={onClose} className="ml-auto p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3 h-3" /></button>
     </div>
@@ -265,7 +272,7 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
       <select autoFocus className={cn(inputClass, "flex-1 text-xs h-6")} defaultValue=""
         onMouseDown={e => e.stopPropagation()}
         onChange={e => { if (e.target.value) { onAddPage(e.target.value); onClose(); } }}>
-        <option value="" disabled>Choisir…</option>
+        <option value="" disabled>{s.choose}</option>
         {availablePages.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
       </select>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={onClose} className="shrink-0 p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3 h-3" /></button>
@@ -277,7 +284,7 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
       <select autoFocus className={cn(inputClass, "flex-1 text-xs h-6")} defaultValue=""
         onMouseDown={e => e.stopPropagation()}
         onChange={e => { if (e.target.value) { onAddForm(e.target.value); onClose(); } }}>
-        <option value="" disabled>Choisir…</option>
+        <option value="" disabled>{s.choose}</option>
         {availableForms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
       </select>
       <button type="button" onMouseDown={e => e.stopPropagation()} onClick={onClose} className="shrink-0 p-0.5 rounded text-muted-foreground hover:bg-accent/50"><X className="w-3 h-3" /></button>
@@ -286,10 +293,10 @@ function AddItemPanel({ availablePages, availableForms, onAddPage, onAddForm, on
 
   return (
     <div className="space-y-1 py-1">
-      <input autoFocus className={cn(inputClass, "w-full text-xs h-6")} placeholder="Label"
+      <input autoFocus className={cn(inputClass, "w-full text-xs h-6")} placeholder={s.linkLabelPlaceholder}
         onMouseDown={e => e.stopPropagation()} value={label} onChange={e => setLabel(e.target.value)} />
       <div className="flex gap-1">
-        <input className={cn(inputClass, "flex-1 text-xs h-6")} placeholder="URL"
+        <input className={cn(inputClass, "flex-1 text-xs h-6")} placeholder={s.linkUrlPlaceholder}
           onMouseDown={e => e.stopPropagation()} value={href} onChange={e => setHref(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && label && href) { onAddLink({ label, href }); onClose(); } }} />
         <button type="button" onMouseDown={e => e.stopPropagation()} disabled={!label.trim() || !href.trim()}
@@ -310,22 +317,36 @@ interface AdminSidebarProps {
   branding?: AdminBrandingConfig;
   initialSidebarLayout?: SidebarLayout | null;
   pinnedFormMeta?: { id: string; name: string; slug: string }[];
+  collapsed?: boolean;
   onClose?: () => void;
 }
 
 export function AdminSidebar({
   userEmail, pages = [], features, branding,
-  initialSidebarLayout, pinnedFormMeta = [], onClose,
+  initialSidebarLayout, pinnedFormMeta = [], collapsed = false, onClose,
 }: AdminSidebarProps) {
   const pathname = usePathname();
+  const currentTab = useSearchParams().get("tab");
   const { themeMode } = useUserPreferences();
   const role = useUserRole();
   const { hasEmail, hasRecoveryCodes, accessibleFormIds } = useUserCtx();
   const tr = useTranslations();
+  const s = tr.admin.sidebarNav;
 
   const [layout, setLayout] = useState<SidebarLayout>(initialSidebarLayout ?? {});
   const [editMode, setEditMode] = useState(false);
   const [allFormsMeta, setAllFormsMeta] = useState<FormInstance[]>([]);
+
+  // Sync local layout state when the server-rendered prop changes (e.g. after
+  // a sibling component — ViewsList's pin toggle — PATCHes /account/sidebar-layout
+  // and triggers router.refresh(). Skip while the user is actively editing the
+  // sidebar to avoid clobbering in-progress drags. Compare by serialised value
+  // so a same-shape re-render doesn't re-set state unnecessarily.
+  const initialSerialised = JSON.stringify(initialSidebarLayout ?? {});
+  useEffect(() => {
+    if (editMode) return;
+    setLayout(prev => (JSON.stringify(prev) === initialSerialised ? prev : (initialSidebarLayout ?? {})));
+  }, [initialSerialised, editMode, initialSidebarLayout]);
 
   // Edit UI state
   const [renamingCatId, setRenamingCatId] = useState<string | null>(null);
@@ -387,9 +408,13 @@ export function AdminSidebar({
   const uncatFormIds = pinnedForms.filter(id => !catFormIds.has(id));
   const uncatLinks   = customLinks.filter(l => !catLinkIds.has(l.id));
 
-  const visiblePages = accessibleFormIds === "all"
+  const hiddenPages = new Set(layout.hiddenPages ?? []);
+  const accessiblePages = accessibleFormIds === "all"
     ? pages
     : pages.filter(p => !p.formInstanceId || accessibleFormIds.includes(p.formInstanceId));
+  // Pages the user has explicitly hidden don't appear in the sidebar. Categorised
+  // pages always appear (categorising == implicit pin), so they bypass the hidden filter.
+  const visiblePages = accessiblePages.filter(p => !hiddenPages.has(p.id) || catPageIds.has(p.id));
 
   const uncatPages = visiblePages.filter(p => !catPageIds.has(p.id));
 
@@ -764,11 +789,20 @@ export function AdminSidebar({
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <aside className="flex flex-col w-56 shrink-0 h-screen border-r border-border bg-card overflow-hidden">
+    <aside className={cn(
+      "flex flex-col shrink-0 h-screen border-r border-border bg-card overflow-hidden transition-[width] duration-200",
+      collapsed ? "w-14" : "w-56",
+    )}>
 
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-4 h-14 shrink-0 border-b border-border">
-        <Link href="/admin" className="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+      <div className={cn(
+        "flex items-center h-14 shrink-0 border-b border-border",
+        collapsed ? "justify-center px-2" : "gap-2.5 px-4",
+      )}>
+        <Link href="/admin" className={cn(
+          "flex items-center hover:opacity-80 transition-opacity",
+          collapsed ? "justify-center" : "gap-2.5 flex-1 min-w-0",
+        )}>
           {logoUrl ? (
             <Image src={logoUrl} alt={appName} width={28} height={28} unoptimized
               style={{ width: "28px", height: "28px", objectFit: "contain" }} className="shrink-0" />
@@ -776,11 +810,11 @@ export function AdminSidebar({
             <Image src="/formellia-logo-transparent.png" alt={appName} width={28} height={28}
               style={{ width: "28px", height: "28px" }} className="shrink-0" />
           )}
-          <span className="font-semibold text-sm tracking-tight flex-1 truncate">{appName}</span>
+          {!collapsed && <span className="font-semibold text-sm tracking-tight flex-1 truncate">{appName}</span>}
         </Link>
-        {role !== "viewer" && (
+        {!collapsed && role !== "viewer" && (
           <button type="button" onClick={editMode ? () => setEditMode(false) : enterEdit}
-            title={editMode ? "Terminer" : tr.admin.config.sidebar.tab}
+            title={editMode ? tr.admin.config.sidebar.doneEditing : tr.admin.config.sidebar.tab}
             className={cn("p-1 rounded transition-colors shrink-0",
               editMode ? "text-primary bg-primary/10 hover:bg-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
             {editMode ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
@@ -803,7 +837,7 @@ export function AdminSidebar({
                     className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
                     {editCollapsed[UNCAT] ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                   </button>
-                  <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Uncategorized</span>
+                  <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{s.uncategorized}</span>
                   <button type="button" onClick={() => setAddingTo(addingTo === UNCAT ? null : UNCAT)}
                     className="shrink-0 opacity-0 group-hover/uch:opacity-100 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors">
                     <Plus className="w-3.5 h-3.5" />
@@ -830,7 +864,7 @@ export function AdminSidebar({
                           label={l.label} onRemove={() => removeLink(l.id)} />
                       ))}
                       {uncatPages.length === 0 && uncatFormIds.length === 0 && uncatLinks.length === 0 && addingTo !== UNCAT && (
-                        <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">Vide</p>
+                        <p className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">{s.empty}</p>
                       )}
                       {addingTo === UNCAT && (
                         <AddItemPanel
@@ -905,38 +939,45 @@ export function AdminSidebar({
         /* ── View mode ──────────────────────────────────────────────────── */
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
 
+          {(uncatPages.length > 0 || hasPinnedSection) && !collapsed && (
+            <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {tr.admin.config.sidebar.sections.pinned}
+            </div>
+          )}
+
           {/* Pages not in any category */}
           {uncatPages.map(page => {
             const href = `/admin/${page.slug}`;
             const active = isActive(href);
             return (
-              <Link key={page.id} href={href} onClick={onClose}
-                className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
+              <Link key={page.id} href={href} onClick={onClose} title={collapsed ? page.title : undefined}
+                className={cn("flex items-center rounded-md text-sm transition-colors",
+                  collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2",
                   active ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
                 <PageIcon name={page.icon} className="w-4 h-4 shrink-0" />
-                <span className="truncate">{page.title}</span>
+                {!collapsed && <span className="truncate">{page.title}</span>}
               </Link>
             );
           })}
 
-          {/* Pinned section: categories + uncategorized forms/links */}
-          {hasPinnedSection && (
+          {/* Pinned section: categories + uncategorized forms/links (only expanded when sidebar is not collapsed) */}
+          {hasPinnedSection && !collapsed && (
             <>
               {(uncatPages.length > 0) && <div className="my-1 border-t border-border/50" />}
 
               {categories.map(cat => {
                 const viewItems = buildViewItems(cat);
                 if (viewItems.length === 0) return null;
-                const collapsed = viewCollapsed[cat.id];
+                const catCollapsed = viewCollapsed[cat.id];
                 return (
                   <div key={cat.id}>
                     <button type="button" onClick={() => setViewCollapsed(p => ({ ...p, [cat.id]: !p[cat.id] }))}
                       className="flex items-center gap-1.5 w-full px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors">
                       <span>{cat.emoji}</span>
                       <span className="truncate flex-1 text-left">{cat.name}</span>
-                      {collapsed ? <ChevronRight className="w-3 h-3 shrink-0" /> : <ChevronDown className="w-3 h-3 shrink-0" />}
+                      {catCollapsed ? <ChevronRight className="w-3 h-3 shrink-0" /> : <ChevronDown className="w-3 h-3 shrink-0" />}
                     </button>
-                    {!collapsed && (
+                    {!catCollapsed && (
                       <div className="space-y-0.5">
                         {viewItems.map(entry => {
                           if (entry.type === "page") {
@@ -1004,49 +1045,94 @@ export function AdminSidebar({
             </>
           )}
 
-          <div className="my-1 border-t border-border/50" />
+          {!collapsed && (
+            <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {tr.admin.config.sidebar.sections.tools}
+            </div>
+          )}
 
-          {features?.globalView && (
-            <Link href="/admin/global" onClick={onClose}
-              className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
-                isActive("/admin/global") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
-              <Globe className="w-4 h-4 shrink-0" /><span>{tr.admin.nav.globalView}</span>
+          <Link href="/admin/forms" onClick={onClose} title={collapsed ? tr.admin.nav.forms : undefined}
+            className={cn("flex items-center rounded-md text-sm transition-colors",
+              collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2",
+              isActive("/admin/forms") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
+            <FileText className="w-4 h-4 shrink-0" />{!collapsed && <span>{tr.admin.nav.forms}</span>}
+          </Link>
+
+          {role !== "viewer" && role !== "agent" && (
+            <Link href="/admin/views" onClick={onClose} title={collapsed ? tr.admin.nav.views : undefined}
+              className={cn("flex items-center rounded-md text-sm transition-colors",
+                collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2",
+                isActive("/admin/views") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
+              <LayoutDashboard className="w-4 h-4 shrink-0" />{!collapsed && <span>{tr.admin.nav.views}</span>}
             </Link>
           )}
 
           {role !== "viewer" && role !== "agent" && (
-            <Link href="/admin/configuration" onClick={onClose}
-              className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
-                isActive("/admin/configuration") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
-              <Settings2 className="w-4 h-4 shrink-0" /><span>{tr.admin.nav.configuration}</span>
+            <Link href="/admin/datapools" onClick={onClose} title={collapsed ? tr.admin.nav.datapools : undefined}
+              className={cn("flex items-center rounded-md text-sm transition-colors",
+                collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2",
+                isActive("/admin/datapools") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
+              <Database className="w-4 h-4 shrink-0" />{!collapsed && <span>{tr.admin.nav.datapools}</span>}
+            </Link>
+          )}
+
+          {role !== "viewer" && role !== "agent" && (
+            <Link href="/admin/email/broadcasts" onClick={onClose} title={collapsed ? tr.admin.nav.broadcasts : undefined}
+              className={cn("flex items-center rounded-md text-sm transition-colors",
+                collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2",
+                isActive("/admin/email/broadcasts") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
+              <Send className="w-4 h-4 shrink-0" />{!collapsed && <span>{tr.admin.nav.broadcasts}</span>}
+            </Link>
+          )}
+
+          {role !== "viewer" && role !== "agent" && (
+            <Link href="/admin/configuration" onClick={onClose} title={collapsed ? tr.admin.nav.configuration : undefined}
+              className={cn("flex items-center rounded-md text-sm transition-colors",
+                collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2",
+                isActive("/admin/configuration") && !(currentTab === "forms" || currentTab === "pages")
+                  ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
+              <Settings2 className="w-4 h-4 shrink-0" />{!collapsed && <span>{tr.admin.nav.configuration}</span>}
             </Link>
           )}
 
           {features?.auditLog && role !== "viewer" && role !== "agent" && (
-            <Link href="/admin/audit" onClick={onClose}
-              className={cn("flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
+            <Link href="/admin/audit" onClick={onClose} title={collapsed ? tr.admin.nav.auditLog : undefined}
+              className={cn("flex items-center rounded-md text-sm transition-colors",
+                collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2",
                 isActive("/admin/audit") ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
-              <ClipboardList className="w-4 h-4 shrink-0" /><span>{tr.admin.nav.auditLog}</span>
+              <ClipboardList className="w-4 h-4 shrink-0" />{!collapsed && <span>{tr.admin.nav.auditLog}</span>}
             </Link>
           )}
         </nav>
       )}
 
       {/* Bottom */}
-      <div className="border-t border-border p-3 space-y-2 shrink-0">
-        <div className="px-2 py-1">
-          <p className="text-xs text-muted-foreground truncate" title={userEmail}>{userEmail}</p>
-        </div>
-        <Link href="/admin/profile" onClick={onClose}
-          className={cn("flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm transition-colors",
+      <div className="border-t border-border p-2 space-y-2 shrink-0">
+        {collapsed ? (
+          <div className="flex justify-center px-1 py-1">
+            <AdminThemeToggle />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-2 py-1">
+            <p className="text-xs text-muted-foreground truncate flex-1" title={userEmail}>{userEmail}</p>
+            <AdminThemeToggle />
+          </div>
+        )}
+        <Link href="/admin/profile" onClick={onClose} title={collapsed ? tr.admin.nav.profile : undefined}
+          className={cn("flex items-center w-full rounded-md text-sm transition-colors",
+            collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2",
             isActive("/admin/profile") ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50")}>
-          <User className="w-4 h-4" />
-          <span>{tr.admin.nav.profile}</span>
-          {(!hasEmail || !hasRecoveryCodes) && <span className="ml-auto w-2 h-2 rounded-full bg-orange-500 shrink-0" />}
+          <User className="w-4 h-4 shrink-0" />
+          {!collapsed && <span>{tr.admin.nav.profile}</span>}
+          {(!hasEmail || !hasRecoveryCodes) && (
+            <span className={cn("w-2 h-2 rounded-full bg-orange-500 shrink-0", !collapsed && "ml-auto")} />
+          )}
         </Link>
         <form action="/api/auth/logout" method="POST">
-          <button type="submit" className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer">
-            <LogOut className="w-4 h-4" /><span>{tr.admin.nav.logout}</span>
+          <button type="submit" title={collapsed ? tr.admin.nav.logout : undefined}
+            className={cn("flex items-center w-full rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer",
+              collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2")}>
+            <LogOut className="w-4 h-4 shrink-0" />{!collapsed && <span>{tr.admin.nav.logout}</span>}
           </button>
         </form>
       </div>

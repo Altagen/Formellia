@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { toast } from "sonner";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { UserPreferencesProvider } from "@/lib/context/UserPreferencesContext";
@@ -28,7 +28,24 @@ interface AdminShellProps {
 
 export function AdminShell({ userEmail, pages, features, branding, initialThemeMode, initialColorPreset, initialLocale, initialSidebarLayout, pinnedFormMeta, children }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const appName = branding?.appName || "Formellia";
+
+  // Restore collapse pref (desktop only) once the shell mounts.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setDesktopCollapsed(window.localStorage.getItem("admin-sidebar-collapsed") === "1");
+  }, []);
+
+  function toggleDesktopCollapsed() {
+    setDesktopCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("admin-sidebar-collapsed", next ? "1" : "0");
+      }
+      return next;
+    });
+  }
   const { hasEmail, hasRecoveryCodes } = useUserCtx();
   const router = useRouter();
   const tr = useTranslations();
@@ -85,11 +102,11 @@ export function AdminShell({ userEmail, pages, features, branding, initialThemeM
           />
         )}
 
-        {/* Sidebar — drawer fixe sur mobile, statique sur md+ */}
+        {/* Sidebar — drawer fixe sur mobile, statique sur md+ (collapsible on desktop) */}
         <div
-          className={`fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-in-out md:static md:z-auto md:translate-x-0 md:transition-none ${
+          className={`group/sb fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-in-out md:static md:z-auto md:translate-x-0 md:transition-none ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+          } md:relative`}
         >
           <AdminSidebar
             userEmail={userEmail}
@@ -98,13 +115,26 @@ export function AdminShell({ userEmail, pages, features, branding, initialThemeM
             branding={branding}
             initialSidebarLayout={initialSidebarLayout}
             pinnedFormMeta={pinnedFormMeta}
+            collapsed={desktopCollapsed}
             onClose={() => setSidebarOpen(false)}
           />
+          {/* Desktop-only collapse toggle — small chevron that grows on hover */}
+          <button
+            type="button"
+            onClick={toggleDesktopCollapsed}
+            aria-label={desktopCollapsed ? tr.admin.expandSidebar : tr.admin.collapseSidebar}
+            title={desktopCollapsed ? tr.admin.expandSidebar : tr.admin.collapseSidebar}
+            className="hidden md:flex absolute top-1/2 -right-3 -translate-y-1/2 z-10 items-center justify-center w-5 h-5 rounded-full border border-border bg-card text-muted-foreground shadow-sm opacity-60 hover:opacity-100 hover:w-7 hover:h-7 hover:text-foreground hover:shadow-md transition-all duration-150 cursor-pointer"
+          >
+            {desktopCollapsed
+              ? <ChevronRight className="w-3 h-3" />
+              : <ChevronLeft className="w-3 h-3" />}
+          </button>
         </div>
 
-        {/* Contenu principal */}
+        {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          {/* Spacer pour le header mobile fixe */}
+          {/* Spacer for the fixed mobile header */}
           <div className="md:hidden h-14 shrink-0" />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             {children}

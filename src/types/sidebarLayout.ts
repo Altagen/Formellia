@@ -19,6 +19,10 @@ export interface SidebarLayout {
   favorites?:   string[];
   formOrder?:   string[];
   pinnedForms?: string[];
+  /** Page ids the user has explicitly hidden from the sidebar. Opt-out model:
+   *  a page is shown unless its id is listed here. New views are appended on
+   *  creation so the sidebar stays clean until the user pins them. */
+  hiddenPages?: string[];
   customLinks?: SidebarCustomLink[];
   categories?:  SidebarCategory[];
 }

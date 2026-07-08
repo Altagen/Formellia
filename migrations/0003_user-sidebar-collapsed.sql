@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "sidebar_collapsed" boolean DEFAULT false NOT NULL;
