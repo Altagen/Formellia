@@ -19,7 +19,7 @@ import type { FormInstance } from "@/types/formInstance";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Star, X, Eye, EyeOff, Globe } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Star, X, Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import { stepsForPage } from "@/lib/dashboard/scopedFields";
 
@@ -235,40 +235,6 @@ export function PagesTab({ pages, defaultPage, tableColumns, formSteps, formInst
           .map(f => [f.dbKey ?? f.id, f.options!.map(o => o.value)])
       ),
     };
-  }
-
-  function addPage() {
-    if (pages.length >= 10) return;
-    const id = `p-${Date.now()}`;
-    const newPage: AdminPage = { id, title: "New page", slug: `page-${Date.now()}`, icon: "layout-dashboard", widgets: [] };
-    onChangePages([...pages, newPage]);
-    setExpandedPageId(id);
-    setExpandedWidgetId(null);
-  }
-
-  // Pre-configured "Global view" template : aggregates submissions across all
-  // forms (no formInstanceId), with the same widgets the legacy /admin/global
-  // page used to render. Generated on demand from the "+ Vue globale" button.
-  function addGlobalViewPreset() {
-    if (pages.length >= 10) return;
-    const now = Date.now();
-    const id = `p-${now}`;
-    const newPage: AdminPage = {
-      id,
-      title: p.globalViewLabel,
-      slug: "global",
-      icon: "globe",
-      widgets: [
-        { type: "stats_card", id: `w-${now}-total`,    statsConfig: { id: `s-${now}-total`,    title: p.globalViewKpiTotal,      icon: "list",    query: { fn: "count", filters: [],                                                       filterLogic: "and", scope: "all" }, accent: "gray"   } },
-        { type: "stats_card", id: `w-${now}-pending`,  statsConfig: { id: `s-${now}-pending`,  title: p.globalViewKpiPending,    icon: "clock",   query: { fn: "count", filters: [{ field: "status", op: "eq", value: "pending"     }], filterLogic: "and", scope: "all" }, accent: "orange" } },
-        { type: "stats_card", id: `w-${now}-progress`, statsConfig: { id: `s-${now}-progress`, title: p.globalViewKpiInProgress, icon: "loader",  query: { fn: "count", filters: [{ field: "status", op: "eq", value: "in_progress" }], filterLogic: "and", scope: "all" }, accent: "blue"   } },
-        { type: "stats_card", id: `w-${now}-done`,     statsConfig: { id: `s-${now}-done`,     title: p.globalViewKpiDone,       icon: "check",   query: { fn: "count", filters: [{ field: "status", op: "eq", value: "done"        }], filterLogic: "and", scope: "all" }, accent: "green"  } },
-        { type: "submissions_table", id: `w-${now}-table`,   title: p.globalViewTableTitle },
-      ],
-    };
-    onChangePages([...pages, newPage]);
-    setExpandedPageId(id);
-    setExpandedWidgetId(null);
   }
 
   function updatePage(id: string, patch: Partial<AdminPage>) {

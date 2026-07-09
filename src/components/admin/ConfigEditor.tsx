@@ -76,7 +76,6 @@ export function ConfigEditor({ config, formInstances = [], initialTab }: ConfigE
       },
     ];
   }, [role, cfg]);
-  const TABS = useMemo(() => SECTIONS.flatMap((s) => s.items), [SECTIONS]);
 
   const [draft, setDraft] = useState<FormConfig>(() => JSON.parse(JSON.stringify(config)));
 
