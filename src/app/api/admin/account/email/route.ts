@@ -34,7 +34,10 @@ export async function PATCH(req: NextRequest) {
 
   const email = body.email === "" ? null : (body.email ?? null);
 
-  if (email !== null && !EMAIL_RE.test(email)) {
+  // Cap the length to RFC 5321's 254-char address max before hitting the
+  // regex — the regex has polynomial-backtracking behaviour on pathological
+  // inputs, and length-capping is enough to keep any parse under a millisecond.
+  if (email !== null && (email.length > 254 || !EMAIL_RE.test(email))) {
     return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
   }
 

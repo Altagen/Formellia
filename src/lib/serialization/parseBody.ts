@@ -25,7 +25,7 @@ export async function parseBody(req: NextRequest): Promise<unknown> {
   try {
     return yaml.load(text);
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Erreur de parsing";
-    throw new Error(`Invalid YAML: `);
+    const msg = e instanceof Error ? e.message : "Parse error";
+    throw new Error(`Invalid YAML: ${msg}`);
   }
 }
