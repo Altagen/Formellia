@@ -44,7 +44,7 @@ function evaluateRunIf(condition: PrintCondition, fieldValues: Record<string, st
   }
 }
 
-export function FormWizard({ instanceConfig, submitUrl = "/api/submit", locale }: FormWizardProps) {
+export function FormWizard({ instanceConfig, submitUrl, locale }: FormWizardProps) {
   const { steps } = instanceConfig.form;
   const totalSteps = steps.length;
   const tr = getTranslations(instanceConfig.meta.locale ?? locale);
@@ -86,7 +86,9 @@ export function FormWizard({ instanceConfig, submitUrl = "/api/submit", locale }
 
   // Initialize session ID and send initial view event
   useEffect(() => {
-    const sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    // crypto.randomUUID() is available in every modern browser (Chrome 92+,
+    // Firefox 95+, Safari 15.4+). No fallback needed for our support matrix.
+    const sid = crypto.randomUUID();
     sessionIdRef.current = sid;
     if (submitUrl?.includes("/api/forms/")) {
       const slug = submitUrl.split("/api/forms/")[1]?.split("/")[0] ?? "/";

@@ -40,7 +40,7 @@ export function ImportModal({ formId, instances, onClose, onSuccess }: ImportMod
 
   const [section, setSection]   = useState<ImportSection>("full");
   const [mode, setMode]         = useState<ImportMode>("replace");
-  const [targetId, setTargetId] = useState<string>(formId ?? "");
+  const [targetId] = useState<string>(formId ?? "");
   const [yamlText, setYamlText] = useState("");
   const [applying, setApplying] = useState(false);
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAdminSession, requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
+import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { requireFormAccess } from "@/lib/auth/permissions";
 import {
   getFormInstanceById,

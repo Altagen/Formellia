@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/validateSession";
 import { db } from "@/lib/db";
 import { externalRecords } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { isDisposableEmail } from "@/lib/utils/disposableEmails";
 
 interface Props {

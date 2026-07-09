@@ -12,10 +12,9 @@ interface PageViewBeaconProps {
  */
 export function PageViewBeacon({ slug }: PageViewBeaconProps) {
   useEffect(() => {
-    const sessionId =
-      (typeof crypto !== "undefined" && crypto.randomUUID?.())
-        ? crypto.randomUUID()
-        : Math.random().toString(36).slice(2, 18);
+    // crypto.randomUUID() is available in every modern browser (Chrome 92+,
+    // Firefox 95+, Safari 15.4+). No fallback needed for our support matrix.
+    const sessionId = crypto.randomUUID();
 
     const search = window.location.search;
     const params = new URLSearchParams(search);
