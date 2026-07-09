@@ -107,7 +107,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           npx --yes @cyclonedx/cyclonedx-npm \
-            --ignore-npm-errors \
+            --package-lock-only \
             --output-format JSON \
             --output-file sbom-npm-${VERSION}.json
 
