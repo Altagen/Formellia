@@ -89,33 +89,27 @@ jobs:
           category: trivy-image
 
   # Generate npm SBOM for the release
+  # Uses anchore/sbom-action (syft) — reads package-lock.json directly, no `npm ls`.
+  # cyclonedx-npm was blocked on the hosted runner (npm 12 exit 1 + malformed JSON).
   sbom:
     name: 📦 SBOM
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
         with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate npm SBOM
-        run: |
-          VERSION="${{ github.ref_name }}"
-          npx --yes @cyclonedx/cyclonedx-npm \
-            --package-lock-only \
-            --ignore-npm-errors \
-            --output-format JSON \
-            --output-file sbom-npm-${VERSION}.json
+          path: .
+          format: cyclonedx-json
+          output-file: sbom-npm-${{ github.ref_name }}.json
+          artifact-name: sbom-npm-${{ github.ref_name }}.json
+          upload-artifact: false
 
       - uses: actions/upload-artifact@v7
         with:
           name: sbom
-          path: sbom-*.json
+          path: sbom-npm-*.json
           retention-days: 7
 
   # Create GitHub release with changelog, SBOM and checksums
