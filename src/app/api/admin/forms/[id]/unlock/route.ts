@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { getFormInstanceById, saveFormInstance } from "@/lib/db/formInstanceLoader";
 import { logAdminEvent } from "@/lib/db/adminAudit";
@@ -20,6 +21,7 @@ export async function PATCH(
   const actor = await validateAdminSession(req);
   await saveFormInstance(id, { config: newConfig }, current.slug, actor?.id ?? null, actor?.email ?? null);
   const updated = await getFormInstanceById(id);
+  revalidatePath("/admin", "layout");
 
   logAdminEvent({
     userId:       actor?.id   ?? null,

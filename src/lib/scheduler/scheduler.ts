@@ -55,6 +55,36 @@ export async function initScheduler(): Promise<void> {
     }
   });
 
+  // Every 5 minutes — reap broadcasts stuck in `sending` beyond 10 minutes.
+  // Closes the "OOM-killed mid-send" hole where the row would otherwise stay
+  // locked forever (composer refuses edits, no resend path).
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      const { reapStuckBroadcasts } = await import("@/lib/email/broadcastCrud");
+      const reaped = await reapStuckBroadcasts();
+      if (reaped > 0) log.warn({ reaped }, "Stuck broadcasts reaped");
+    } catch (err) {
+      log.error({ err }, "Stuck-broadcast reap failed");
+    }
+  });
+
+  // Daily audit purge at 03:15 — honours `admin.auditRetention.policy` from config.
+  // When `policy === "keep_all"` (or unset) this is a no-op.
+  cron.schedule("15 3 * * *", async () => {
+    try {
+      const { getFormConfig } = await import("@/lib/config");
+      const cfg = await getFormConfig();
+      const policy = cfg.admin.auditRetention;
+      if (!policy || policy.policy !== "days" || !policy.days || policy.days < 1) return;
+      const { auditPurge } = await import("./jobs/auditPurge");
+      const result = await auditPurge({ olderThanDays: policy.days });
+      const count = typeof result.deleted === "number" ? result.deleted : 0;
+      if (count > 0) log.info({ deleted: count, days: policy.days }, "Audit events purged");
+    } catch (err) {
+      log.error({ err }, "Audit purge failed");
+    }
+  });
+
   log.info("Initialized");
 }
 

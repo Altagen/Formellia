@@ -9,7 +9,7 @@ import { SUBMISSION_FIELD_LABELS } from "@/lib/config/submissionFieldLabels";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const schema = z.object({
-  ids: z.array(z.string()).min(1).max(100).refine(ids => ids.every(id => UUID_RE.test(id)), { message: "IDs invalides" }),
+  ids: z.array(z.string()).min(1).max(100).refine(ids => ids.every(id => UUID_RE.test(id)), { message: "Invalid IDs" }),
   action: z.enum(["update", "delete"]).optional().default("update"),
   updates: z.object({
     status:   z.string().max(50).optional(),
@@ -63,7 +63,7 @@ export async function PATCH(req: NextRequest) {
     const foundIds = new Set(existing.map(r => r.id));
     const missing = ids.filter(id => !foundIds.has(id));
     return NextResponse.json(
-      { error: "Soumissions introuvables", missing },
+      { error: "Submissions not found", missing },
       { status: 404 }
     );
   }

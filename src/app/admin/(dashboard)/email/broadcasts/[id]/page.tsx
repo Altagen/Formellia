@@ -1,17 +1,17 @@
 import { notFound } from "next/navigation";
 import { getBroadcast } from "@/lib/email/broadcastCrud";
 import { listDataPools } from "@/lib/datapools/crud";
-import { getGlobalEmailConfigSafe } from "@/lib/email/globalEmailConfig";
+import { listEmailProviders } from "@/lib/email/providers";
 import { BroadcastComposerClient } from "./BroadcastComposerClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function BroadcastPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [broadcast, pools, providerCfg] = await Promise.all([
+  const [broadcast, pools, providers] = await Promise.all([
     getBroadcast(id),
     listDataPools(),
-    getGlobalEmailConfigSafe(),
+    listEmailProviders(),
   ]);
   if (!broadcast) notFound();
 
@@ -19,7 +19,7 @@ export default async function BroadcastPage({ params }: { params: Promise<{ id: 
     <BroadcastComposerClient
       broadcast={broadcast}
       pools={pools.map(p => ({ id: p.id, name: p.name, slug: p.slug }))}
-      providerConfig={providerCfg}
+      providers={providers}
     />
   );
 }

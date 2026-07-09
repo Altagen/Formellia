@@ -21,7 +21,7 @@ export function loadYamlConfig(): YamlConfig | null {
   if (_cached !== undefined) return _cached;
 
   const rawPath = process.env.CONFIG_YAML_PATH ?? path.resolve(process.cwd(), "config.yaml");
-  const filePath = path.resolve(rawPath); // normalise les ".." et symlinks relatifs
+  const filePath = path.resolve(rawPath); // normalises ".." and relative symlinks
 
   // Only allow .yaml / .yml extensions — prevents accidental reads of .env or other secrets
   if (!/\.ya?ml$/i.test(filePath)) {
@@ -39,14 +39,14 @@ export function loadYamlConfig(): YamlConfig | null {
   try {
     raw = fs.readFileSync(filePath, "utf-8");
   } catch (err) {
-    throw new Error(`[config.yaml] Impossible de lire ${filePath} : ${(err as Error).message}`);
+    throw new Error(`[config.yaml] Cannot read ${filePath}: ${(err as Error).message}`);
   }
 
   let parsed: unknown;
   try {
     parsed = loadYaml(raw);
   } catch (err) {
-    throw new Error(`[config.yaml] YAML invalide dans ${filePath} : ${(err as Error).message}`);
+    throw new Error(`[config.yaml] Invalid YAML in ${filePath}: ${(err as Error).message}`);
   }
 
   const result = yamlConfigSchema.safeParse(parsed);
@@ -60,7 +60,7 @@ export function loadYamlConfig(): YamlConfig | null {
   _cached = result.data;
   console.info(
     `[config.yaml] Loaded: ${filePath}` +
-    ` (${result.data.forms?.length ?? 0} formulaire(s), policy=${result.data.app?.enforcePasswordPolicy ?? false})`
+    ` (${result.data.forms?.length ?? 0} form(s), policy=${result.data.app?.enforcePasswordPolicy ?? false})`
   );
   return _cached;
 }

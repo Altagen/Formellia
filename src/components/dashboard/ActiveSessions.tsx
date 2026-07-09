@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useTranslations } from "@/lib/context/LocaleContext";
 
 interface SessionInfo {
@@ -15,6 +16,8 @@ export function ActiveSessions() {
   const [loading, setLoading] = useState(true);
   const [revoking, setRevoking] = useState<string | null>(null);
   const [revokingAll, setRevokingAll] = useState(false);
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
+  const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
 
   const tr = useTranslations();
   const s = tr.admin.sessions;
@@ -68,7 +71,7 @@ export function ActiveSessions() {
         <h2 className="text-sm font-semibold text-foreground">{s.title}</h2>
         {others.length > 0 && (
           <button
-            onClick={revokeAll}
+            onClick={() => setConfirmRevokeAll(true)}
             disabled={revokingAll}
             className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 font-medium cursor-pointer disabled:opacity-50 transition-colors"
           >
@@ -105,7 +108,7 @@ export function ActiveSessions() {
               </div>
               {!session.isCurrent && (
                 <button
-                  onClick={() => revokeSession(session.id)}
+                  onClick={() => setConfirmRevokeId(session.id)}
                   disabled={revoking === session.id}
                   className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 font-medium cursor-pointer disabled:opacity-50 transition-colors shrink-0"
                 >
@@ -117,6 +120,27 @@ export function ActiveSessions() {
         </ul>
       )}
 
+      <ConfirmDialog
+        open={!!confirmRevokeId}
+        onOpenChange={(o) => !o && setConfirmRevokeId(null)}
+        title={s.revokeConfirmTitle}
+        description={s.revokeConfirmDesc}
+        confirmLabel={s.revokeConfirm}
+        cancelLabel={s.revokeCancel}
+        destructive
+        onConfirm={() => { if (confirmRevokeId) revokeSession(confirmRevokeId); setConfirmRevokeId(null); }}
+      />
+
+      <ConfirmDialog
+        open={confirmRevokeAll}
+        onOpenChange={setConfirmRevokeAll}
+        title={s.revokeAllConfirmTitle}
+        description={s.revokeAllConfirmDesc}
+        confirmLabel={s.revokeConfirm}
+        cancelLabel={s.revokeCancel}
+        destructive
+        onConfirm={() => { revokeAll(); setConfirmRevokeAll(false); }}
+      />
     </div>
   );
 }

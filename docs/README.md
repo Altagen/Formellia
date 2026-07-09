@@ -36,21 +36,28 @@ Production on a VPS:
 
 ### I want to send email
 
-- **[email-setup.md](./email-setup.md)** — Resend / SendGrid / Mailgun,
-  the API key resolution order, template variables, local testing,
-  production domain verification, troubleshooting.
+- **[email-setup.md](./email-setup.md)** — providers CRUD, Resend /
+  SendGrid / Mailgun, template variables, local testing, production
+  domain verification, troubleshooting.
+- **[broadcasts.md](./broadcasts.md)** — manual bulk sends: composer,
+  preview pipeline, batched sender, provider preset resolution,
+  stuck-broadcast reaper.
 
-### I want to build a recipient audience
+### I want to build audiences and exports
 
-- **[datapools.md](./datapools.md)** — deduplicated audiences computed
-  on top of one or more forms, exclusions (Art. 21), CSV export, and
-  what's carried in backup/restore.
+- **[datapools.md](./datapools.md)** — deduplicated read-time audiences,
+  key normalisation, exclusion model, API + UI + YAML round-trip.
 
-### I want to send a manual broadcast email
+### I want to audit what happened
 
-- **[email-composer.md](./email-composer.md)** — WYSIWYG composer
-  bound to DataPools, BCC-batched sending via Resend/SendGrid/Mailgun,
-  sanitisation pipeline, GDPR boundaries vs the future newsletter.
+- **[audit-log.md](./audit-log.md)** — timeline view, retention policy
+  and manual purge, CSV/JSON/YAML export, action label taxonomy.
+
+### I want to learn the admin UI
+
+- **[admin-ui.md](./admin-ui.md)** — sidebar layout, folders,
+  master/detail Configuration, forms and views cards, Administration
+  split, destructive-flow confirmations.
 
 ### I want to understand how the system works
 
@@ -72,9 +79,11 @@ Production on a VPS:
 | [architecture.md](./architecture.md) | Stack, request flow, boot | Devs / ops |
 | [config-as-code.md](./config-as-code.md) | DB-mode vs file-mode | Operators |
 | [yaml-schema.md](./yaml-schema.md) | Field reference | Operators / devs |
-| [email-setup.md](./email-setup.md) | Outgoing notifications | Operators |
+| [email-setup.md](./email-setup.md) | Providers + notifications | Operators |
+| [broadcasts.md](./broadcasts.md) | Bulk sends composer + sender | Operators |
 | [datapools.md](./datapools.md) | Deduplicated audiences | Operators |
-| [email-composer.md](./email-composer.md) | Manual broadcast emails | Operators |
+| [audit-log.md](./audit-log.md) | Timeline + retention + export | Operators / ops |
+| [admin-ui.md](./admin-ui.md) | Sidebar, folders, master/detail, cards | Operators |
 | [deployment.md](./deployment.md) | VPS production checklist | Operators |
 | [security.md](./security.md) | Auth, secrets, rate limit, audit | Devs / ops |
 | [examples/](./examples/) | Copy-paste YAML | Operators |

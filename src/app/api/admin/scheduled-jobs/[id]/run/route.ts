@@ -8,7 +8,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (guard) return guard;
 
   const { id } = await params;
-  if (!UUID_RE.test(id)) return NextResponse.json({ error: "ID invalide" }, { status: 400 });
+  if (!UUID_RE.test(id)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
 
   try {
     const { runJob } = await import("@/lib/scheduler/runner");

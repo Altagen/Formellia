@@ -4,16 +4,20 @@ import { externalRecords, submissions as submissionsTable } from "@/lib/db/schem
 import { eq, desc } from "drizzle-orm";
 import { getFormConfig } from "@/lib/config";
 import { getFormInstance, getFormInstanceById } from "@/lib/db/formInstanceLoader";
+import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { AutoRefresh } from "@/components/admin/AutoRefresh";
 import { externalRecordToSubmission } from "@/lib/utils/externalAdapter";
 import { validateAdminSession } from "@/lib/auth/validateSession";
 import { buildPresetCssVars } from "@/lib/theme/cssVars";
 import { DashboardView } from "@/components/dashboard/DashboardView";
 import { CompletionFunnel } from "@/components/dashboard/CompletionFunnel";
+import { PageEyebrow } from "@/components/admin/layout/PageEyebrow";
+import { FormContextTabs, type FormContextTab } from "@/components/admin/layout/FormContextTabs";
+import { getTranslations } from "@/i18n";
 import { PrioritySettingsProvider } from "@/lib/context/PrioritySettingsContext";
 import { DEFAULT_THRESHOLDS } from "@/lib/utils/priority";
 import { flattenRepeaterRows, expandStepsForRepeater } from "@/lib/utils/flattenRepeater";
-import { getTranslations } from "@/i18n";
 import type { StepDef } from "@/types/config";
 import type { Submission } from "@/lib/db/schema";
 
@@ -26,7 +30,7 @@ export default async function AdminDynamicPage({ params }: Props) {
   const config = await getFormConfig();
   const currentUser = await validateAdminSession();
 
-  const page = config.admin.views.find(p => p.slug === slug);
+  const page = config.admin.pages.find(p => p.slug === slug);
   if (!page) notFound();
 
   const needsData = page.widgets.length > 0;
@@ -37,67 +41,9 @@ export default async function AdminDynamicPage({ params }: Props) {
   let initialSubmissions: Submission[] | undefined;
   let instanceThresholds = DEFAULT_THRESHOLDS;
   let instanceColorPreset: string | undefined;
-  let orphanedPoolId: string | undefined;
 
   if (needsData) {
-    if (page.dataPoolId) {
-      // DataPool source: compute the deduplicated entries server-side and
-      // synthesise Submission-shaped rows so the existing widgets render
-      // unchanged. Each entry's key + additional fields become formData;
-      // lastSubmittedAt becomes submittedAt; submissionCount + firstSubmittedAt
-      // travel through formData so widgets can expose them as columns.
-      const { getDataPool } = await import("@/lib/datapools/crud");
-      const { getDataPoolEntries } = await import("@/lib/datapools/compute");
-      const pool = await getDataPool(page.dataPoolId);
-      if (!pool) {
-        // Page references a deleted/missing pool. Surface a banner so the
-        // operator knows to fix the source binding instead of seeing an
-        // empty page silently.
-        orphanedPoolId = page.dataPoolId;
-      } else {
-        const { entries } = await getDataPoolEntries(page.dataPoolId);
-        // Defensive Date coercion — the pg driver can hand back timestamps as
-        // either Date objects (modern path) or ISO strings (older configs /
-        // when the column is timestamp-without-tz), depending on the deployment.
-        // The Submission type wants Date, so we coerce both ends.
-        const toDate = (v: unknown): Date => v instanceof Date ? v : new Date(v as string);
-        initialSubmissions = entries.map(e => {
-          const first = toDate(e.firstSubmittedAt);
-          const last  = toDate(e.lastSubmittedAt);
-          return {
-            id:              e.sourceSubmissionId,
-            formInstanceId:  e.sourceFormInstanceId,
-            email:           pool.keyField === "email" ? e.key : (e.additional.email ?? null),
-            formData:        { [pool.keyField]: e.key, ...e.additional, _submissionCount: e.submissionCount, _firstSubmittedAt: first.toISOString() },
-            submittedAt:     last,
-            createdAt:       first,
-            updatedAt:       last,
-            ipHash:          null,
-            status:          null,
-            priority:        null,
-            dueDate:         null,
-            receivedAt:      null,
-            assignedToId:    null,
-            excludedFromDataPools: false,
-          } as unknown as Submission;
-        });
-
-        // Synthesise a single-step formSteps so column pickers + table headers
-        // see the pool's keyField + additionalFields. Pool entries never have
-        // urgency/dueDate, so step metadata stays minimal.
-        formSteps = [{
-          id:    "pool-fields",
-          title: pool.name,
-          fields: [
-            { id: pool.keyField, type: "text", label: pool.keyField, required: false },
-            ...pool.additionalFields.map(f => ({
-              id: f, type: "text" as const, label: f, required: false,
-            })),
-          ],
-        }];
-        formInstanceId = undefined;          // table widget hits initialSubmissions directly
-      }
-    } else if (page.dataSourceId) {
+    if (page.dataSourceId) {
       // External dataset: fetch all records server-side (used for both charts and table)
       const records = await db
         .select()
@@ -149,29 +95,70 @@ export default async function AdminDynamicPage({ params }: Props) {
   const effectivePreset = instanceColorPreset ?? config.admin.branding?.colorPreset;
   const presetCss = buildPresetCssVars(effectivePreset);
 
-  // A page is in "every form mixed together" mode when no source is bound
-  // (no form instance, no external dataset, no flattened repeater). Show a
-  // banner so the operator sees at a glance that the table mixes submissions
-  // from every form — a behaviour the page editor warns about but that's
-  // easy to forget once the page is saved and being viewed day-to-day.
-  const isAllSubmissionsMode = !page.formInstanceId && !page.dataSourceId && !page.dataPoolId && !page.flattenRepeater;
+  // Form context header (eyebrow + tabs) — only shown when the view targets one form
   const tr = getTranslations(config.locale);
+  const fc = tr.admin.formContext;
+  let formContext: {
+    name: string;
+    slug: string;
+    isActive: boolean;
+    tabs: FormContextTab[];
+  } | null = null;
+  if (page.formInstanceId) {
+    const inst = await getFormInstanceById(page.formInstanceId);
+    if (inst) {
+      formContext = {
+        name: inst.name,
+        slug: inst.slug,
+        isActive: inst.config.features?.form !== false,
+        tabs: [
+          { id: "dashboard",     label: fc.tabs.dashboard,     href: `/admin/${slug}` },
+          { id: "configuration", label: fc.tabs.configuration, href: `/admin/forms/${inst.slug === "/" ? "_root" : inst.slug}` },
+          { id: "publicPage",    label: fc.tabs.publicPage,    href: `/${inst.slug === "/" ? "" : inst.slug}`, external: true },
+        ],
+      };
+    }
+  }
 
   return (
     <PrioritySettingsProvider settings={instanceThresholds}>
       {presetCss && <style dangerouslySetInnerHTML={{ __html: presetCss }} />}
       <div className="space-y-6">
         <AutoRefresh intervalSeconds={page.refreshInterval ?? 0} />
-        <h1 className="text-2xl font-bold tracking-tight">{page.title}</h1>
-
-        {isAllSubmissionsMode && (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
-            ⚠ {tr.admin.dashboard.allSubmissionsBanner}
+        {formContext && (
+          <div className="space-y-3 -mt-2">
+            <PageEyebrow
+              category={fc.eyebrowCategory}
+              slug={formContext.slug}
+              status={formContext.isActive ? "active" : "inactive"}
+              statusLabels={{ active: fc.statusActive, inactive: fc.statusInactive }}
+            />
+            <h1 className="text-2xl font-bold tracking-tight">{formContext.name}</h1>
+            <FormContextTabs tabs={formContext.tabs} activeId="dashboard" />
           </div>
         )}
-        {orphanedPoolId && (
-          <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-900 dark:text-red-200">
-            ⚠ {tr.admin.dashboard.orphanPoolBanner.replace("{id}", orphanedPoolId)}
+        {!formContext && (
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">{page.title}</h1>
+            <Link
+              href={`/admin/views/${encodeURIComponent(page.id)}/edit`}
+              aria-label={tr.admin.chart.editView}
+              title={tr.admin.chart.editView}
+              className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-border bg-muted/40 text-foreground hover:bg-muted hover:text-primary transition-colors shrink-0"
+            >
+              <Pencil className="w-[18px] h-[18px]" />
+            </Link>
+          </div>
+        )}
+
+        {page.flattenRepeater && (
+          <div className="flex items-start gap-3 rounded-xl border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 px-4 py-3 text-sm text-blue-900 dark:text-blue-200">
+            <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
+            <p>
+              {tr.admin.flattenBanner.lead}{" "}
+              <code className="font-mono text-xs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40">{page.flattenRepeater.fieldId}</code>{" "}
+              {tr.admin.flattenBanner.tail}
+            </p>
           </div>
         )}
 
@@ -185,7 +172,7 @@ export default async function AdminDynamicPage({ params }: Props) {
           otherWidgets={otherWidgets}
           tableWidget={tableWidget?.type === "submissions_table" ? tableWidget : undefined}
           hasTable={hasTable}
-          isExternalSource={!!page.dataSourceId || !!page.flattenRepeater || !!page.dataPoolId}
+          isExternalSource={!!page.dataSourceId || !!page.flattenRepeater}
           interactiveFilter={page.interactiveFilter ?? false}
           currentUserEmail={currentUser?.email ?? undefined}
         />

@@ -10,7 +10,7 @@ const createSchema = z.object({
   name: z.string().min(1).max(100),
   action: z.enum(["retention_cleanup", "export_json", "export_csv", "export_backup", "dataset_poll"]),
   config: z.record(z.string(), z.unknown()).default({}),
-  schedule: z.string().refine(s => cron.validate(s), { message: "Expression cron invalide" }),
+  schedule: z.string().refine(s => cron.validate(s), { message: "Invalid cron expression" }),
   enabled: z.boolean().default(false),
 });
 

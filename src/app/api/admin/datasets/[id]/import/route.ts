@@ -84,7 +84,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   const MAX_ROWS = 100_000;
   if (rows.length > MAX_ROWS) {
     return NextResponse.json(
-      { error: `Le fichier contient trop de lignes (${rows.length.toLocaleString("fr")} — max ${MAX_ROWS.toLocaleString("fr")})` },
+      { error: `File has too many rows (${rows.length.toLocaleString()}: max ${MAX_ROWS.toLocaleString()})` },
       { status: 413 }
     );
   }

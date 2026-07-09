@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { submissions, formInstances } from "@/lib/db/schema";
 import { and, or, eq, ilike, gte, lte, isNull, desc, asc, count, sql, inArray } from "drizzle-orm";
-import { requireAdminSession, validateAdminSession } from "@/lib/auth/validateSession";
+import { validateAdminSession } from "@/lib/auth/validateSession";
 import { getAccessibleFormIds } from "@/lib/auth/permissions";
 import type { SQL } from "drizzle-orm";
 
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       .limit(1);
 
     if (!instance) {
-      return NextResponse.json({ error: "Formulaire introuvable" }, { status: 404 });
+      return NextResponse.json({ error: "Form not found" }, { status: 404 });
     }
 
     if (instance.slug === "/") {

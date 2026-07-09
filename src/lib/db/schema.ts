@@ -474,6 +474,14 @@ export const emailBroadcasts = pgTable("email_broadcasts", {
   // case-insensitively deduplicated against them, so a person who appears
   // both in a pool and in this list still receives one mail.
   additionalRecipients: jsonb("additional_recipients").$type<string[]>().notNull().default([]),
+  /**
+   * UUID of the row in `email_providers` that supplies provider/apiKey/from.
+   * Nullable so a draft can exist before the operator picks a preset. Null at
+   * send time falls back to the default preset (email_providers.is_default).
+   * ON DELETE SET NULL — deleting a preset leaves the historical broadcast
+   * intact but flags it as needing reassignment before it can be re-sent.
+   */
+  providerId:      uuid("provider_id").references(() => emailProviders.id, { onDelete: "set null" }),
   recipientCount:  integer("recipient_count").notNull().default(0),
   sentCount:       integer("sent_count").notNull().default(0),
   failedCount:     integer("failed_count").notNull().default(0),
@@ -489,6 +497,45 @@ export const emailBroadcasts = pgTable("email_broadcasts", {
 ]);
 
 export type EmailBroadcast = typeof emailBroadcasts.$inferSelect;
+
+/**
+ * Named email provider presets — 0.3.1 unification.
+ *
+ * Before: forms and broadcasts each stored their own {provider, apiKey,
+ * fromAddress, fromName}, with an app_config-level fallback. Impossible to
+ * reuse the same Resend account across N forms without pasting the key
+ * everywhere; impossible to have a separate SendGrid identity for the
+ * newsletter without duplicating it back into each form.
+ *
+ * Now: one row per {name, provider, apiKey, fromAddress[, fromName]}
+ * identity. Forms + broadcasts hold only a `providerId` reference plus the
+ * template (subject + bodyText + enabled). Zero credentials outside this
+ * table.
+ *
+ * The legacy `app_config.email_*` columns and `form_instances.config.
+ * notifications.email.apiKeyEncrypted` are dropped at migration time — see
+ * migrations/PENDING_DROPS.md. A single migration seeds the first preset
+ * from the previous global config if it existed.
+ */
+export const emailProviders = pgTable("email_providers", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  name:             text("name").notNull().unique(),
+  provider:         text("provider").notNull(),        // 'resend' | 'sendgrid' | 'mailgun'
+  fromAddress:      text("from_address").notNull(),
+  fromName:         text("from_name"),
+  apiKeyEncrypted:  text("api_key_encrypted").notNull(),
+  apiKeyExpiresAt:  date("api_key_expires_at"),
+  isDefault:        boolean("is_default").notNull().default(false),
+  createdAt:        timestamp("created_at").notNull().defaultNow(),
+  updatedAt:        timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  check("email_providers_provider_check",
+        sql`${t.provider} IN ('resend', 'sendgrid', 'mailgun')`),
+  // Cheap way to enforce "at most one default" — Postgres partial unique index.
+  uniqueIndex("email_providers_default_unique").on(t.isDefault).where(sql`${t.isDefault} = true`),
+]);
+
+export type EmailProviderRow = typeof emailProviders.$inferSelect;
 
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type CustomCaCert = typeof customCaCerts.$inferSelect;

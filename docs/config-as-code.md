@@ -69,15 +69,22 @@ The boot YAML is more restrictive than the import via the UI:
 | `priorityThresholds` | ✅ | ✅ (under `app.priorityThresholds`) |
 | `app.enforcePasswordPolicy` | ✅ | ✅ |
 | `admin.email` | ✅ | ✅ |
-| `admin.views` | ❌ | ✅ |
+| `admin.views` (alias `admin.pages`) | ❌ | ✅ |
 | `admin.tableColumns` | ❌ | ✅ |
-| `admin.branding` | ❌ | ✅ |
+| `admin.branding` / `admin.features` | ❌ | ✅ |
+| `admin.folders` | ❌ | ✅ |
+| `admin.dataPools` + `admin.exclusionReasons` | ❌ | ✅ |
+| `admin.auditRetention` | ❌ | ✅ |
 | `scheduledJobs` | ❌ | ✅ |
 | `datasets` | ❌ | ✅ |
-| `dataPools` | ❌ | ✅ (see [datapools.md](./datapools.md#backup--restore)) |
 
 **In practice**: a fully "as-code" deployment uses both:
 
 1. `config.yaml` at startup for forms and global settings.
 2. A complete export file (generated through the UI or written by hand)
-   imported afterwards via *Admin → Config → Restore* for dashboard pages.
+   imported afterwards via *Admin → Config → Restore* for views, folders,
+   DataPools, audit retention and scheduled jobs.
+
+See [datapools.md](./datapools.md), [audit-log.md](./audit-log.md) and
+[yaml-schema.md](./yaml-schema.md#views-formerly-pages) for the exact
+field shapes each section accepts.

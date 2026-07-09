@@ -1,17 +1,22 @@
 "use client";
 
-import { useAdminTheme } from "@/hooks/useAdminTheme";
+import { useUserPreferences } from "@/lib/context/UserPreferencesContext";
+import { useTranslations } from "@/lib/context/LocaleContext";
 
 export function AdminThemeToggle() {
-  const { theme, toggle } = useAdminTheme();
+  const { themeMode, setThemeMode } = useUserPreferences();
+  const tr = useTranslations();
+  const tt = tr.admin.themeToggle;
+
+  const isDark = themeMode === "dark";
 
   return (
     <button
-      onClick={toggle}
-      aria-label={theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}
+      onClick={() => setThemeMode(isDark ? "light" : "dark")}
+      aria-label={isDark ? tt.switchToLight : tt.switchToDark}
       className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
     >
-      {theme === "dark" ? (
+      {isDark ? (
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"

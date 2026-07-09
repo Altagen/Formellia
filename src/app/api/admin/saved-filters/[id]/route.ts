@@ -9,7 +9,7 @@ const patchSchema = z.object({
   name:    z.string().min(1).max(100).optional(),
   filters: z.record(z.string(), z.unknown()).optional(),
 }).refine(d => d.name !== undefined || d.filters !== undefined, {
-  message: "Au moins un champ (name, filters) est requis",
+  message: "At least one field (name, filters) is required",
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {

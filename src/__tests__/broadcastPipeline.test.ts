@@ -28,6 +28,7 @@ function makeBroadcast(bodyHtml: string): EmailBroadcast {
     status:          "draft",
     dataPoolIds:          [],
     additionalRecipients: [],
+    providerId:      null,
     recipientCount:  0,
     sentCount:       0,
     failedCount:     0,

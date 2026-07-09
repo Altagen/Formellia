@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireAdminMutation, validateAdminSession } from "@/lib/auth/validateSession";
 import { db } from "@/lib/db";
 import { apiKeys } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { logAdminEvent } from "@/lib/db/adminAudit";

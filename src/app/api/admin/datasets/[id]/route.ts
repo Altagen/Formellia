@@ -55,7 +55,7 @@ export async function GET(req: NextRequest, { params }: Props) {
     })
     .from(externalDatasets)
     .where(eq(externalDatasets.id, id));
-  if (!dataset) return NextResponse.json({ error: "Ressource introuvable" }, { status: 404 });
+  if (!dataset) return NextResponse.json({ error: "Resource not found" }, { status: 404 });
 
   // Never expose apiHeaders — may contain auth tokens for third-party APIs
   const { apiHeadersRaw, ...rest } = dataset;
@@ -97,7 +97,7 @@ export async function PUT(req: NextRequest, { params }: Props) {
     .where(eq(externalDatasets.id, id))
     .returning();
 
-  if (!updated) return NextResponse.json({ error: "Ressource introuvable" }, { status: 404 });
+  if (!updated) return NextResponse.json({ error: "Resource not found" }, { status: 404 });
 
   const actor = await validateAdminSession(req);
   logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "dataset.update", resourceType: "dataset", resourceId: id, details: { name: updated.name } });

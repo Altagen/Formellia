@@ -2,8 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   createBroadcastSchema,
   updateBroadcastSchema,
-  updateBroadcastConfigSchema,
-  broadcastProviderSchema,
 } from "@/lib/email/broadcastValidation";
 
 const validUuid = "01234567-89ab-4def-8123-456789abcdef";
@@ -83,48 +81,3 @@ describe("updateBroadcastSchema", () => {
   });
 });
 
-describe("broadcastProviderSchema", () => {
-  it.each(["resend", "sendgrid", "mailgun"])("accepts %s", (p) => {
-    expect(broadcastProviderSchema.safeParse(p).success).toBe(true);
-  });
-  it("rejects unknown provider", () => {
-    expect(broadcastProviderSchema.safeParse("postmark").success).toBe(false);
-  });
-});
-
-describe("updateBroadcastConfigSchema", () => {
-  it("accepts a full valid config", () => {
-    const parsed = updateBroadcastConfigSchema.safeParse({
-      provider: "resend",
-      fromAddress: "from@example.com",
-      fromName: "Org",
-      apiKey: "re_xxx",
-      apiKeyExpiresAt: "2027-01-01",
-    });
-    expect(parsed.success).toBe(true);
-  });
-
-  it("rejects invalid fromAddress", () => {
-    expect(
-      updateBroadcastConfigSchema.safeParse({ fromAddress: "not an email" }).success,
-    ).toBe(false);
-  });
-
-  it("rejects expiry not in YYYY-MM-DD shape", () => {
-    expect(
-      updateBroadcastConfigSchema.safeParse({ apiKeyExpiresAt: "01-01-2027" }).success,
-    ).toBe(false);
-  });
-
-  it("accepts apiKey: \"\" (clear)", () => {
-    expect(updateBroadcastConfigSchema.safeParse({ apiKey: "" }).success).toBe(true);
-  });
-
-  it("accepts apiKey: null (clear)", () => {
-    expect(updateBroadcastConfigSchema.safeParse({ apiKey: null }).success).toBe(true);
-  });
-
-  it("accepts provider: null (disable broadcasts)", () => {
-    expect(updateBroadcastConfigSchema.safeParse({ provider: null }).success).toBe(true);
-  });
-});

@@ -255,7 +255,7 @@ export function PageBuilderTab({ page, onChange }: PageBuilderTabProps) {
           {page.branding.logoUrl && (
             <div className="mt-2 h-12 flex items-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={page.branding.logoUrl} alt="Logo preview" className="max-h-12 max-w-32 object-contain rounded" />
+              <img src={page.branding.logoUrl} alt={pb.logoPreviewAlt} className="max-h-12 max-w-32 object-contain rounded" />
             </div>
           )}
         </div>
@@ -455,7 +455,7 @@ export function PageBuilderTab({ page, onChange }: PageBuilderTabProps) {
               value={page.hero.eyebrow ?? ""}
               onChange={(e) => updateHero({ eyebrow: e.target.value || undefined })}
               className={INPUT_CLS}
-              placeholder="Nouveau · Disponible maintenant"
+              placeholder={pb.eyebrowPlaceholder}
             />
           </Field>
 
@@ -711,7 +711,7 @@ export function PageBuilderTab({ page, onChange }: PageBuilderTabProps) {
                   value={page.footer?.cguCgv?.label ?? ""}
                   onChange={(e) => updateFooter({ cguCgv: { ...page.footer!.cguCgv!, label: e.target.value || undefined } })}
                   className={INPUT_CLS}
-                  placeholder="CGU / CGV"
+                  placeholder={pb.cguLabelPlaceholder}
                 />
               </div>
 
@@ -811,7 +811,7 @@ function InfoEditor({ block, onChange }: { block: Extract<PageBlock, { type: "in
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs text-muted-foreground mb-1">{pb.iconLabel}</label>
-          <input type="text" value={block.icon ?? ""} onChange={(e) => onChange({ icon: e.target.value || undefined } as Partial<PageBlock>)} className={INPUT_CLS} placeholder="info ou ℹ️" />
+          <input type="text" value={block.icon ?? ""} onChange={(e) => onChange({ icon: e.target.value || undefined } as Partial<PageBlock>)} className={INPUT_CLS} placeholder={pb.iconPlaceholder} />
         </div>
         <div>
           <label className="block text-xs text-muted-foreground mb-1">{pb.variantLabel}</label>
@@ -1012,11 +1012,11 @@ function QuoteEditor({ block, onChange }: { block: Extract<PageBlock, { type: "q
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs text-muted-foreground mb-1">{pb.author}</label>
-          <input type="text" value={block.author ?? ""} onChange={(e) => onChange({ author: e.target.value || undefined } as Partial<PageBlock>)} className={INPUT_CLS} placeholder="Steve Jobs" />
+          <input type="text" value={block.author ?? ""} onChange={(e) => onChange({ author: e.target.value || undefined } as Partial<PageBlock>)} className={INPUT_CLS} placeholder={pb.authorPlaceholder} />
         </div>
         <div>
           <label className="block text-xs text-muted-foreground mb-1">{pb.role}</label>
-          <input type="text" value={block.role ?? ""} onChange={(e) => onChange({ role: e.target.value || undefined } as Partial<PageBlock>)} className={INPUT_CLS} placeholder="CEO d'Apple" />
+          <input type="text" value={block.role ?? ""} onChange={(e) => onChange({ role: e.target.value || undefined } as Partial<PageBlock>)} className={INPUT_CLS} placeholder={pb.rolePlaceholder} />
         </div>
       </div>
     </>

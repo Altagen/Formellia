@@ -229,7 +229,7 @@ export async function importDatasetFromApi(
   if (!dataset.apiUrl) throw new Error("Dataset has no API URL configured");
   if (isSsrfUrl(dataset.apiUrl)) throw new Error("Internal/private URLs are not allowed");
 
-  try { new URL(dataset.apiUrl); } catch { throw new Error("URL du dataset invalide"); }
+  try { new URL(dataset.apiUrl); } catch { throw new Error("Invalid dataset URL"); }
 
   const rawHeaders = (dataset.apiHeaders as Record<string, string>) ?? {};
   const headers: Record<string, string> = {};

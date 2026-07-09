@@ -24,7 +24,7 @@ export async function exportBackup(config: ExportBackupConfig): Promise<ExportBa
   const { providerId, formSlugs, datasetNames } = config;
 
   const [providerRow] = await db.select().from(backupProviders).where(eq(backupProviders.id, providerId)).limit(1);
-  if (!providerRow) throw new Error(`Fournisseur de backup introuvable : ${providerId}`);
+  if (!providerRow) throw new Error(`Backup provider not found: ${providerId}`);
   if (!providerRow.enabled) throw new Error(`The backup provider "${providerRow.name}" is disabled`);
 
   const provider = await buildProvider(providerRow.type as "local" | "s3", providerRow.encryptedConfig);

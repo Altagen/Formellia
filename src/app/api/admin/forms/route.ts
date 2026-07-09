@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { getAccessibleFormIds } from "@/lib/auth/permissions";
 import { listFormInstances, createFormInstance } from "@/lib/db/formInstanceLoader";
-import { ensureAutoViewForForm } from "@/lib/admin/autoFormView";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { isReservedSlug } from "@/lib/config/reservedSlugs";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";
+import { getFormConfig } from "@/lib/config";
+import { ensureAutoViewForForm } from "@/lib/admin/autoFormView";
 import type { FormInstanceConfig } from "@/types/formInstance";
 
 const postBodySchema = z.object({
@@ -60,11 +62,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Merge instance-wide defaults (Configuration > Forms > Global features)
+  // so newly created forms pick up the admin's opinionated defaults.
+  const rootConfig = await getFormConfig();
+  const defaults = rootConfig.admin.defaultFormFeatures ?? {};
+
   const config: FormInstanceConfig = (parsed.data.config as unknown as FormInstanceConfig) ?? {
     meta:     { name, title: "", description: "", locale: "en" },
     page:     { branding: { defaultTheme: "light" }, hero: { title: "", ctaLabel: "", backgroundVariant: "gradient" } },
     form:     { steps: [{ id: "step-contact", title: "", fields: [{ id: "email", type: "email", label: "", placeholder: "", required: true }] }] },
-    features: { landingPage: true, form: true },
+    features: {
+      landingPage:           true,
+      form:                  true,
+      ...(defaults.formVersioning ? { formVersioning: true } : {}),
+      ...(defaults.blockDisposableEmails ? { blockDisposableEmails: true } : {}),
+    },
   };
 
   let instance;
@@ -80,10 +92,6 @@ export async function POST(req: NextRequest) {
   const actor = await validateAdminSession(req);
   logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "form.create", resourceType: "form", resourceId: instance.id, details: { slug, name } });
 
-  // Auto-create the companion dashboard page when the toggle is on. Failures
-  // here MUST NOT bubble — the form was already created and the page is a
-  // convenience layer that the admin can always recreate from the backfill
-  // button. We swallow + log so the API response stays a clean 201.
   try {
     const created = await ensureAutoViewForForm({ id: instance.id, slug: instance.slug, name: instance.name });
     if (created) {
@@ -99,6 +107,11 @@ export async function POST(req: NextRequest) {
   } catch {
     /* ignore — the form is already persisted */
   }
+
+  // Sidebar + config-consuming server components see a new form + optional
+  // companion admin.pages entry — invalidate the RSC cache so subsequent
+  // navigations don't render with the stale snapshot.
+  revalidatePath("/admin", "layout");
 
   return NextResponse.json(instance, { status: 201 });
 }

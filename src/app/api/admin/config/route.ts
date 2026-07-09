@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { getFormConfig, saveFormConfig, resetFormConfig, isConfigEditable } from "@/lib/config";
 import { logAdminEvent } from "@/lib/db/adminAudit";
@@ -27,7 +28,7 @@ export async function PUT(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   // Structural validation
@@ -38,16 +39,16 @@ export async function PUT(req: NextRequest) {
     );
   }
 
-  // 0.3.0 fwd-compat with 0.2.x clients: accept the legacy `admin.pages` key
-  // and remap it to `admin.views` so the rest of the handler only deals with
-  // the canonical shape. `views` wins when both are present.
-  const adminAny = body.admin as FormConfig["admin"] & { pages?: unknown };
-  if (adminAny.pages !== undefined && adminAny.views === undefined) {
-    adminAny.views = adminAny.pages as FormConfig["admin"]["views"];
+  // 0.4.0 fwd-compat with 0.3.x clients that emit `admin.views` — remap it
+  // to the canonical `admin.pages` used by our TS types. `pages` wins when
+  // both are present.
+  const adminAny = body.admin as FormConfig["admin"] & { views?: unknown };
+  if (adminAny.views !== undefined && (body.admin as { pages?: unknown }).pages === undefined) {
+    (body.admin as { pages?: unknown }).pages = adminAny.views as FormConfig["admin"]["pages"];
   }
-  delete adminAny.pages;
-  if (!Array.isArray(body.admin.views)) {
-    return NextResponse.json({ error: "admin.views must be an array" }, { status: 400 });
+  delete adminAny.views;
+  if (!Array.isArray(body.admin.pages)) {
+    return NextResponse.json({ error: "admin.pages must be an array" }, { status: 400 });
   }
 
   // Validate pages: unique IDs, required fields, known widget types
@@ -56,24 +57,24 @@ export async function PUT(req: NextRequest) {
     "traffic_chart", "email_quality", "urgency_distribution", "funnel_chart", "deadline_distribution", "filter_pills",
   ]);
   const pageIds = new Set<string>();
-  for (const page of body.admin.views) {
+  for (const page of body.admin.pages) {
     if (!page.id || typeof page.id !== "string") {
-      return NextResponse.json({ error: "Chaque page doit avoir un identifiant (id)" }, { status: 400 });
+      return NextResponse.json({ error: "Each page must have an identifier (id)" }, { status: 400 });
     }
     if (pageIds.has(page.id)) {
-      return NextResponse.json({ error: `ID de page en double : "${page.id}"` }, { status: 400 });
+      return NextResponse.json({ error: `Duplicate page id: "${page.id}"` }, { status: 400 });
     }
     pageIds.add(page.id);
     if (!page.slug || typeof page.slug !== "string") {
-      return NextResponse.json({ error: `Page "${page.id}" : slug manquant` }, { status: 400 });
+      return NextResponse.json({ error: `Page "${page.id}": slug missing` }, { status: 400 });
     }
     if (!Array.isArray(page.widgets)) {
-      return NextResponse.json({ error: `Page "${page.id}" : widgets must be an array` }, { status: 400 });
+      return NextResponse.json({ error: `Page "${page.id}": widgets must be an array` }, { status: 400 });
     }
     for (const widget of page.widgets) {
       if (!widget.type || !KNOWN_WIDGET_TYPES.has(widget.type)) {
         return NextResponse.json(
-          { error: `Page "${page.id}" : type de widget inconnu "${widget.type}"` },
+          { error: `Page "${page.id}": unknown widget type "${widget.type}"` },
           { status: 400 }
         );
       }
@@ -81,6 +82,12 @@ export async function PUT(req: NextRequest) {
   }
 
   await saveFormConfig(body);
+
+  // Invalidate the RSC cache for the whole admin tree. Without this, the
+  // dashboard layout can render with a stale `config` fetched from a cached
+  // segment of a sibling worker/module instance, which surfaces as the newly
+  // saved title reverting on the next navigation.
+  revalidatePath("/admin", "layout");
 
   const actor = await validateAdminSession(req);
   logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "config.update", resourceType: "config", resourceId: "global" });
@@ -100,6 +107,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   await resetFormConfig();
+  revalidatePath("/admin", "layout");
 
   const actor = await validateAdminSession(req);
   logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "config.reset", resourceType: "config", resourceId: "global" });

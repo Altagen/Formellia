@@ -14,7 +14,11 @@ or table must be registered here **before being dropped**. The rule:
 
 ## Deprecated columns/tables pending removal
 
-None currently.
+| Column / Table | Deprecated in | DROP planned for | Ticket / PR |
+|----------------|---------------|------------------|-------------|
+| `app_config.email_provider`, `email_from_address`, `email_from_name`, `email_api_key_encrypted`, `email_api_key_expires_at` | 0006 | 0.4.0 | UI-11 — moved to `email_providers` presets |
+| `form_instances.config.notifications.email.{provider,fromAddress,fromName,apiKeyEncrypted,apiKeyExpiresAt}` (JSONB fields, stripped at boot) | 0006 | 0.4.0 | UI-11 — replaced by `providerId` reference |
+| `form_instances.config.notifications.submitterConfirmation` (JSONB subtree, dropped at boot) | 0006 | 0.4.0 | UI-11 — feature removed (duplicate of main confirmation) |
 
 ## Format
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -51,7 +51,9 @@ export async function PATCH(req: NextRequest) {
     valid = await bcrypt.compare(currentPassword, hashedPassword);
   } else {
     const sha = createHash("sha256").update(currentPassword).digest("hex");
-    valid = sha === hashedPassword;
+    // Constant-time comparison — SHA-256 hex is always 64 chars, same length as stored hash.
+    valid = sha.length === hashedPassword.length
+      && timingSafeEqual(Buffer.from(sha), Buffer.from(hashedPassword));
   }
 
   if (!valid) {

@@ -7,25 +7,37 @@ import { users, sessions } from "@/lib/db/schema";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 
+/**
+ * Uniform sample of an index in [0, n) from a stream of crypto-secure bytes.
+ * Rejection-samples to skip the top `256 % n` bytes so every index has the
+ * same probability — no modulo bias.
+ */
+function uniformIndex(n: number): number {
+  const cutoff = Math.floor(256 / n) * n;
+  let b: number;
+  do {
+    b = randomBytes(1)[0];
+  } while (b >= cutoff);
+  return b % n;
+}
+
 /** Generates a secure 16-char temp password: uppercase + digits + lowercase. */
 function generateTempPassword(): string {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const digits = "23456789";
   const lower = "abcdefghjkmnpqrstuvwxyz";
   const all = upper + digits + lower;
-  const bytes = randomBytes(16);
   // Guarantee at least 2 of each required char class
   const chars = [
-    upper[bytes[0] % upper.length],
-    upper[bytes[1] % upper.length],
-    digits[bytes[2] % digits.length],
-    digits[bytes[3] % digits.length],
-    ...Array.from({ length: 12 }, (_, i) => all[bytes[4 + i] % all.length]),
+    upper[uniformIndex(upper.length)],
+    upper[uniformIndex(upper.length)],
+    digits[uniformIndex(digits.length)],
+    digits[uniformIndex(digits.length)],
+    ...Array.from({ length: 12 }, () => all[uniformIndex(all.length)]),
   ];
-  // Fisher-Yates shuffle using remaining random bytes
-  const shuffleBytes = randomBytes(16);
+  // Fisher-Yates shuffle — uniform swap index at every step
   for (let i = chars.length - 1; i > 0; i--) {
-    const j = shuffleBytes[i] % (i + 1);
+    const j = uniformIndex(i + 1);
     [chars[i], chars[j]] = [chars[j], chars[i]];
   }
   return chars.join("");
@@ -49,7 +61,7 @@ export async function POST(
   }
 
   const existing = await db.select({ id: users.id, username: users.username }).from(users).where(eq(users.id, id)).limit(1);
-  if (existing.length === 0) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
+  if (existing.length === 0) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   const tempPassword = generateTempPassword();
   const hashedPassword = await bcrypt.hash(tempPassword, 13);

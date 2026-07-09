@@ -23,7 +23,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { RichTextEditor } from "@/components/admin/email/RichTextEditor";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import type { EmailBroadcast } from "@/lib/db/schema";
-import type { GlobalEmailConfig } from "@/lib/email/globalEmailConfig";
+import type { EmailProviderSafe } from "@/lib/email/providers";
 import {
   ADDITIONAL_RECIPIENTS_MAX,
   parseAdditionalRecipients,
@@ -36,9 +36,9 @@ type ErrorsMap = Record<BroadcastErrorCode, string>;
 interface PoolOpt { id: string; name: string; slug: string }
 
 interface Props {
-  broadcast:      EmailBroadcast;
-  pools:          PoolOpt[];
-  providerConfig: GlobalEmailConfig;
+  broadcast: EmailBroadcast;
+  pools:     PoolOpt[];
+  providers: EmailProviderSafe[];
 }
 
 interface PreviewState {
@@ -50,7 +50,7 @@ interface PreviewState {
   subject:        string;
 }
 
-export function BroadcastComposerClient({ broadcast: initial, pools, providerConfig }: Props) {
+export function BroadcastComposerClient({ broadcast: initial, pools, providers }: Props) {
   const router = useRouter();
   const t = useTranslations().admin.email.composer;
   const [broadcast, setBroadcast] = useState(initial);
@@ -120,6 +120,7 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
             bodyText:             broadcast.bodyText,
             dataPoolIds:          broadcast.dataPoolIds,
             additionalRecipients: additionalParsed.valid,
+            providerId:           broadcast.providerId,
           }),
         });
         if (!res.ok) throw new Error(await res.text());
@@ -343,11 +344,12 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
         </p>
       </div>
 
-      {/* Provider warning — surfaces here too in case the operator dropped into */}
-      {/* the composer directly from the list view's "New draft" button. */}
-      {(!providerConfig.provider || !providerConfig.apiKeyConfigured) && (
+      {/* No provider preset exists at all → we can't send, nudge the operator */}
+      {/* toward creating one. Rendered as a warning that stays put until a  */}
+      {/* row appears in `email_providers`.                                   */}
+      {providers.length === 0 && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
-          ⚠ {t.providerWarning} <Link href="/admin/email/provider" className="underline font-medium">{t.configureNow}</Link>.
+          ⚠ {t.providerWarning} <Link href="/admin/configuration?tab=emails" className="underline font-medium">{t.configureNow}</Link>.
         </div>
       )}
 
@@ -377,6 +379,44 @@ export function BroadcastComposerClient({ broadcast: initial, pools, providerCon
       {/* `bodyHtml` through TipTap's semantic filter, dropping styled */}
       {/* <div>s the operator had just pasted via the 📋 button. */}
       <div className={`space-y-5 ${tab === "compose" ? "" : "hidden"}`}>
+          {/* Provider preset selector */}
+          {providers.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">{t.providerLabel}</label>
+              <select
+                value={broadcast.providerId ?? ""}
+                onChange={e => update("providerId", e.target.value || null)}
+                disabled={readOnly}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-[3px] focus:ring-ring/50 disabled:opacity-50"
+              >
+                <option value="">
+                  {providers.find(p => p.isDefault)
+                    ? t.providerUseDefault.replace("{name}", providers.find(p => p.isDefault)!.name)
+                    : t.providerUseDefaultNone}
+                </option>
+                {providers.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {p.provider}{p.isDefault ? ` (${t.providerDefaultMarker})` : ""}
+                  </option>
+                ))}
+              </select>
+              {(() => {
+                const active = broadcast.providerId ? providers.find(p => p.id === broadcast.providerId) : providers.find(p => p.isDefault);
+                if (!active) return null;
+                if (!active.apiKeyConfigured) return (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> {t.providerNoKey}
+                  </p>
+                );
+                return (
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                    <Send className="w-3 h-3" /> {t.providerActive.replace("{name}", active.name).replace("{provider}", active.provider)}
+                  </p>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Subject */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">{t.subjectLabel}</label>

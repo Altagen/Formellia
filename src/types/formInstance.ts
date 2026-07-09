@@ -29,29 +29,15 @@ export interface FormFeatures {
 export interface EmailNotificationConfig {
   enabled: boolean;
   /**
-   * Provider override for this form. When omitted, the form falls back to
-   * `app_config.email_provider` — the same global value the broadcast composer
-   * uses. Same fallback applies to `fromAddress`, `fromName`, `apiKeyEncrypted`
-   * and `apiKeyExpiresAt`.
+   * UUID of the row in `email_providers` that supplies provider/apiKey/from.
+   * If undefined at send time, the resolver falls back to the default preset
+   * (email_providers.is_default = true). See src/lib/email/providers.ts.
    */
-  provider?:        "resend" | "sendgrid" | "mailgun";
-  /** AES-256-GCM encrypted API key — never sent to client. Optional override. */
-  apiKeyEncrypted?: string;
-  /** ISO date string (YYYY-MM-DD) — null means no expiration */
-  apiKeyExpiresAt?: string | null;
-  fromAddress?:     string;
-  fromName?:        string;
+  providerId?: string;
   /** Supports {{email}}, {{formName}}, {{submittedAt}}, {{fieldId}} */
-  subject:  string;
+  subject: string;
   /** Plain text body — same variable substitution as subject */
   bodyText: string;
-}
-
-export interface SubmitterConfirmationConfig {
-  enabled: boolean;
-  subject: string;
-  bodyText: string;
-  // Reuses provider/apiKey from notifications.email
 }
 
 export interface FormNotifications {
@@ -59,7 +45,6 @@ export interface FormNotifications {
   webhookUrl?: string;
   enabled?: boolean;
   email?: EmailNotificationConfig;
-  submitterConfirmation?: SubmitterConfirmationConfig;
 }
 
 // ─────────────────────────────────────────────────────────

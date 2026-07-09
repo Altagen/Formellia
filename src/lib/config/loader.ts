@@ -47,29 +47,29 @@ async function readFromDb(): Promise<FormConfig | null> {
 
   const rows = await db.select().from(formConfig).where(eq(formConfig.id, 1)).limit(1);
   if (rows.length === 0) return null;
-  return normalizeAdminViewsKey(rows[0].config as FormConfig);
+  return normalizeAdminPagesKey(rows[0].config as FormConfig);
 }
 
 /**
- * Forward-compat with 0.2.x storage: 0.3.0 renamed `admin.pages` →
- * `admin.views` (and `admin.defaultPage` → `admin.defaultView`). DB rows
- * written by an older version still carry the legacy keys; this helper
- * remaps them into the canonical `views`/`defaultView` shape on read so
- * the rest of the codebase only ever sees the new names. The next save
- * persists the canonical shape.
+ * Backward-compat with 0.3.0 storage: the 0.3.0 release renamed `admin.pages`
+ * → `admin.views` (and `admin.defaultPage` → `admin.defaultView`) in the DB
+ * shape. This branch reverted the rename, so DB rows written by 0.3.0 carry
+ * the newer keys; this helper remaps them back to the canonical `pages` /
+ * `defaultPage` shape our TS types expect. The next save persists the
+ * canonical shape.
  */
-function normalizeAdminViewsKey(config: FormConfig): FormConfig {
-  const admin = config.admin as FormConfig["admin"] & { pages?: unknown; defaultPage?: unknown };
+function normalizeAdminPagesKey(config: FormConfig): FormConfig {
+  const admin = config.admin as FormConfig["admin"] & { views?: unknown; defaultView?: unknown };
   let mutated = false;
   const next = { ...admin };
-  if (!Array.isArray(admin.views) && Array.isArray(admin.pages)) {
-    next.views = admin.pages as FormConfig["admin"]["views"];
-    delete (next as { pages?: unknown }).pages;
+  if (!Array.isArray(admin.pages) && Array.isArray(admin.views)) {
+    next.pages = admin.views as FormConfig["admin"]["pages"];
+    delete (next as { views?: unknown }).views;
     mutated = true;
   }
-  if (!admin.defaultView && typeof admin.defaultPage === "string") {
-    next.defaultView = admin.defaultPage;
-    delete (next as { defaultPage?: unknown }).defaultPage;
+  if (!admin.defaultPage && typeof admin.defaultView === "string") {
+    next.defaultPage = admin.defaultView;
+    delete (next as { defaultView?: unknown }).defaultView;
     mutated = true;
   }
   return mutated ? { ...config, admin: next } : config;
@@ -104,8 +104,8 @@ export async function getFormConfig(): Promise<FormConfig> {
   if (!config) {
     config = getFileConfig();
     await writeToDb(config);
-  } else if (!config.admin.views) {
-    // Legacy row missing the new `views` key entirely — seed admin section
+  } else if (!config.admin.pages) {
+    // Legacy row missing the `pages` key entirely — seed admin section
     // from the file config so the loader never returns a half-built shape.
     const fresh = getFileConfig();
     config = { ...config, admin: fresh.admin };

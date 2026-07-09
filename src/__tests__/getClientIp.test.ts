@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import type { NextRequest } from "next/server";
 import { getClientIp } from "@/lib/security/getClientIp";
 

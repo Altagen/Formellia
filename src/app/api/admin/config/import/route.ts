@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { checkAdminRateLimit } from "@/lib/security/adminRateLimit";
 import { listFormInstances, saveFormInstance, createFormInstance } from "@/lib/db/formInstanceLoader";
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
 
   const modeParam = req.nextUrl.searchParams.get("mode") ?? "replace";
   if (modeParam !== "append" && modeParam !== "replace") {
-    return NextResponse.json({ error: "mode invalide (append|replace)" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid mode (append|replace)" }, { status: 400 });
   }
   const mode = modeParam as "append" | "replace";
 
@@ -79,8 +80,6 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const preservedApiKeyEncrypted = existingInstance?.config?.notifications?.email?.apiKeyEncrypted ?? "";
-    const preservedApiKeyExpiresAt = existingInstance?.config?.notifications?.email?.apiKeyExpiresAt ?? null;
 
     const config: FormInstanceConfig = {
       meta: (yamlForm.meta ?? existingInstance?.config?.meta ?? {
@@ -96,7 +95,7 @@ export async function POST(req: NextRequest) {
       form:     (yamlForm.form     ?? existingInstance?.config?.form     ?? { steps: [] }) as FormInstanceConfig["form"],
       security: (yamlForm.security ?? existingInstance?.config?.security ?? undefined) as FormInstanceConfig["security"],
       features: yamlForm.features ?? existingInstance?.config?.features ?? { landingPage: true, form: true },
-      notifications: buildNotifications(yamlForm, existingInstance?.config, preservedApiKeyEncrypted, preservedApiKeyExpiresAt),
+      notifications: buildNotifications(yamlForm, existingInstance?.config),
       _managedBy: "ui-import",
     };
 
@@ -123,6 +122,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (created.length > 0 || updated.length > 0) revalidatePath("/admin", "layout");
   return NextResponse.json({ created, updated, errors });
 }
 
@@ -133,8 +133,6 @@ type YamlFormEntry = (typeof yamlConfigSchema)["_output"]["forms"] extends Array
 function buildNotifications(
   yamlForm: YamlFormEntry,
   existingConfig: FormInstanceConfig | undefined,
-  preservedApiKeyEncrypted: string,
-  preservedApiKeyExpiresAt: string | null | undefined,
 ): FormInstanceConfig["notifications"] {
   const yamlNotif = yamlForm.notifications;
   if (!yamlNotif) return existingConfig?.notifications;
@@ -152,14 +150,10 @@ function buildNotifications(
     webhookUrl: yamlNotif.webhookUrl,
     enabled:    yamlNotif.enabled,
     email: {
-      enabled:         yamlEmail.enabled,
-      provider:        yamlEmail.provider,
-      fromAddress:     yamlEmail.fromAddress,
-      fromName:        yamlEmail.fromName,
-      subject:         yamlEmail.subject,
-      bodyText:        yamlEmail.bodyText,
-      apiKeyEncrypted: preservedApiKeyEncrypted,
-      apiKeyExpiresAt: yamlEmail.apiKeyExpiresAt ?? preservedApiKeyExpiresAt,
+      enabled:    yamlEmail.enabled ?? false,
+      providerId: yamlEmail.providerId as string | undefined,
+      subject:    yamlEmail.subject  ?? "",
+      bodyText:   yamlEmail.bodyText ?? "",
     },
   };
 }

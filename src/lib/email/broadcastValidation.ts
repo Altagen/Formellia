@@ -1,8 +1,6 @@
 import { z } from "zod";
 import { ADDITIONAL_RECIPIENTS_MAX } from "./additionalRecipients";
 
-export const broadcastProviderSchema = z.enum(["resend", "sendgrid", "mailgun"]);
-
 /**
  * Shared shape for the optional free-text recipient list. We keep validation
  * loose (any non-empty string ≤ 320 chars — RFC 5321 limit for the whole
@@ -13,7 +11,7 @@ export const broadcastProviderSchema = z.enum(["resend", "sendgrid", "mailgun"])
 const additionalRecipientsField = z.array(z.string().min(1).max(320)).max(ADDITIONAL_RECIPIENTS_MAX);
 
 export const createBroadcastSchema = z.object({
-  name:         z.string().min(1, "name requis").max(255),
+  name:         z.string().min(1, "name required").max(255),
   subject:      z.string().max(998, "RFC 5322 — subject too long").default(""),
   bodyHtml:     z.string().max(500_000, "body too large").default(""),
   bodyText:     z.string().max(500_000).default(""),
@@ -34,17 +32,9 @@ export const updateBroadcastSchema = z.object({
   // out without anyone to mail.
   dataPoolIds:          z.array(z.string().uuid()).optional(),
   additionalRecipients: additionalRecipientsField.optional(),
-});
-
-export const updateBroadcastConfigSchema = z.object({
-  provider:        broadcastProviderSchema.nullable().optional(),
-  fromAddress:     z.string().email().nullable().optional(),
-  fromName:        z.string().max(255).nullable().optional(),
-  /** Pass `""` to clear, `undefined` to leave unchanged. */
-  apiKey:          z.string().max(2_000).nullable().optional(),
-  apiKeyExpiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "format date YYYY-MM-DD requis").nullable().optional(),
+  /** UUID of an `email_providers` row, or null to fall back to the default preset at send time. */
+  providerId:           z.string().uuid().nullable().optional(),
 });
 
 export type CreateBroadcastInput  = z.infer<typeof createBroadcastSchema>;
 export type UpdateBroadcastInput  = z.infer<typeof updateBroadcastSchema>;
-export type UpdateBroadcastConfigInput = z.infer<typeof updateBroadcastConfigSchema>;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAdminSession, requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
+import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { requireFormAccess } from "@/lib/auth/permissions";
 import {
   getFormInstanceById,
@@ -8,12 +9,12 @@ import {
   deleteFormInstance,
   listFormInstances,
 } from "@/lib/db/formInstanceLoader";
-import { removeAutoViewForForm } from "@/lib/admin/autoFormView";
-import { purgeFormReferences } from "@/lib/admin/purgeFormReferences";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { isReservedSlug } from "@/lib/config/reservedSlugs";
 import { getUseCustomRoot } from "@/lib/security/rootPageConfig";
 import { getProtectedSlugs } from "@/lib/security/protectedSlugs";
+import { removeAutoViewForForm } from "@/lib/admin/autoFormView";
+import { purgeFormReferences } from "@/lib/admin/purgeFormReferences";
 import type { FormInstanceConfig } from "@/types/formInstance";
 
 const putBodySchema = z.object({
@@ -100,6 +101,7 @@ export async function PUT(
   const details: Record<string, unknown> = { oldSlug: current.slug, name: parsed.data.name };
   if (newSlug && newSlug !== current.slug) details.newSlug = newSlug;
   logAdminEvent({ userId: actor?.id ?? null, userEmail: actor?.email ?? null, action: "form.update", resourceType: "form", resourceId: id, details });
+  revalidatePath("/admin", "layout");
   return NextResponse.json(updated);
 }
 
@@ -124,8 +126,6 @@ export async function DELETE(
 
   await deleteFormInstance(id);
 
-  // Drop any auto-generated companion page bound to this form. Symmetric with
-  // the auto-create path on form creation.
   let autoPagesRemoved = 0;
   try {
     autoPagesRemoved = await removeAutoViewForForm(id);
@@ -133,14 +133,6 @@ export async function DELETE(
     /* ignore — form already deleted */
   }
 
-  // Purge every jsonb/text reference outside the FK graph that would
-  // otherwise leak the deleted form id as a zombie:
-  //   - users.sidebar_layout (pinnedForms / formOrder / favorites / categories)
-  //   - saved_filters with this slug
-  //   - admin.views[] manual entries — unbinds formInstanceId so the view
-  //     turns into "all submissions" instead of disappearing
-  // Cascading FKs (submissions, grants, data_pool_sources …) are already
-  // handled by the schema; this fills the gaps for everything else.
   let purge: Awaited<ReturnType<typeof purgeFormReferences>> = {
     sidebarLayoutsUpdated: 0,
     savedFiltersDeleted:   0,
@@ -149,8 +141,6 @@ export async function DELETE(
   try {
     purge = await purgeFormReferences(id, instance.slug);
   } catch (err) {
-    // Don't fail the whole delete — the form row is already gone, the
-    // leftovers will just need manual cleanup. Log loudly so it's visible.
     console.error("[forms.delete] purgeFormReferences failed:", err);
   }
 
@@ -168,5 +158,6 @@ export async function DELETE(
       ...purge,
     },
   });
+  revalidatePath("/admin", "layout");
   return NextResponse.json({ success: true });
 }

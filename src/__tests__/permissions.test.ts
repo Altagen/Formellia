@@ -5,7 +5,7 @@
  * by mocking the drizzle query chain. Pure helpers (roleAtLeast, ROLE_LEVELS) are
  * tested directly without any mocking.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 
 // ── Pure function tests (no mocking needed) ───────────────
 // Import directly — these have no runtime side-effects

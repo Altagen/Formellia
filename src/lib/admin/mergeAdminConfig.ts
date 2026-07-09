@@ -1,4 +1,4 @@
-import type { AdminView, TableColumnDef } from "@/types/config";
+import type { AdminPage, TableColumnDef } from "@/types/config";
 
 /**
  * Merge incoming dashboard pages into the existing set.
@@ -11,11 +11,11 @@ import type { AdminView, TableColumnDef } from "@/types/config";
  * In append mode every incoming page must carry a non-empty string `id` (the upsert key);
  * a missing id throws.
  */
-export function mergeAdminViews(
-  current: AdminView[],
-  incoming: AdminView[],
+export function mergeAdminPages(
+  current: AdminPage[],
+  incoming: AdminPage[],
   mode: "append" | "replace",
-): AdminView[] {
+): AdminPage[] {
   if (mode === "replace") return incoming;
   for (const page of incoming) {
     if (!page || typeof page.id !== "string" || page.id === "") {
@@ -23,7 +23,16 @@ export function mergeAdminViews(
     }
   }
   const incomingById = new Map(incoming.map(p => [p.id, p]));
-  const updated = current.map(p => incomingById.get(p.id) ?? p);
+  const updated = current.map(p => {
+    const inc = incomingById.get(p.id);
+    if (!inc) return p;
+    // Preserve local-only metadata that YAML export does not carry so that
+    // re-importing a view (which never round-trips folderId) doesn't silently
+    // detach the view from its folder.
+    return inc.folderId === undefined && p.folderId !== undefined
+      ? { ...inc, folderId: p.folderId }
+      : inc;
+  });
   const currentIds = new Set(current.map(p => p.id));
   const added = incoming.filter(p => !currentIds.has(p.id));
   return [...updated, ...added];

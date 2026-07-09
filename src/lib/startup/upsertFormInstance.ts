@@ -24,8 +24,6 @@ export async function upsertFormInstanceFromYaml(yamlForm: YamlFormConfig): Prom
     .limit(1);
 
   const existingConfig = existing[0]?.config as FormInstanceConfig | undefined;
-  const preservedApiKeyEncrypted = existingConfig?.notifications?.email?.apiKeyEncrypted ?? "";
-  const preservedApiKeyExpiresAt = existingConfig?.notifications?.email?.apiKeyExpiresAt ?? null;
 
   // Build merged config — YAML fields take priority, secrets are preserved from DB
   const config: Record<string, unknown> = {
@@ -43,7 +41,7 @@ export async function upsertFormInstanceFromYaml(yamlForm: YamlFormConfig): Prom
     security: yamlForm.security ?? existingConfig?.security ?? undefined,
     features: yamlForm.features ?? existingConfig?.features ?? { landingPage: true, form: true },
 
-    notifications: buildNotifications(yamlForm, existingConfig, preservedApiKeyEncrypted, preservedApiKeyExpiresAt),
+    notifications: buildNotifications(yamlForm, existingConfig),
 
     // Optional new fields — YAML takes priority, fall back to existing DB value
     ...(yamlForm.onSubmitActions      !== undefined ? { onSubmitActions:      yamlForm.onSubmitActions }      : existingConfig?.onSubmitActions      !== undefined ? { onSubmitActions:      existingConfig.onSubmitActions }      : {}),
@@ -74,8 +72,6 @@ export async function upsertFormInstanceFromYaml(yamlForm: YamlFormConfig): Prom
 function buildNotifications(
   yamlForm: YamlFormConfig,
   existingConfig: FormInstanceConfig | undefined,
-  preservedApiKeyEncrypted: string,
-  preservedApiKeyExpiresAt: string | null | undefined,
 ): Record<string, unknown> | undefined {
   const yamlNotif = yamlForm.notifications;
   if (!yamlNotif) return existingConfig?.notifications as Record<string, unknown> | undefined;
@@ -93,15 +89,10 @@ function buildNotifications(
     webhookUrl: yamlNotif.webhookUrl,
     enabled:    yamlNotif.enabled,
     email: {
-      enabled:         yamlEmail.enabled,
-      provider:        yamlEmail.provider,
-      fromAddress:     yamlEmail.fromAddress,
-      fromName:        yamlEmail.fromName,
-      subject:         yamlEmail.subject,
-      bodyText:        yamlEmail.bodyText,
-      // Secrets preserved from DB — never in YAML
-      apiKeyEncrypted: preservedApiKeyEncrypted,
-      apiKeyExpiresAt: yamlEmail.apiKeyExpiresAt ?? preservedApiKeyExpiresAt,
+      enabled:    yamlEmail.enabled,
+      providerId: yamlEmail.providerId as string | undefined,
+      subject:    yamlEmail.subject,
+      bodyText:   yamlEmail.bodyText,
     },
   };
 }

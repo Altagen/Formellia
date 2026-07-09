@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (guard) return guard;
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Corps JSON invalide" }, { status: 422 });
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 422 });
 
   const parsed = runSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 422 });
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   const { providerId, formSlugs, datasetNames } = parsed.data;
 
   const [providerRow] = await db.select().from(backupProviders).where(eq(backupProviders.id, providerId)).limit(1);
-  if (!providerRow) return NextResponse.json({ error: "Fournisseur introuvable" }, { status: 404 });
+  if (!providerRow) return NextResponse.json({ error: "Provider not found" }, { status: 404 });
   if (!providerRow.enabled) return NextResponse.json({ error: "This provider is disabled" }, { status: 409 });
 
   const provider = await buildProvider(providerRow.type as "local" | "s3", providerRow.encryptedConfig);

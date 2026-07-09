@@ -1,0 +1,2 @@
+ALTER TABLE "email_broadcasts" ADD COLUMN "provider_id" uuid;--> statement-breakpoint
+ALTER TABLE "email_broadcasts" ADD CONSTRAINT "email_broadcasts_provider_id_email_providers_id_fk" FOREIGN KEY ("provider_id") REFERENCES "public"."email_providers"("id") ON DELETE set null ON UPDATE no action;

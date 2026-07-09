@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { eq, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users, sessions } from "@/lib/db/schema";
@@ -69,7 +69,9 @@ export async function POST(req: NextRequest) {
       passwordValid = await bcrypt.compare(password, user.hashedPassword);
     } else {
       const sha = createHash("sha256").update(password).digest("hex");
-      passwordValid = sha === user.hashedPassword;
+      // Constant-time comparison — SHA-256 hex is always 64 chars, same length as stored hash.
+      passwordValid = sha.length === user.hashedPassword.length
+        && timingSafeEqual(Buffer.from(sha), Buffer.from(user.hashedPassword));
     }
 
     if (!passwordValid) {

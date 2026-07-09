@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { FormInstance, FormInstanceConfig } from "@/types/formInstance";
@@ -9,6 +9,7 @@ import { FormBuilderTab } from "@/components/admin/config/FormBuilderTab";
 import { MetaTab } from "@/components/admin/config/MetaTab";
 import { SecurityTab } from "@/components/admin/config/SecurityTab";
 import { FormFeaturesTab } from "@/components/admin/config/FormFeaturesTab";
+import { FormsGlobalSettings } from "@/components/admin/config/FormsGlobalSettings";
 import { NotificationsTab } from "@/components/admin/config/NotificationsTab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,14 +22,13 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, ExternalLink, ChevronRight, Copy, FileCode2, Eye, X, History, Upload, Unlock, Star } from "lucide-react";
-import { isReservedSlug } from "@/lib/config/reservedSlugs";
+import { Trash2, ExternalLink, FileCode2, Eye, X, History, Unlock, Download, Sheet } from "lucide-react";
+import { SubmissionExportDialog } from "@/components/admin/SubmissionExportDialog";
 import { FormWizard } from "@/components/form/FormWizard";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import { PrioritiesTab } from "@/components/admin/config/PrioritiesTab";
 import { ActionsTab } from "@/components/admin/config/ActionsTab";
 import { CodeTab } from "@/components/admin/config/CodeTab";
-import { ImportModal } from "@/components/admin/config/ImportModal";
 
 // InstanceTabId is derived from the fixed set of tab IDs (labels are translated at runtime)
 type InstanceTabId = "options" | "page" | "form" | "meta" | "security" | "notifications" | "statuses" | "priorities" | "actions" | "code";
@@ -37,52 +37,6 @@ interface FormsTabProps {
   instances: FormInstance[];
 }
 
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .slice(0, 40) || "formulaire";
-}
-
-function defaultInstanceConfig(): FormInstanceConfig {
-  return {
-    meta: {
-      name: "",
-      title: "",
-      description: "",
-      locale: "fr",
-    },
-    page: {
-      branding: { defaultTheme: "light" },
-      hero: {
-        title: "",
-        ctaLabel: "",
-        backgroundVariant: "gradient",
-      },
-    },
-    form: {
-      steps: [
-        {
-          id: "step-contact",
-          title: "",
-          fields: [
-            {
-              id: "email",
-              type: "email",
-              label: "",
-              placeholder: "",
-              required: true,
-            },
-          ],
-        },
-      ],
-    },
-    features: { landingPage: true, form: true },
-  };
-}
 
 // ─────────────────────────────────────────────────────────
 // Instance editor (sub-tabs: options, page, form, meta, security)
@@ -94,7 +48,7 @@ interface InstanceEditorProps {
   onDeleted: () => void;
 }
 
-function InstanceEditor({ instance: initial, onSaved, onDeleted }: InstanceEditorProps) {
+export function InstanceEditor({ instance: initial, onSaved, onDeleted }: InstanceEditorProps) {
   const router = useRouter();
   const tr = useTranslations();
   const f = tr.admin.config.forms;
@@ -121,6 +75,7 @@ function InstanceEditor({ instance: initial, onSaved, onDeleted }: InstanceEdito
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleteSlugInput, setDeleteSlugInput] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [versions, setVersions] = useState<Array<{ id: string; createdAt: string; savedByEmail?: string | null; config: unknown }>>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
@@ -321,6 +276,16 @@ function InstanceEditor({ instance: initial, onSaved, onDeleted }: InstanceEdito
               {f.previewFullPage}
             </Button>
           </a>
+          <a href={`/api/admin/forms/${draft.id}/export`} download>
+            <Button type="button" size="sm" variant="outline" title={f.exportYamlHint}>
+              <Download className="w-3.5 h-3.5 mr-1" />
+              {f.exportYaml}
+            </Button>
+          </a>
+          <Button type="button" size="sm" variant="outline" onClick={() => setExportOpen(true)}>
+            <Sheet className="w-3.5 h-3.5 mr-1" />
+            {f.exportData}
+          </Button>
           {draft.slug !== "/" && (
             <>
               <Button
@@ -391,7 +356,7 @@ function InstanceEditor({ instance: initial, onSaved, onDeleted }: InstanceEdito
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-border pb-0">
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-border pb-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {INSTANCE_TABS.map(t => {
           const disabledByLock = isManagedByImport && t.id !== "code";
           return (
@@ -609,6 +574,13 @@ function InstanceEditor({ instance: initial, onSaved, onDeleted }: InstanceEdito
           </div>
         </div>
       )}
+
+      <SubmissionExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        formInstanceId={draft.id}
+        slug={draft.slug === "/" ? "root" : draft.slug}
+      />
     </div>
   );
 }
@@ -819,325 +791,11 @@ function StatusesEditor({ customStatuses, onChange }: StatusesEditorProps) {
 // FormsTab — list + create + edit
 // ─────────────────────────────────────────────────────────
 
-export function FormsTab({ instances: initialInstances }: FormsTabProps) {
-  const router = useRouter();
-  const tr = useTranslations();
-  const f = tr.admin.config.forms;
-
-  const [instances, setInstances] = useState<FormInstance[]>(initialInstances);
-  const [selectedId, setSelectedId] = useState<string | null>(
-    initialInstances[0]?.id ?? null
-  );
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [creating, setCreating] = useState(false);
-
-  // Load sidebar layout favorites on mount
-  useEffect(() => {
-    fetch("/api/admin/account/sidebar-layout")
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.favorites) setFavorites(data.favorites); })
-      .catch(() => {});
-  }, []);
-
-  async function toggleFavorite(id: string, e: React.MouseEvent) {
-    e.stopPropagation();
-    const next = favorites.includes(id)
-      ? favorites.filter(f => f !== id)
-      : [...favorites, id];
-    setFavorites(next);
-    await fetch("/api/admin/account/sidebar-layout", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ favorites: next }),
-    }).catch(() => {});
-  }
-  const [mobileView, setMobileView] = useState<"list" | "editor">("list");
-  const [newName, setNewName] = useState("");
-  const [newSlug, setNewSlug] = useState("");
-  const [newSourceConfig, setNewSourceConfig] = useState<FormInstanceConfig | null>(null);
-  const [slugError, setSlugError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [showGlobalImport, setShowGlobalImport] = useState(false);
-
-  const selectedInstance = instances.find(i => i.id === selectedId) ?? null;
-
-  function handleNameChange(v: string) {
-    setNewName(v);
-    const s = slugify(v);
-    setNewSlug(s);
-    if (isReservedSlug(s)) {
-      setSlugError(f.slugReserved.replace("{s}", s));
-    } else if (instances.some(i => i.slug === s)) {
-      setSlugError(f.slugConflict.replace("{s}", s));
-    } else {
-      setSlugError(null);
-    }
-  }
-
-  function handleSlugChange(v: string) {
-    // Allow "/" as a special root slug
-    if (v.trim() === "/") {
-      setNewSlug("/");
-      if (instances.some(i => i.slug === "/")) {
-        setSlugError(f.slugConflict.replace("{s}", "/"));
-      } else {
-        setSlugError(null);
-      }
-      return;
-    }
-    const s = slugify(v) || v.toLowerCase().slice(0, 40);
-    setNewSlug(s);
-    if (isReservedSlug(s)) {
-      setSlugError(f.slugReserved.replace("{s}", s));
-    } else if (instances.some(i => i.slug === s)) {
-      setSlugError(f.slugConflict.replace("{s}", s));
-    } else {
-      setSlugError(null);
-    }
-  }
-
-  function handleDuplicate(source: FormInstance) {
-    const baseName = `${f.duplicateTitle} ${source.name}`;
-    const baseSlug = slugify(`copie-${source.slug === "/" ? "racine" : source.slug}`);
-    const uniqueSlug = instances.some(i => i.slug === baseSlug)
-      ? `${baseSlug}-${Date.now().toString(36).slice(-4)}`
-      : baseSlug;
-    setNewName(baseName);
-    setNewSlug(uniqueSlug);
-    setNewSourceConfig(JSON.parse(JSON.stringify(source.config)));
-    setSlugError(null);
-    setCreating(true);
-    setSelectedId(null);
-  }
-
-  async function handleCreate() {
-    if (!newName.trim() || !newSlug.trim() || slugError) return;
-    setSaving(true);
-    try {
-      const res = await fetch("/api/admin/forms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug: newSlug,
-          name: newName,
-          config: newSourceConfig ?? defaultInstanceConfig(),
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setSlugError(data.error ?? f.networkError);
-      } else {
-        const created: FormInstance = await res.json();
-        setInstances(prev => [...prev, created]);
-        setSelectedId(created.id);
-        setCreating(false);
-        setNewName("");
-        setNewSlug("");
-        setNewSourceConfig(null);
-        toast.success(f.saved);
-        router.refresh();
-      }
-    } catch {
-      setSlugError(f.networkError);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleSaved(updated: FormInstance) {
-    setInstances(prev => prev.map(i => (i.id === updated.id ? updated : i)));
-  }
-
-  function handleDeleted() {
-    setInstances(prev => {
-      const remaining = prev.filter(i => i.id !== selectedId);
-      setSelectedId(remaining[0]?.id ?? null);
-      return remaining;
-    });
-  }
-
+export function FormsTab(_props: FormsTabProps) {
   return (
-    <div className="flex gap-0 min-h-[400px]">
-      {/* Sidebar — instance list */}
-      <div className={`w-full md:w-56 md:shrink-0 border-r border-border md:pr-4 space-y-1 ${mobileView === "editor" ? "hidden md:block" : "block"}`}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            {f.title}
-          </h2>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setShowGlobalImport(true)}
-              className="h-7 w-7 p-0"
-              title={f.importGlobalBtn}
-            >
-              <Upload className="w-3.5 h-3.5" />
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => { setCreating(true); setSelectedId(null); setMobileView("editor"); }}
-              className="h-7 w-7 p-0"
-              title={f.create}
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Sort: favorites first, then the rest */}
-        {[...instances].sort((a, b) => {
-          const aFav = favorites.includes(a.id) ? 0 : 1;
-          const bFav = favorites.includes(b.id) ? 0 : 1;
-          return aFav - bFav;
-        }).map(inst => (
-          <div key={inst.id} className="group relative">
-            <button
-              type="button"
-              onClick={() => { setSelectedId(inst.id); setCreating(false); setMobileView("editor"); }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
-                selectedId === inst.id
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-foreground hover:bg-muted"
-              }`}
-            >
-              {inst.config.meta.emoji && (
-                <span className="shrink-0 text-base leading-none">{inst.config.meta.emoji}</span>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="truncate">{inst.name}</p>
-                <p className="text-xs text-muted-foreground font-mono truncate">
-                  {inst.slug === "/" ? "/" : `/${inst.slug}`}
-                </p>
-              </div>
-              {selectedId === inst.id && <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
-            </button>
-            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
-              <button
-                type="button"
-                onClick={(e) => void toggleFavorite(inst.id, e)}
-                className={`p-1 rounded ${favorites.includes(inst.id) ? "text-amber-500" : "text-muted-foreground hover:text-amber-500"}`}
-                title={favorites.includes(inst.id) ? f.removeFromFavorites : f.addToFavorites}
-              >
-                <Star className={`w-3 h-3 ${favorites.includes(inst.id) ? "fill-amber-500" : ""}`} />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); handleDuplicate(inst); }}
-                className="p-1 rounded text-muted-foreground hover:text-foreground"
-                title={f.duplicateTitle}
-              >
-                <Copy className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {instances.length === 0 && (
-          <p className="text-xs text-muted-foreground py-2">{f.noForms}</p>
-        )}
-      </div>
-
-      {/* Main area */}
-      <div className={`flex-1 md:pl-6 min-w-0 ${mobileView === "list" ? "hidden md:block" : "block"}`}>
-        {/* Mobile back button */}
-        <button
-          type="button"
-          onClick={() => setMobileView("list")}
-          className="md:hidden flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          {f.title}
-        </button>
-
-        {/* Create form */}
-        {creating && (
-          <div className="space-y-4 max-w-sm">
-            <h3 className="text-sm font-semibold text-foreground">
-              {newSourceConfig ? f.duplicateTitle : f.createTitle}
-            </h3>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">{f.name}</label>
-              <Input
-                value={newName}
-                onChange={e => handleNameChange(e.target.value)}
-                placeholder={f.namePlaceholder}
-                className="text-sm"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">
-                {f.slug}
-              </label>
-              <div className="flex items-center gap-1">
-                {newSlug !== "/" && <span className="text-sm text-muted-foreground font-mono">/</span>}
-                <Input
-                  value={newSlug}
-                  onChange={e => handleSlugChange(e.target.value)}
-                  placeholder={f.slugPlaceholder}
-                  className="text-sm font-mono"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{f.slugRootHint}</p>
-              {slugError && (
-                <p className="text-xs text-destructive mt-1">{slugError}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleCreate}
-                disabled={!newName.trim() || !newSlug.trim() || !!slugError || saving}
-              >
-                {saving ? "…" : f.create}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => { setCreating(false); setNewSourceConfig(null); }}
-              >
-                {f.cancel}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Instance editor */}
-        {!creating && selectedInstance && (
-          <InstanceEditor
-            key={selectedInstance.id}
-            instance={selectedInstance}
-            onSaved={handleSaved}
-            onDeleted={handleDeleted}
-          />
-        )}
-
-        {!creating && !selectedInstance && (
-          <div className="flex items-center justify-center h-48 text-sm text-muted-foreground border-2 border-dashed rounded-xl">
-            {f.selectOrCreate}
-          </div>
-        )}
-      </div>
-
-      {/* Global import modal */}
-      {showGlobalImport && (
-        <ImportModal
-          instances={instances}
-          onClose={() => setShowGlobalImport(false)}
-          onSuccess={() => {
-            setShowGlobalImport(false);
-            router.refresh();
-          }}
-        />
-      )}
+    <div className="space-y-6">
+      <FormsGlobalSettings />
     </div>
   );
 }
+

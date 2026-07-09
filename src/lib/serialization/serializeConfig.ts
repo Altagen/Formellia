@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 
 /** Serialises data to a YAML string (for use in backup ZIP). */
 export function serializeConfigToString(data: unknown): string {

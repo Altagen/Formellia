@@ -44,14 +44,11 @@ function scanForSecrets(value: unknown, path = ""): string[] {
 // ─────────────────────────────────────────────────────────
 
 const yamlEmailNotifSchema = z.object({
-  enabled:         z.boolean().default(false),
-  provider:        z.enum(["resend", "sendgrid", "mailgun"]).default("resend"),
-  fromAddress:     z.string().email("notifications.email.fromAddress invalide"),
-  fromName:        z.string().optional(),
-  subject:         z.string().default(""),
-  bodyText:        z.string().default(""),
-  apiKeyExpiresAt: z.string().nullable().optional(),
-  // apiKeyEncrypted is intentionally absent — caught by the secret scanner if someone adds it
+  enabled:    z.boolean().default(false),
+  /** UUID reference to a row in `email_providers` — credentials never live in YAML. */
+  providerId: z.string().uuid().optional(),
+  subject:    z.string().default(""),
+  bodyText:   z.string().default(""),
 });
 
 const yamlNotifSchema = z.object({
@@ -67,8 +64,8 @@ const yamlNotifSchema = z.object({
 // ─────────────────────────────────────────────────────────
 
 export const yamlFormConfigSchema = z.object({
-  slug:          z.string().min(1, "slug requis"),
-  name:          z.string().min(1, "name requis"),
+  slug:          z.string().min(1, "slug required"),
+  name:          z.string().min(1, "name required"),
   features:      z.object({
     landingPage:           z.boolean().default(true),
     form:                  z.boolean().default(true),
@@ -107,7 +104,7 @@ export const yamlConfigSchema = z.object({
 
   admin: z.object({
     // Password intentionally absent — env var ADMIN_PASSWORD only
-    email: z.string().email("admin.email invalide").optional(),
+    email: z.string().email("admin.email is invalid").optional(),
   }).optional(),
 
   priorityThresholds: z.object({

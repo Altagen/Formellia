@@ -2,7 +2,8 @@
 useDefault = true
 
 [allowlist]
-description = "Synthetic test fixtures"
+description = "Synthetic test fixtures + i18n help text"
 paths = [
   '''src/__tests__/.*''',
+  '''src/i18n/.*\.ts$''',
 ]

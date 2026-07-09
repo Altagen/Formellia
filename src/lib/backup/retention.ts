@@ -1,6 +1,5 @@
 import type { BackupListEntry, BackupProvider } from "./types";
 import type { RetentionPolicy } from "@/lib/db/schema";
-import { backupLogger as log } from "@/lib/logger";
 
 /**
  * Applies the retention policy: deletes backup files from the provider

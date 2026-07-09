@@ -34,7 +34,7 @@ export async function DELETE(
   ).returning({ id: sessions.id });
 
   if (result.length === 0) {
-    return NextResponse.json({ error: "Session introuvable" }, { status: 404 });
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
   logAdminEvent({

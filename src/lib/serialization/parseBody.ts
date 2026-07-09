@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 
 /**
  * Parses a request body as JSON or YAML depending on Content-Type.
@@ -18,14 +18,14 @@ export async function parseBody(req: NextRequest): Promise<unknown> {
     try {
       return JSON.parse(text);
     } catch {
-      throw new Error("JSON invalide");
+      throw new Error("Invalid JSON");
     }
   }
 
   try {
     return yaml.load(text);
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Erreur de parsing";
-    throw new Error(`YAML invalide : ${msg}`);
+    const msg = e instanceof Error ? e.message : "Parse error";
+    throw new Error(`Invalid YAML: ${msg}`);
   }
 }

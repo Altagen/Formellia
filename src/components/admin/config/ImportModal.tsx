@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import type { FormInstance } from "@/types/formInstance";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 
 // ─────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ export function ImportModal({ formId, instances, onClose, onSuccess }: ImportMod
 
   const [section, setSection]   = useState<ImportSection>("full");
   const [mode, setMode]         = useState<ImportMode>("replace");
-  const [targetId, setTargetId] = useState<string>(formId ?? "");
+  const [targetId] = useState<string>(formId ?? "");
   const [yamlText, setYamlText] = useState("");
   const [applying, setApplying] = useState(false);
 

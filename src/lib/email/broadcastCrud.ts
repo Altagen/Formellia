@@ -5,7 +5,7 @@
  */
 import { db } from "@/lib/db";
 import { emailBroadcasts } from "@/lib/db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, lt, sql } from "drizzle-orm";
 import type { EmailBroadcast } from "@/lib/db/schema";
 import type { CreateBroadcastInput, UpdateBroadcastInput } from "./broadcastValidation";
 import { normalizeAdditionalRecipients } from "./additionalRecipients";
@@ -62,6 +62,7 @@ export async function updateBroadcastIfDraft(
   if (patch.dataPoolIds !== undefined) fields.dataPoolIds = patch.dataPoolIds;
   if (patch.additionalRecipients !== undefined)
     fields.additionalRecipients = normalizeAdditionalRecipients(patch.additionalRecipients);
+  if (patch.providerId          !== undefined) fields.providerId  = patch.providerId;
 
   // Reset the row to draft on edit from a failed state — keeps the lifecycle
   // model linear (draft → sending → sent | failed → [edit] → draft).
@@ -107,6 +108,32 @@ export async function claimForSend(id: string): Promise<EmailBroadcast | null> {
     ))
     .returning();
   return row ?? null;
+}
+
+/**
+ * Reaps rows stuck in `sending` beyond `stuckAfterMs`. Called by the scheduler
+ * every ~5 minutes to close the "OOM-killed mid-send" hole where a broadcast
+ * never reaches `markBroadcastSent`/`markBroadcastFailed`, leaving the row
+ * permanently locked (composer refuses edits, DELETE only, no retry path).
+ *
+ * The reaper flips the row back to `failed` with a synthetic error string so
+ * the admin sees why and can decide to re-send.
+ */
+export async function reapStuckBroadcasts(stuckAfterMs = 10 * 60 * 1000): Promise<number> {
+  const cutoff = new Date(Date.now() - stuckAfterMs);
+  const rows = await db
+    .update(emailBroadcasts)
+    .set({
+      status:    "failed",
+      lastError: "Send interrupted before completion (process likely restarted). Re-send when ready.",
+      updatedAt: new Date(),
+    })
+    .where(and(
+      sql`${emailBroadcasts.status} = 'sending'`,
+      lt(emailBroadcasts.updatedAt, cutoff),
+    ))
+    .returning({ id: emailBroadcasts.id });
+  return rows.length;
 }
 
 export async function markBroadcastSent(id: string, recipientCount: number, sent: number, failed: number, error: string | null): Promise<void> {

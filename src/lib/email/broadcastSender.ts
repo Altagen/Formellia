@@ -20,7 +20,20 @@
  * and `last_error` to `email_broadcasts`.
  */
 import { decryptApiKey } from "./crypto";
-import type { GlobalEmailConfigInternal } from "./globalEmailConfig";
+import type { EmailProviderKind } from "./providers";
+
+/**
+ * Subset of an `email_providers` row that the sender needs. Post-UI-11 the
+ * broadcast service resolves the preset and hands us just these fields, so
+ * the sender is decoupled from where the identity came from.
+ */
+export interface BroadcastPresetConfig {
+  provider:        EmailProviderKind;
+  fromAddress:     string;
+  fromName:        string | null;
+  apiKeyEncrypted: string;
+  apiKeyExpiresAt: string | null;
+}
 
 const BATCH_SIZE: Record<string, number> = {
   resend:   50,
@@ -45,7 +58,7 @@ function redactErrorBody(s: string): string {
 }
 
 export interface SendBroadcastOptions {
-  config:   GlobalEmailConfigInternal;
+  config:   BroadcastPresetConfig;
   /** Recipients — already deduplicated and free of empty strings. */
   to:       string[];
   subject:  string;

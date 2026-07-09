@@ -620,6 +620,7 @@ function PreviewTab({
 
 function ExclusionsTab({ pool, onUpdated }: { pool: DataPoolWithMeta; onUpdated: (p: DataPoolWithMeta) => void }) {
   const t = useTranslations().admin.datapool;
+  const [pendingRemove, setPendingRemove] = useState<string | null>(null);
 
   async function refresh() {
     const res = await fetch(`/api/admin/datapools/${pool.id}`);
@@ -663,7 +664,7 @@ function ExclusionsTab({ pool, onUpdated }: { pool: DataPoolWithMeta; onUpdated:
                   <td className="px-3 py-2 text-muted-foreground">{e.reason ?? <span className="italic">—</span>}</td>
                   <td className="px-3 py-2 text-muted-foreground">{new Date(e.excludedAt).toLocaleDateString()}</td>
                   <td className="px-3 py-2 text-right">
-                    <button type="button" onClick={() => removeExclusion(e.submissionId)} className="text-destructive hover:underline text-xs">
+                    <button type="button" onClick={() => setPendingRemove(e.submissionId)} className="text-destructive hover:underline text-xs">
                       {t.exclusionsTableRemove}
                     </button>
                   </td>
@@ -673,6 +674,20 @@ function ExclusionsTab({ pool, onUpdated }: { pool: DataPoolWithMeta; onUpdated:
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={pendingRemove !== null}
+        onOpenChange={(o) => !o && setPendingRemove(null)}
+        title={t.exclusionRemoveConfirmTitle}
+        description={t.exclusionRemoveConfirmDesc}
+        confirmLabel={t.exclusionRemoveConfirm}
+        cancelLabel={t.exclusionRemoveCancel}
+        destructive
+        onConfirm={async () => {
+          if (pendingRemove) await removeExclusion(pendingRemove);
+          setPendingRemove(null);
+        }}
+      />
     </div>
   );
 }

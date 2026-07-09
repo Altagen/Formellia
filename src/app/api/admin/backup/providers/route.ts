@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { db } from "@/lib/db";
 import { backupProviders } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { encryptProviderConfig } from "@/lib/backup/providers/index";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { z } from "zod";
@@ -77,7 +76,7 @@ export async function POST(req: NextRequest) {
   if (guard) return guard;
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Corps JSON invalide" }, { status: 422 });
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 422 });
 
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 422 });
@@ -95,7 +94,7 @@ export async function POST(req: NextRequest) {
     encryptedConfig = encryptProviderConfig(JSON.stringify(cfgValidation.data));
   } catch {
     return NextResponse.json(
-      { error: "Le service de chiffrement n'est pas disponible. Contactez votre administrateur." },
+      { error: "Encryption service is unavailable. Contact your administrator." },
       { status: 503 }
     );
   }

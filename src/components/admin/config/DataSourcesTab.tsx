@@ -724,7 +724,7 @@ export function DataSourcesTab() {
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className="block text-xs text-muted-foreground mb-1.5">{ds.name} *</label>
-              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Clients CRM" className="text-sm" />
+              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={ds.namePlaceholder} className="text-sm" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-muted-foreground mb-1.5">{ds.descriptionField}</label>
@@ -850,9 +850,9 @@ export function DataSourcesTab() {
                 <p className="text-xs text-muted-foreground">{ds.fieldMapping}</p>
                 {form.fieldMapRows.map((r, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <Input value={r.from} onChange={e => setForm(f => ({ ...f, fieldMapRows: f.fieldMapRows.map((x, j) => j === i ? { ...x, from: e.target.value } : x) }))} placeholder="colonne source" className="text-xs font-mono flex-1" />
+                    <Input value={r.from} onChange={e => setForm(f => ({ ...f, fieldMapRows: f.fieldMapRows.map((x, j) => j === i ? { ...x, from: e.target.value } : x) }))} placeholder={ds.fieldMapFromPlaceholder} className="text-xs font-mono flex-1" />
                     <span className="text-xs text-muted-foreground shrink-0">→</span>
-                    <Input value={r.to} onChange={e => setForm(f => ({ ...f, fieldMapRows: f.fieldMapRows.map((x, j) => j === i ? { ...x, to: e.target.value } : x) }))} placeholder="champ interne" className="text-xs font-mono flex-1" />
+                    <Input value={r.to} onChange={e => setForm(f => ({ ...f, fieldMapRows: f.fieldMapRows.map((x, j) => j === i ? { ...x, to: e.target.value } : x) }))} placeholder={ds.fieldMapToPlaceholder} className="text-xs font-mono flex-1" />
                     <button type="button" onClick={() => setForm(f => ({ ...f, fieldMapRows: f.fieldMapRows.filter((_, j) => j !== i) }))}
                       className="text-muted-foreground hover:text-destructive transition-colors shrink-0"><X className="w-3.5 h-3.5" /></button>
                   </div>

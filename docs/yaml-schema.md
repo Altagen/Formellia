@@ -57,11 +57,9 @@ notifications:
   webhookUrl: "https://..."   # optional — fired fire-and-forget
   enabled:    true            # enables the webhook
   email:                      # confirmation email sent TO THE SUBMITTER
-    enabled:     true
-    provider:    "resend"     # resend | sendgrid | mailgun
-    fromAddress: "noreply@example.org"
-    fromName:    "My Service"
-    subject:     "Your submission has been received"
+    enabled:    true
+    providerId: "…uuid…"      # optional — falls back to the default provider preset
+    subject:    "Your submission has been received"
     bodyText: |
       Hello {{firstName}},
       We have received your submission.
@@ -70,10 +68,14 @@ notifications:
 
 > **Important**: the `notifications.email` block sends the email TO THE
 > SUBMITTER (the address entered in the form's `email` field). It is not an
-> "admin notification". The API key (`apiKeyEncrypted` in the runtime type)
-> never appears in the YAML — it is read from
-> `EMAIL_API_KEY_{SLUG_UPPER}` or `EMAIL_API_KEY` environment variables.
-> See [email-setup.md](./email-setup.md).
+> "admin notification".
+>
+> Since 0.4.0 the sender identity (`provider`, `fromAddress`, `fromName`)
+> and the API key live in the `email_providers` table, not in the form
+> YAML. `notifications.email.providerId` points at one of those rows;
+> the legacy `provider` / `fromAddress` / `fromName` / `apiKey` fields
+> are ignored on import and stripped on the next boot. See
+> [email-setup.md](./email-setup.md).
 
 ## `forms[].meta` — `AppMetaConfig`
 
@@ -306,26 +308,27 @@ customStatuses:
   - { value: "approved", label: "Approved", color: "#059669" }
 ```
 
-## Dashboard views (UI restore only)
+## Views (formerly "pages")
 
-Analytics views are **not** accepted by the boot YAML. They go through the
-restore endpoint `/api/admin/config/backup?mode=append|replace`.
+Views are the admin dashboards. Since 0.4.0 they are addressed as
+`admin.views` in the YAML, but the loader still accepts the legacy
+`admin.pages` key for backward compatibility (reads from either, writes
+back to `admin.views`).
 
-> **0.2.x compatibility**: the keys `admin.pages` and `admin.defaultPage`
-> are accepted as input and remapped to `admin.views` / `admin.defaultView`
-> at read time. Writes always emit the canonical 0.3.0 shape. See
-> `docs/migration-0.3.0.md`.
+Views are **not** accepted by the boot YAML — they go through the restore
+endpoint `/api/admin/config/backup?mode=append|replace`.
 
 - **`mode=append`** (recommended for partial edits): `admin.views` and
-  `admin.tableColumns` are **upserted by `id`** — an incoming entry with an
-  existing `id` updates it in place, a new `id` is appended, and entries not
-  present in the import are left untouched. So you can re-import a single view
-  without re-sending all the others. Every incoming view/column needs a
-  non-empty string `id` (the upsert key).
-- **`mode=replace`**: `admin.views` / `admin.tableColumns` become the exact set
-  in the import — anything absent is dropped. Use for a controlled full reset.
-- `admin.branding` / `admin.features` / `admin.exclusionReasons` are
-  singletons: replaced in both modes when present in the import.
+  `admin.tableColumns` are **upserted by `id`** — an incoming entry with
+  an existing `id` updates it in place (preserving local-only fields the
+  YAML export does not carry, like `folderId`), a new `id` is appended,
+  and entries not present in the import are left untouched.
+- **`mode=replace`**: `admin.views` / `admin.tableColumns` become the
+  exact set in the import — anything absent is dropped. Use for a
+  controlled full reset.
+- `admin.branding` / `admin.features` / `admin.folders` /
+  `admin.dataPools` / `admin.exclusionReasons` / `admin.auditRetention`
+  are singletons: replaced in both modes when present in the import.
 
 Format:
 
@@ -337,23 +340,22 @@ admin:
       slug: "registrations"       # /admin/registrations
       icon: "users"               # Lucide icon name
       formInstanceId: "/"         # filter on this form (id or slug)
+      dataSourceId: "…uuid…"      # optional — bind to a DataPool (mutually exclusive with formInstanceId)
+      folderId: "folder-…"        # optional — see admin.folders below
       refreshInterval: 60         # auto-refresh in seconds (0 = off)
       interactiveFilter: false    # clicking a segment filters the view
       showCompletionFunnel: true  # default true; set false to hide the step funnel
       widgets:
-        - { type: "stats_card", id: "...", statsConfig: { ... } }
-        - { type: "chart",      id: "...", title: "...", span: 2, chartConfig: { ... } }
-        - { type: "stats_table", id: "...", title: "...", tableConfig: { ... } }
-        - { type: "submissions_table", id: "...", title: "...", searchFields: [...] }
+        - { type: "stats_card", id: "…", statsConfig: { … } }
+        - { type: "chart",      id: "…", title: "…", span: 2, chartConfig: { … } }
+        - { type: "stats_table", id: "…", title: "…", tableConfig: { … } }
+        - { type: "submissions_table", id: "…", title: "…", searchFields: […] }
         # other types listed below
-  defaultView: "registrations"    # /admin redirects here
-  tableColumns:                   # columns for the global submissions table
+  defaultView: "registrations"    # /admin redirects here (accepts defaultPage as alias)
+  tableColumns:
     - { id: "col-email",     label: "Email",     source: "email" }
     - { id: "col-status",    label: "Status",    source: "status" }
     - { id: "col-submitted", label: "Submitted", source: "submittedAt" }
-  exclusionReasons:               # operator-defined dropdown values for the
-    - "GDPR Art. 21 request"     # DataPool exclusion dialog (free text still
-    - "Bounce / hard fail"       # available alongside)
 ```
 
 ### Widget types
@@ -393,3 +395,66 @@ full Lucide library to keep the runtime bundle small.
 To add new ones, extend the `icons` map in
 `src/components/dashboard/DynamicWidget.tsx` and import the matching
 component from `lucide-react`.
+
+## Folders
+
+Folders group forms and views under nested nodes in the admin sidebar
+and in the `/admin/forms` + `/admin/views` grid toolbars.
+
+```yaml
+admin:
+  folders:
+    - id: "folder-events"
+      name: "Events"
+      parentId: null           # optional — nest under another folder
+    - id: "folder-2026"
+      name: "2026"
+      parentId: "folder-events"
+```
+
+Individual forms and views reference a folder via `folderId` (see the
+example in the Views section above). Deleting a folder detaches every
+descendant back to the root — assignments are never orphaned.
+
+## DataPools
+
+Deduplicated read-time audiences derived from one or more forms. Full
+model in [datapools.md](./datapools.md).
+
+```yaml
+admin:
+  dataPools:
+    - id: "attendees-2026"
+      name: "Attendees 2026"
+      keyField: "email"
+      sources:
+        - formSlug: "inscription-2026"
+          keyField: "email"
+        - formSlug: "inscription-vip-2026"
+          keyField: "contactEmail"
+  exclusionReasons:              # shared preset list surfaced by every pool
+    - "Requested unsubscribe"
+    - "Hard bounce"
+    - "Test address"
+```
+
+`exclusionReasons` is a plain string array. The exclusion table itself is
+never serialised in the YAML — it lives on the `data_pool_submission_exclusions`
+table and is archive-only in backup ZIPs.
+
+## Audit retention
+
+Retention policy for the `admin_events` audit table. See
+[audit-log.md](./audit-log.md).
+
+```yaml
+admin:
+  auditRetention:
+    policy: keep_all   # "keep_all" (default) or "days"
+    days: 365          # required when policy is "days"; floored at 1
+```
+
+The nightly 03:15 cron reads the current policy on every tick, so a
+config change takes effect the next night without a process restart.
+`policy: "days"` with `days < 1` or non-numeric silently falls back to
+365 days — the job refuses to nuke on obviously-bad input.

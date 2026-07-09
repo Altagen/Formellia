@@ -3,15 +3,26 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Sun, Moon, Check, KeyRound, Monitor, Languages, AlertTriangle, Mail, ShieldCheck, Copy, RefreshCw } from "lucide-react";
+import { Sun, Moon, Check, KeyRound, Monitor, Languages, AlertTriangle, Mail, ShieldCheck, Copy, RefreshCw, Key, Activity } from "lucide-react";
 import { ApiKeysTab } from "@/components/admin/config/ApiKeysTab";
 import { PasswordStrengthIndicator } from "@/components/ui/PasswordStrengthIndicator";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ActiveSessions } from "@/components/dashboard/ActiveSessions";
+import { MasterDetailLayout, type MasterDetailSection } from "@/components/admin/layout/MasterDetailLayout";
 import { useTranslations } from "@/lib/context/LocaleContext";
 import { useUserPreferences } from "@/lib/context/UserPreferencesContext";
 import { COLOR_PRESETS, PRESET_NAMES } from "@/lib/theme/presets";
 import type { ThemeMode } from "@/types/config";
 import type { Locale } from "@/i18n";
+
+type ProfileSectionId =
+  | "appearance"
+  | "language"
+  | "email"
+  | "password"
+  | "recoveryCodes"
+  | "apiKeys"
+  | "sessions";
 
 function ProfilePageInner() {
   const searchParams = useSearchParams();
@@ -26,6 +37,26 @@ function ProfilePageInner() {
   const tr = useTranslations();
   const p = tr.admin.profile;
   const { themeMode, colorPreset, locale, setThemeMode, setColorPreset, setLocale, saving: prefSaving } = useUserPreferences();
+
+  const [active, setActive] = useState<ProfileSectionId>(
+    mustChange ? "password" : "appearance",
+  );
+
+  const sections: MasterDetailSection[] = [
+    {
+      id: "account",
+      label: p.nav.account,
+      items: [
+        { id: "appearance",    label: p.nav.appearance,    icon: <Monitor className="w-4 h-4" /> },
+        { id: "language",      label: p.nav.language,      icon: <Languages className="w-4 h-4" /> },
+        { id: "email",         label: p.nav.email,         icon: <Mail className="w-4 h-4" /> },
+        { id: "password",      label: p.nav.password,      icon: <KeyRound className="w-4 h-4" /> },
+        { id: "recoveryCodes", label: p.nav.recoveryCodes, icon: <ShieldCheck className="w-4 h-4" /> },
+        { id: "apiKeys",       label: p.nav.apiKeys,       icon: <Key className="w-4 h-4" /> },
+        { id: "sessions",      label: p.nav.sessions,      icon: <Activity className="w-4 h-4" /> },
+      ],
+    },
+  ];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,7 +87,7 @@ function ProfilePageInner() {
   }
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
+    <div className="space-y-6">
 
       {/* Forced password change banner */}
       {mustChange && (
@@ -77,7 +108,15 @@ function ProfilePageInner() {
         )}
       </div>
 
+      <MasterDetailLayout
+        sections={sections}
+        activeId={active}
+        onSelect={(id) => setActive(id as ProfileSectionId)}
+      >
+        <div className="max-w-2xl space-y-6">
+
       {/* ── Appearance ── */}
+      {active === "appearance" && (
       <section className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border">
           <Monitor className="w-4 h-4 text-muted-foreground" />
@@ -132,8 +171,10 @@ function ProfilePageInner() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── Language ── */}
+      {active === "language" && (
       <section className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border">
           <Languages className="w-4 h-4 text-muted-foreground" />
@@ -152,14 +193,16 @@ function ProfilePageInner() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── Email ── */}
-      <EmailSection />
+      {active === "email" && <EmailSection />}
 
       {/* ── Recovery codes ── */}
-      <RecoveryCodesSection />
+      {active === "recoveryCodes" && <RecoveryCodesSection />}
 
       {/* ── Password ── */}
+      {active === "password" && (
       <section className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border">
           <KeyRound className="w-4 h-4 text-muted-foreground" />
@@ -215,12 +258,15 @@ function ProfilePageInner() {
           </form>
         </div>
       </section>
+      )}
 
       {/* ── API Keys ── */}
-      <ApiKeysTab />
+      {active === "apiKeys" && <ApiKeysTab />}
 
       {/* ── Sessions ── */}
-      <ActiveSessions />
+      {active === "sessions" && <ActiveSessions />}
+        </div>
+      </MasterDetailLayout>
     </div>
   );
 }
@@ -334,6 +380,8 @@ function RecoveryCodesSection() {
   const [copied, setCopied]       = useState(false);
   const [generating, setGenerating] = useState(false);
   const [clearing, setClearing]   = useState(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [confirmRegenOpen, setConfirmRegenOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/account/recovery-codes")
@@ -433,7 +481,7 @@ function RecoveryCodesSection() {
         <div className="flex gap-2 flex-wrap">
           <button
             type="button"
-            onClick={generate}
+            onClick={() => { if (count !== null && count > 0) setConfirmRegenOpen(true); else void generate(); }}
             disabled={generating || clearing}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
@@ -443,7 +491,7 @@ function RecoveryCodesSection() {
           {count !== null && count > 0 && !codes && (
             <button
               type="button"
-              onClick={clear}
+              onClick={() => setConfirmClearOpen(true)}
               disabled={generating || clearing}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border border-destructive/40 text-destructive hover:bg-destructive/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
@@ -452,6 +500,27 @@ function RecoveryCodesSection() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onOpenChange={setConfirmClearOpen}
+        title={p.recoveryCodesClearConfirmTitle}
+        description={p.recoveryCodesClearConfirmDesc}
+        confirmLabel={p.recoveryCodesClearConfirm}
+        cancelLabel={p.recoveryCodesClearCancel}
+        destructive
+        onConfirm={() => { clear(); setConfirmClearOpen(false); }}
+      />
+      <ConfirmDialog
+        open={confirmRegenOpen}
+        onOpenChange={setConfirmRegenOpen}
+        title={p.recoveryCodesRegenConfirmTitle}
+        description={p.recoveryCodesRegenConfirmDesc}
+        confirmLabel={p.recoveryCodesRegenConfirm}
+        cancelLabel={p.recoveryCodesClearCancel}
+        destructive
+        onConfirm={() => { void generate(); setConfirmRegenOpen(false); }}
+      />
     </section>
   );
 }

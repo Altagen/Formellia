@@ -1,21 +1,21 @@
 import { listBroadcasts } from "@/lib/email/broadcastCrud";
 import { listDataPools } from "@/lib/datapools/crud";
-import { getGlobalEmailConfigSafe } from "@/lib/email/globalEmailConfig";
+import { listEmailProviders } from "@/lib/email/providers";
 import { BroadcastsListClient } from "./BroadcastsListClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function BroadcastsPage() {
-  const [broadcasts, pools, providerCfg] = await Promise.all([
+  const [broadcasts, pools, providers] = await Promise.all([
     listBroadcasts(),
     listDataPools(),
-    getGlobalEmailConfigSafe(),
+    listEmailProviders(),
   ]);
   return (
     <BroadcastsListClient
       initialBroadcasts={broadcasts}
       pools={pools.map(p => ({ id: p.id, name: p.name, slug: p.slug }))}
-      providerConfig={providerCfg}
+      providers={providers}
     />
   );
 }

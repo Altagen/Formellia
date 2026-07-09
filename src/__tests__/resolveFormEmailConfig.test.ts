@@ -1,107 +1,120 @@
-import { describe, it, expect } from "vitest";
-import { resolveFormEmailConfig } from "@/lib/email/resolveFormEmailConfig";
-import type { GlobalEmailConfigInternal } from "@/lib/email/globalEmailConfig";
-import type { EmailNotificationConfig } from "@/types/formInstance";
+/**
+ * Post-UI-11 preset resolver. Locks in the four dispatch branches:
+ *   1. Disabled template → gap "template_disabled" (no send attempted)
+ *   2. Explicit providerId that exists → send via that preset (source: form)
+ *   3. Explicit providerId that no longer exists BUT a default exists →
+ *      send via the default (source: default) so operators aren't left
+ *      dangling when a preset gets deleted
+ *   4. No providerId + no default → gap "no_preset_referenced_and_no_default"
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const fullGlobal: GlobalEmailConfigInternal = {
-  provider:         "resend",
-  fromAddress:      "global@example.org",
-  fromName:         "Global Org",
-  apiKeyConfigured: true,
+// Mock the providers layer so the test doesn't need a real DB.
+const mockGetById  = vi.fn();
+const mockGetDefault = vi.fn();
+vi.mock("@/lib/email/providers", () => ({
+  getEmailProviderInternal: (id: string) => mockGetById(id),
+  getDefaultEmailProvider:  () => mockGetDefault(),
+}));
+
+import { resolveFormEmailConfigFromDb } from "@/lib/email/resolveFormEmailConfig";
+
+const PRESET_A = {
+  id:               "preset-a",
+  provider:         "resend" as const,
+  fromAddress:      "team@example.com",
+  fromName:         "Team",
+  apiKeyEncrypted:  "enc-a",
   apiKeyExpiresAt:  null,
-  apiKeyEncrypted:  "cur:enc:globalkey",
 };
 
-describe("resolveFormEmailConfig", () => {
-  it("falls back to global when the per-form override is undefined", () => {
-    const r = resolveFormEmailConfig(undefined, fullGlobal);
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.config.provider).toBe("resend");
-      expect(r.config.fromAddress).toBe("global@example.org");
-      expect(r.config.fromName).toBe("Global Org");
-      expect(r.config.apiKeyEncrypted).toBe("cur:enc:globalkey");
-      expect(r.config.apiKeySource).toBe("global");
+const PRESET_DEFAULT = {
+  id:               "preset-default",
+  provider:         "sendgrid" as const,
+  fromAddress:      "default@example.com",
+  fromName:         null,
+  apiKeyEncrypted:  "enc-default",
+  apiKeyExpiresAt:  null,
+};
+
+describe("resolveFormEmailConfigFromDb", () => {
+  beforeEach(() => {
+    mockGetById.mockReset();
+    mockGetDefault.mockReset();
+  });
+
+  it("returns template_disabled when the form's email block is off", async () => {
+    const result = await resolveFormEmailConfigFromDb({
+      enabled: false, subject: "s", bodyText: "b",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.gap.reason).toBe("template_disabled");
+    expect(mockGetById).not.toHaveBeenCalled();
+    expect(mockGetDefault).not.toHaveBeenCalled();
+  });
+
+  it("resolves via the explicit preset when providerId points at an existing row", async () => {
+    mockGetById.mockResolvedValueOnce(PRESET_A);
+    const result = await resolveFormEmailConfigFromDb({
+      enabled: true, providerId: "preset-a", subject: "hi", bodyText: "body",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.config.providerId).toBe("preset-a");
+      expect(result.config.apiKeySource).toBe("form");
+      expect(result.config.provider).toBe("resend");
+      expect(result.config.fromAddress).toBe("team@example.com");
+      expect(result.config.subject).toBe("hi");
+    }
+    expect(mockGetDefault).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the default preset when the referenced providerId no longer exists", async () => {
+    mockGetById.mockResolvedValueOnce(null); // pointer is stale
+    mockGetDefault.mockResolvedValueOnce(PRESET_DEFAULT);
+
+    const result = await resolveFormEmailConfigFromDb({
+      enabled: true, providerId: "ghost-uuid", subject: "s", bodyText: "b",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.config.providerId).toBe("preset-default");
+      expect(result.config.apiKeySource).toBe("default");
     }
   });
 
-  it("per-form override wins on each field independently", () => {
-    const form: EmailNotificationConfig = {
-      enabled: true,
-      fromAddress: "form@special.example",
-      // No apiKey override → still uses global key
-      subject:  "x",
-      bodyText: "y",
-    };
-    const r = resolveFormEmailConfig(form, fullGlobal);
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.config.fromAddress).toBe("form@special.example");
-      expect(r.config.fromName).toBe("Global Org");        // inherited
-      expect(r.config.apiKeyEncrypted).toBe("cur:enc:globalkey");
-      expect(r.config.apiKeySource).toBe("global");
-    }
+  it("returns referenced_preset_missing when the pointer is stale AND no default exists", async () => {
+    mockGetById.mockResolvedValueOnce(null);
+    mockGetDefault.mockResolvedValueOnce(null);
+
+    const result = await resolveFormEmailConfigFromDb({
+      enabled: true, providerId: "ghost", subject: "s", bodyText: "b",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.gap.reason).toBe("referenced_preset_missing");
   });
 
-  it("uses the per-form API key + expiry when an override key is set", () => {
-    const form: EmailNotificationConfig = {
-      enabled: true,
-      apiKeyEncrypted: "cur:enc:formkey",
-      apiKeyExpiresAt: "2099-01-01",
-      subject: "x", bodyText: "y",
-    };
-    const r = resolveFormEmailConfig(form, fullGlobal);
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.config.apiKeyEncrypted).toBe("cur:enc:formkey");
-      expect(r.config.apiKeyExpiresAt).toBe("2099-01-01");
-      expect(r.config.apiKeySource).toBe("form");
+  it("uses the default preset when the form carries no providerId", async () => {
+    mockGetDefault.mockResolvedValueOnce(PRESET_DEFAULT);
+
+    const result = await resolveFormEmailConfigFromDb({
+      enabled: true, subject: "s", bodyText: "b",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.config.providerId).toBe("preset-default");
+      expect(result.config.apiKeySource).toBe("default");
     }
+    expect(mockGetById).not.toHaveBeenCalled();
   });
 
-  it("empty strings in the per-form override are treated as 'not set'", () => {
-    const form: EmailNotificationConfig = {
-      enabled: true,
-      fromAddress: "   ",
-      apiKeyEncrypted: "",
-      subject: "x", bodyText: "y",
-    };
-    const r = resolveFormEmailConfig(form, fullGlobal);
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.config.fromAddress).toBe("global@example.org");
-      expect(r.config.apiKeyEncrypted).toBe("cur:enc:globalkey");
-    }
-  });
-
-  it("returns a gap when neither side fills required fields", () => {
-    const blankGlobal: GlobalEmailConfigInternal = {
-      provider: null, fromAddress: null, fromName: null,
-      apiKeyConfigured: false, apiKeyExpiresAt: null, apiKeyEncrypted: null,
-    };
-    const r = resolveFormEmailConfig(undefined, blankGlobal);
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.gap.missing.sort()).toEqual(["apiKey", "fromAddress", "provider"]);
-    }
-  });
-
-  it("reports partial gap when the form fills some but not all fields", () => {
-    const blankGlobal: GlobalEmailConfigInternal = {
-      provider: null, fromAddress: null, fromName: null,
-      apiKeyConfigured: false, apiKeyExpiresAt: null, apiKeyEncrypted: null,
-    };
-    const form: EmailNotificationConfig = {
-      enabled: true,
-      provider: "sendgrid",
-      fromAddress: "form@example.org",
-      // missing apiKey → gap.missing should only be ["apiKey"]
-      subject: "x", bodyText: "y",
-    };
-    const r = resolveFormEmailConfig(form, blankGlobal);
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.gap.missing).toEqual(["apiKey"]);
-    }
+  it("returns no_preset_referenced_and_no_default when neither providerId nor default exist", async () => {
+    mockGetDefault.mockResolvedValueOnce(null);
+    const result = await resolveFormEmailConfigFromDb({
+      enabled: true, subject: "s", bodyText: "b",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.gap.reason).toBe("no_preset_referenced_and_no_default");
   });
 });

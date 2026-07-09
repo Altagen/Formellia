@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/auth/validateSession";
 import { getFormInstanceById, saveFormInstance } from "@/lib/db/formInstanceLoader";
 import { logAdminEvent } from "@/lib/db/adminAudit";
@@ -22,7 +23,7 @@ export async function POST(
   const sectionParam = req.nextUrl.searchParams.get("section") ?? "full";
   const sectionParsed = sectionSchema.safeParse(sectionParam);
   if (!sectionParsed.success) {
-    return NextResponse.json({ error: "section invalide (full|page|form|onSubmitActions)" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid section (full|page|form|onSubmitActions)" }, { status: 400 });
   }
   const section = sectionParsed.data;
 
@@ -72,6 +73,7 @@ export async function POST(
   const actor = await validateAdminSession(req);
   await saveFormInstance(id, { config: existingConfig }, current.slug, actor?.id ?? null, actor?.email ?? null);
   const updated = await getFormInstanceById(id);
+  revalidatePath("/admin", "layout");
 
   logAdminEvent({
     userId:       actor?.id   ?? null,

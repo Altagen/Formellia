@@ -3,7 +3,7 @@ import { requireAdminMutation, requireRole, validateAdminSession } from "@/lib/a
 import { db } from "@/lib/db";
 import { backupProviders } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { encryptProviderConfig, buildProvider } from "@/lib/backup/providers/index";
+import { encryptProviderConfig } from "@/lib/backup/providers/index";
 import { logAdminEvent } from "@/lib/db/adminAudit";
 import { z } from "zod";
 
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     updatedAt:       backupProviders.updatedAt,
   }).from(backupProviders).where(eq(backupProviders.id, id)).limit(1);
 
-  if (!row) return NextResponse.json({ error: "Fournisseur introuvable" }, { status: 404 });
+  if (!row) return NextResponse.json({ error: "Provider not found" }, { status: 404 });
 
   return NextResponse.json(row);
 }
@@ -70,10 +70,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const [existing] = await db.select().from(backupProviders).where(eq(backupProviders.id, id)).limit(1);
-  if (!existing) return NextResponse.json({ error: "Fournisseur introuvable" }, { status: 404 });
+  if (!existing) return NextResponse.json({ error: "Provider not found" }, { status: 404 });
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Corps JSON invalide" }, { status: 422 });
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 422 });
 
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 422 });
@@ -91,7 +91,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       encryptedConfig = encryptProviderConfig(JSON.stringify(cfgValidation.data));
     } catch {
       return NextResponse.json(
-        { error: "Le service de chiffrement n'est pas disponible. Contactez votre administrateur." },
+        { error: "Encryption service is unavailable. Contact your administrator." },
         { status: 503 }
       );
     }
@@ -126,7 +126,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params;
   const [existing] = await db.select({ id: backupProviders.id, name: backupProviders.name }).from(backupProviders).where(eq(backupProviders.id, id)).limit(1);
-  if (!existing) return NextResponse.json({ error: "Fournisseur introuvable" }, { status: 404 });
+  if (!existing) return NextResponse.json({ error: "Provider not found" }, { status: 404 });
 
   await db.delete(backupProviders).where(eq(backupProviders.id, id));
 

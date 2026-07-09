@@ -16,7 +16,7 @@ import { getMergedDataPoolKeys } from "@/lib/datapools/compute";
 import { dedupKeysAcrossLists } from "@/lib/datapools/dedup";
 import { sanitizeBroadcastHtml, htmlToPlainText } from "./broadcastSanitize";
 import { sendBroadcast, type BroadcastSendReport } from "./broadcastSender";
-import { getGlobalEmailConfig } from "./globalEmailConfig";
+import { getDefaultEmailProvider, getEmailProviderInternal } from "./providers";
 import { markBroadcastSent, markBroadcastFailed } from "./broadcastCrud";
 import { normalizeAdditionalRecipients } from "./additionalRecipients";
 import { formatServiceError } from "./broadcastErrors";
@@ -95,16 +95,27 @@ export interface ExecuteBroadcastResult extends BroadcastSendReport {
  * marks the row as `failed`.
  */
 export async function executeBroadcast(broadcast: EmailBroadcast): Promise<ExecuteBroadcastResult> {
-  const config = await getGlobalEmailConfig();
-  if (!config.provider || !config.fromAddress || !config.apiKeyEncrypted) {
-    // Built via `formatServiceError` so the `code:` token is checked by
-    // TypeScript against the union in broadcastErrors.ts. The composer
-    // client strips the prefix and renders the translated string; the
-    // human fallback after the dash is for log readers.
-    const msg = formatServiceError("providerNotConfigured", "Global email provider is not configured");
+  // Resolve the preset: explicit providerId on the broadcast row wins; missing
+  // one falls back to the instance-wide default. Either way we end up with a
+  // fully-populated preset (provider + fromAddress + encrypted key) or the
+  // caller sees a clear "configure a provider preset first" error.
+  const preset = broadcast.providerId
+    ? await getEmailProviderInternal(broadcast.providerId)
+    : await getDefaultEmailProvider();
+
+  if (!preset) {
+    const msg = formatServiceError("providerNotConfigured", "No email provider preset available for this broadcast");
     await markBroadcastFailed(broadcast.id, msg);
     throw new Error(msg);
   }
+
+  const config = {
+    provider:        preset.provider,
+    fromAddress:     preset.fromAddress,
+    fromName:        preset.fromName,
+    apiKeyEncrypted: preset.apiKeyEncrypted,
+    apiKeyExpiresAt: preset.apiKeyExpiresAt,
+  };
 
   const preview = await buildBroadcastPreview(broadcast);
   if (preview.recipientCount === 0) {

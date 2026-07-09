@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .from(formInstances)
     .where(eq(formInstances.id, id))
     .limit(1);
-  if (!instance) return NextResponse.json({ error: "Formulaire introuvable" }, { status: 404 });
+  if (!instance) return NextResponse.json({ error: "Form not found" }, { status: 404 });
 
   // Fetch view and complete events for this form
   const viewRows = await db

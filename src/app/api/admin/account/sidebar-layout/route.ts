@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminSession, requireAdminMutation, validateAdminSession } from "@/lib/auth/validateSession";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -10,7 +11,7 @@ const customLinkSchema = z.object({
   label: z.string().min(1).max(100),
   href:  z.string().min(1).max(500).refine(
     v => /^(https?:\/\/|\/)/i.test(v),
-    { message: "Le lien doit commencer par http://, https:// ou /" }
+    { message: "Link must start with http://, https:// or /" }
   ),
   icon:  z.string().max(50).optional(),
 });
@@ -29,6 +30,7 @@ const layoutSchema = z.object({
   favorites:   z.array(z.string().max(36)).max(500).optional(),
   formOrder:   z.array(z.string().max(36)).max(500).optional(),
   pinnedForms: z.array(z.string().max(36)).max(200).optional(),
+  hiddenPages: z.array(z.string().max(36)).max(500).optional(),
   customLinks: z.array(customLinkSchema).max(200).optional(),
   categories:  z.array(categorySchema).max(100).optional(),
 });
@@ -59,7 +61,7 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Corps JSON invalide" }, { status: 422 });
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 422 });
 
   const parsed = layoutSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 422 });
@@ -76,11 +78,17 @@ export async function PATCH(req: NextRequest) {
     favorites:   parsed.data.favorites   ?? current.favorites   ?? [],
     formOrder:   parsed.data.formOrder   ?? current.formOrder   ?? [],
     pinnedForms: parsed.data.pinnedForms ?? current.pinnedForms ?? [],
+    hiddenPages: parsed.data.hiddenPages ?? current.hiddenPages ?? [],
     customLinks: parsed.data.customLinks ?? current.customLinks ?? [],
     categories:  parsed.data.categories  ?? current.categories  ?? [],
   };
 
   await db.update(users).set({ sidebarLayout: merged }).where(eq(users.id, user.id));
+
+  // The AdminSidebar reads sidebarLayout via the dashboard layout's server
+  // render. Same story as config PUT — without an explicit revalidation the
+  // stale RSC output survives across worker/module instances.
+  revalidatePath("/admin", "layout");
 
   return NextResponse.json(merged);
 }

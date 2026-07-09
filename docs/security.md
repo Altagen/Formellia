@@ -52,9 +52,11 @@ realities.
 - **`ENCRYPTION_KEY`** — 64 hex characters. Mandatory at boot, the
   process exits if missing or malformed. Used for AES-256-GCM
   encryption of:
-  - Email provider API keys (`apiKeyEncrypted` on each form)
+  - Email provider API keys (`email_providers.api_key_encrypted`, one
+    row per preset — see [email-setup.md](./email-setup.md))
   - Password reset tokens
   - S3 credentials in backup providers
+  - Backup archive contents when a per-provider passphrase is set
 - **`AUTH_SECRET`** — ≥ 32 chars. Signs session cookies. Rotating
   it invalidates every active session at once.
 - Both live in `.env` (production: `/srv/formellia/.env`, `chmod 600`).
@@ -142,7 +144,8 @@ security:
 
 ## Audit log
 
-Every admin mutation is appended to `admin_audit`:
+Every admin mutation is appended to `admin_events` via
+`logAdminEvent(...)` — fire-and-forget so no request blocks on the write.
 
 | Column | Content |
 |---|---|
@@ -150,10 +153,31 @@ Every admin mutation is appended to `admin_audit`:
 | `action` | e.g. `config.update`, `form.import`, `user.delete` |
 | `resourceType`, `resourceId` | what was touched |
 | `details` (JSONB) | the patch payload |
-| `createdAt` | timestamp |
+| `createdAt` | timestamp (indexed) |
 
-Visible in the admin under **Audit log** (when
-`admin.features.auditLog: true`).
+Visible in the admin under **Audit log** — no feature flag. The nightly
+purge respects `admin.auditRetention.policy` (`keep_all` or `days`) with
+a 1-day floor to guard against a misconfigured 0-day nuke. Manual purges
+self-log an `audit.purge` event **before** deleting, so the purge is
+always recoverable via the log itself. Full model in
+[audit-log.md](./audit-log.md).
+
+## Email broadcasts — PII handling
+
+Broadcast recipient addresses are **not stored on the broadcast row**.
+`email_broadcasts.data_pool_ids` + `additional_recipients` describe how
+to resolve them at send time; the row keeps only aggregate counters
+(`sent_count`, `failed_count`, `recipient_count`) plus a redacted
+`last_error`.
+
+The sender walks provider errors through `redactErrorBody(...)` which
+scrubs anything matching an email-address regex before persisting to
+`last_error`. This keeps the log helpful without leaving a long-lived
+row that lists who received (or bounced) a given send.
+
+Broadcast provider API keys live in `email_providers.api_key_encrypted`
+just like per-form notification keys — same rotation flow, same
+[Re-encrypt](#encryption-at-rest--implementation-note) system endpoint.
 
 ## Encryption at rest — implementation note
 

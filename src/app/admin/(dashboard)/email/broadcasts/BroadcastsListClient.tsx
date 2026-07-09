@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Mail, Plus, AlertTriangle, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { EmailBroadcast } from "@/lib/db/schema";
-import type { GlobalEmailConfig } from "@/lib/email/globalEmailConfig";
+import type { EmailProviderSafe } from "@/lib/email/providers";
 import { useTranslations } from "@/lib/context/LocaleContext";
 
 interface PoolOpt { id: string; name: string; slug: string }
@@ -15,7 +15,7 @@ interface PoolOpt { id: string; name: string; slug: string }
 interface Props {
   initialBroadcasts: EmailBroadcast[];
   pools:             PoolOpt[];
-  providerConfig:    GlobalEmailConfig;
+  providers:         EmailProviderSafe[];
 }
 
 const STATUS_BADGE_CLS: Record<string, string> = {
@@ -25,16 +25,32 @@ const STATUS_BADGE_CLS: Record<string, string> = {
   failed:  "bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-100",
 };
 
-export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig }: Props) {
+export function BroadcastsListClient({ initialBroadcasts, pools, providers }: Props) {
   const router = useRouter();
   const t = useTranslations().admin.email;
   const [broadcasts] = useState(initialBroadcasts);
   const [creating, setCreating] = useState(false);
 
-  // Operator still needs the provider; pools are now optional because the
+  // Operator still needs a provider preset; pools are optional because the
   // composer accepts ad-hoc addresses on top of (or instead of) DataPools.
-  const noPools = pools.length === 0;
-  const noProvider = !providerConfig.provider || !providerConfig.fromAddress || !providerConfig.apiKeyConfigured;
+  const noPools    = pools.length === 0;
+  const noProvider = providers.length === 0;
+  const defaultProvider = providers.find(p => p.isDefault) ?? null;
+
+  /**
+   * Resolve which preset a given broadcast will actually use at send time.
+   * Mirrors `executeBroadcast`: explicit providerId wins, otherwise fall back
+   * to the row marked `is_default`. Returns null when nothing resolves so the
+   * caller can render an "unset" indicator instead of a stale preset name.
+   */
+  function resolveProviderFor(b: EmailBroadcast): { label: string; explicit: boolean } | null {
+    if (b.providerId) {
+      const explicit = providers.find(p => p.id === b.providerId);
+      if (explicit) return { label: explicit.name, explicit: true };
+    }
+    if (defaultProvider) return { label: defaultProvider.name, explicit: false };
+    return null;
+  }
 
   async function createDraft() {
     setCreating(true);
@@ -78,9 +94,15 @@ export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig 
           {/* Always-visible escape hatch into the provider config. Without
               this the operator can only get there via the warning banner
               below — which disappears as soon as the provider is set. */}
-          <Link href="/admin/email/provider">
-            <Button variant="outline" size="sm">
-              <Settings2 className="w-4 h-4 mr-1" /> {t.provider.title}
+          <Link href="/admin/configuration?tab=emails">
+            <Button variant="outline" size="sm" className="gap-1">
+              <Settings2 className="w-4 h-4" />
+              {t.provider.title}
+              {defaultProvider && (
+                <span className="ml-1 hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 uppercase tracking-wider font-semibold">
+                  {defaultProvider.name}
+                </span>
+              )}
             </Button>
           </Link>
           <Button onClick={createDraft} disabled={creating || noProvider}>
@@ -106,7 +128,7 @@ export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig 
                 )}
                 {noProvider && (
                   <li>
-                    {t.list.configNoProvider} <Link href="/admin/email/provider" className="underline">{t.list.configNoProviderLink}</Link> {t.list.configNoProviderSuffix}
+                    {t.list.configNoProvider} <Link href="/admin/configuration?tab=emails" className="underline">{t.list.configNoProviderLink}</Link> {t.list.configNoProviderSuffix}
                   </li>
                 )}
               </ul>
@@ -115,12 +137,14 @@ export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig 
         </div>
       )}
 
-      <div className="border border-border rounded-md overflow-hidden">
+      {/* Desktop table */}
+      <div className="hidden md:block border border-border rounded-md overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/30">
             <tr className="border-b border-border">
               <th className="text-left px-3 py-2 font-medium">{t.list.colName}</th>
               <th className="text-left px-3 py-2 font-medium">{t.list.colSubject}</th>
+              <th className="text-left px-3 py-2 font-medium">{t.list.colProvider}</th>
               <th className="text-left px-3 py-2 font-medium">{t.list.colDataPools}</th>
               <th className="text-left px-3 py-2 font-medium">{t.list.colStatus}</th>
               <th className="text-left px-3 py-2 font-medium">{t.list.colRecipients}</th>
@@ -129,8 +153,10 @@ export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig 
           </thead>
           <tbody>
             {broadcasts.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">{t.list.emptyState}</td></tr>
-            ) : broadcasts.map(b => (
+              <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">{t.list.emptyState}</td></tr>
+            ) : broadcasts.map(b => {
+              const prov = resolveProviderFor(b);
+              return (
               <tr key={b.id} className="border-b border-border/40 last:border-0 hover:bg-accent/20">
                 <td className="px-3 py-2">
                   <Link href={`/admin/email/broadcasts/${b.id}`} className="text-foreground hover:underline">
@@ -138,6 +164,20 @@ export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig 
                   </Link>
                 </td>
                 <td className="px-3 py-2 text-muted-foreground max-w-[300px] truncate">{b.subject || <span className="italic">—</span>}</td>
+                <td className="px-3 py-2 text-xs">
+                  {prov ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span>{prov.label}</span>
+                      {!prov.explicit && (
+                        <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">
+                          {t.list.providerImplicit}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-amber-600 dark:text-amber-400 italic">{t.list.providerUnset}</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-xs">{b.dataPoolIds.length}</td>
                 <td className="px-3 py-2">
                   <span className={`inline-block text-xs px-2 py-0.5 rounded ${STATUS_BADGE_CLS[b.status] ?? STATUS_BADGE_CLS.draft}`}>
@@ -149,9 +189,53 @@ export function BroadcastsListClient({ initialBroadcasts, pools, providerConfig 
                 </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(b.createdAt).toLocaleDateString()}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {broadcasts.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            {t.list.emptyState}
+          </div>
+        ) : broadcasts.map(b => {
+          const prov = resolveProviderFor(b);
+          return (
+          <Link
+            key={b.id}
+            href={`/admin/email/broadcasts/${b.id}`}
+            className="block rounded-lg border border-border bg-card p-3 hover:bg-accent/20 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <p className="text-sm font-semibold text-foreground truncate flex-1">{b.name}</p>
+              <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium ${STATUS_BADGE_CLS[b.status] ?? STATUS_BADGE_CLS.draft}`}>
+                {b.status}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground truncate mb-1">
+              {b.subject || <span className="italic">—</span>}
+            </p>
+            <p className="text-[11px] text-muted-foreground mb-1.5">
+              {prov ? (
+                <>
+                  {t.list.providerCardPrefix} <span className="text-foreground font-medium">{prov.label}</span>
+                  {!prov.explicit && <span className="text-muted-foreground/70"> · {t.list.providerImplicit}</span>}
+                </>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400">{t.list.providerUnset}</span>
+              )}
+            </p>
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+              <span>{b.dataPoolIds.length} {t.list.colDataPools}</span>
+              {b.status === "sent" && <span>· {b.sentCount}/{b.recipientCount}</span>}
+              <span className="ml-auto">{new Date(b.createdAt).toLocaleDateString()}</span>
+            </div>
+          </Link>
+          );
+        })}
       </div>
 
     </div>

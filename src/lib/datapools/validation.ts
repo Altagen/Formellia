@@ -2,18 +2,18 @@ import { z } from "zod";
 
 const slugSchema = z
   .string()
-  .min(1, "slug requis")
-  .max(100, "slug trop long (max 100)")
-  .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]?$/i, "slug invalide (alphanum + tirets uniquement)");
+  .min(1, "slug required")
+  .max(100, "slug too long (max 100)")
+  .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]?$/i, "invalid slug (alphanumeric + dashes only)");
 
 const fieldIdSchema = z
   .string()
   .min(1)
   .max(100)
-  .regex(/^[A-Za-z0-9_][A-Za-z0-9_.-]*$/, "id de champ invalide");
+  .regex(/^[A-Za-z0-9_][A-Za-z0-9_.-]*$/, "invalid field id");
 
 export const createDataPoolSchema = z.object({
-  name: z.string().min(1, "name requis").max(255),
+  name: z.string().min(1, "name required").max(255),
   slug: slugSchema,
   description: z.string().max(2000).nullable().optional(),
   keyField: fieldIdSchema,

@@ -56,4 +56,13 @@ export interface BackupManifest {
   sections: string[];
   forms: Array<{ slug: string; submissionCount: number }>;
   datasets: Array<{ name: string; recordCount: number }>;
+  /** Restore capability per section. `users` is always archive-only because
+   *  composeBackup omits password hashes on purpose. */
+  restorable?: {
+    config:         boolean;
+    submissions:    boolean;
+    datasetRecords: boolean;
+    users:          false;
+  };
+  userCount?: number;
 }

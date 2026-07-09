@@ -107,6 +107,7 @@ interface PrintTemplateEditorProps {
     defaultFieldHeader: string;
     defaultValueHeader: string;
     signatureLabel: string;
+    signatureLabelPlaceholder: string;
     signatureHint: string;
     signatureWidth: string;
     signatureHalf: string;
@@ -201,6 +202,7 @@ export function PrintTemplateEditor({
     defaultFieldHeader: labels.defaultFieldHeader,
     defaultValueHeader: labels.defaultValueHeader,
     signatureLabel: labels.signatureLabel,
+    signatureLabelPlaceholder: labels.signatureLabelPlaceholder,
     signatureHint: labels.signatureHint,
     signatureWidth: labels.signatureWidth,
     signatureHalf: labels.signatureHalf,

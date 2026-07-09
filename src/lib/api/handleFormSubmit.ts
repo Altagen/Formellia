@@ -125,34 +125,17 @@ export async function handleFormSubmit(
     }
 
     // ── Email notification (fire-and-forget) ──
-    // The per-form `notifications.email` may be partial — provider, fromAddress
-    // and apiKey are optional overrides on top of the global `app_config.email_*`
-    // config. We resolve once here and reuse the merged config for both the
-    // primary notification and the submitter confirmation (same provider, same
-    // key — only the subject/body differ).
     const emailConf = notif?.email;
     if (emailConf?.enabled && email) {
       import("@/lib/email/resolveFormEmailConfig")
         .then(async ({ resolveFormEmailConfigFromDb }) => {
           const resolved = await resolveFormEmailConfigFromDb(emailConf);
           if (!resolved.ok) {
-            log.warn({ missing: resolved.gap.missing, formSlug: instance.slug },
-                     "Email notification skipped: provider not configured");
+            log.warn({ reason: resolved.gap.reason, slug: instance.slug }, "Email notification skipped — provider preset unavailable");
             return;
           }
           const { sendEmailNotification } = await import("@/lib/email/sender");
           await sendEmailNotification(resolved.config, email, formDataPayload, config.meta.name, instance.slug);
-
-          // Submitter confirmation rides on the SAME resolved config — just
-          // swap subject/body. Skipping it cleanly when the operator didn't
-          // enable it is cheap so we do it inline.
-          const confirmConf = notif?.submitterConfirmation;
-          if (confirmConf?.enabled) {
-            await sendEmailNotification(
-              { ...resolved.config, subject: confirmConf.subject, bodyText: confirmConf.bodyText },
-              email, formDataPayload, config.meta.name, instance.slug,
-            );
-          }
         })
         .catch(err => log.error({ err }, "Email notification failed"));
     }

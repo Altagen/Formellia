@@ -61,6 +61,7 @@ interface PrintBlockCardProps {
     defaultFieldHeader: string;
     defaultValueHeader: string;
     signatureLabel: string;
+    signatureLabelPlaceholder: string;
     signatureHint: string;
     signatureWidth: string;
     signatureHalf: string;
@@ -453,7 +454,7 @@ export function PrintBlockCard({
               value={block.label ?? ""}
               onChange={e => onChange({ ...block, label: e.target.value || undefined })}
               className={inputClass}
-              placeholder="Signature"
+              placeholder={labels.signatureLabelPlaceholder}
             />
           </div>
           <div>

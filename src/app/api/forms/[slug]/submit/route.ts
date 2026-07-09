@@ -9,10 +9,10 @@ export async function POST(
   const { slug } = await params;
   const instance = await getFormInstance(slug);
   if (!instance) {
-    return NextResponse.json({ error: "Formulaire introuvable" }, { status: 404 });
+    return NextResponse.json({ error: "Form not found" }, { status: 404 });
   }
   if (!instance.config.features.form) {
-    return NextResponse.json({ error: "Ce formulaire is disabled" }, { status: 403 });
+    return NextResponse.json({ error: "This form is disabled" }, { status: 403 });
   }
   return handleFormSubmit(req, instance);
 }

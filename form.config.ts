@@ -51,7 +51,7 @@ const config: FormFileConfig = {
   // Admin dashboard — empty by default, configure through the admin UI
   // ───────────────────────────────────────────────────────
   admin: {
-    views: [],
+    pages: [],
     tableColumns: [
       { id: "col-email",     label: "Email",        source: "email" },
       { id: "col-status",    label: "Status",       source: "status" },
