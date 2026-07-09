@@ -165,5 +165,19 @@ export async function runStartupBootstrap(): Promise<void> {
     log.error({ err }, "Custom CA certificates error");
   }
 
+  // ── 6. Auto-pages backfill ─────────────────────────────
+  // No-op when `admin.features.autoCreateDashboardViewOnFormCreate` is off.
+  // Runs idempotently after the YAML form upserts so any new form created in
+  // step 3 lands on the dashboard without an extra round-trip.
+  try {
+    const { backfillAutoViews } = await import("@/lib/admin/autoFormView");
+    const result = await backfillAutoViews();
+    if (result.created.length > 0) {
+      log.info({ created: result.created, skipped: result.skipped.length }, "Auto-pages backfilled");
+    }
+  } catch (err) {
+    log.error({ err }, "Auto-pages backfill error");
+  }
+
   log.info("Done.");
 }

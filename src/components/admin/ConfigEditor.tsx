@@ -7,7 +7,7 @@ import { FileText, LayoutDashboard, Globe, FolderOpen, Clock, Archive, AlertTria
 import type { FormConfig } from "@/types/config";
 import type { FormInstance } from "@/types/formInstance";
 import { FormsTab } from "@/components/admin/config/FormsTab";
-import { PagesTab } from "@/components/admin/config/PagesTab";
+import { PagesTab } from "@/components/admin/config/ViewsTab";
 import { DangerZoneTab } from "@/components/admin/config/DangerZoneTab";
 import { DataSourcesTab } from "@/components/admin/config/DataSourcesTab";
 import { ScheduledJobsTab } from "@/components/admin/config/ScheduledJobsTab";

@@ -5,7 +5,7 @@ import { checkAdminRateLimit } from "@/lib/security/adminRateLimit";
 import { getFormConfig } from "@/lib/config";
 import { listFormInstances } from "@/lib/db/formInstanceLoader";
 import { db } from "@/lib/db";
-import { scheduledJobs, externalDatasets, appConfig, appSettings } from "@/lib/db/schema";
+import { scheduledJobs, externalDatasets, appConfig, appSettings, dataPools, dataPoolSources } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { serializeConfig } from "@/lib/serialization/serializeConfig";
 import { parseBody } from "@/lib/serialization/parseBody";
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests. Try again in a few minutes." }, { status: 429 });
   }
 
-  const [adminConfig, forms, jobs, datasets, settings, appCfg] = await Promise.all([
+  const [adminConfig, forms, jobs, datasets, settings, appCfg, pools, poolSourceRows] = await Promise.all([
     getFormConfig(),
     listFormInstances(),
     db.select({
@@ -45,6 +45,8 @@ export async function GET(req: NextRequest) {
     }).from(externalDatasets),
     db.select().from(appSettings).where(eq(appSettings.id, 1)).limit(1),
     db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+    db.select().from(dataPools),
+    db.select().from(dataPoolSources),
   ]);
 
   // Serialize forms — strip email API keys + _managedBy
@@ -85,6 +87,25 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  // DataPools — emit sources as form slugs for cross-deployment portability.
+  const formSlugById = new Map(forms.map(f => [f.id, f.slug]));
+  const sourcesByPool = new Map<string, string[]>();
+  for (const src of poolSourceRows) {
+    const slug = formSlugById.get(src.formInstanceId);
+    if (!slug) continue;
+    const list = sourcesByPool.get(src.dataPoolId) ?? [];
+    list.push(slug);
+    sourcesByPool.set(src.dataPoolId, list);
+  }
+  const dataPoolsExport = pools.map(p => ({
+    slug:             p.slug,
+    name:             p.name,
+    ...(p.description ? { description: p.description } : {}),
+    keyField:         p.keyField,
+    additionalFields: p.additionalFields,
+    sources:          (sourcesByPool.get(p.id) ?? []).map(formSlug => ({ formSlug })),
+  }));
+
   const backup = {
     version: 2,
     exportedAt: new Date().toISOString(),
@@ -99,6 +120,7 @@ export async function GET(req: NextRequest) {
     forms: formsExport,
     scheduledJobs: jobs,
     datasets,
+    dataPools: dataPoolsExport,
   };
 
   return serializeConfig(backup, req, "backup.yaml");
@@ -110,7 +132,7 @@ export async function GET(req: NextRequest) {
 
 const restoreBodySchema = z.object({
   mode:     z.enum(["append", "replace"]).default("replace"),
-  sections: z.array(z.enum(["forms", "scheduledJobs", "datasets", "admin", "app"])).optional(),
+  sections: z.array(z.enum(["forms", "scheduledJobs", "datasets", "admin", "app", "dataPools"])).optional(),
 });
 
 export async function POST(req: NextRequest) {

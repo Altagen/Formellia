@@ -54,6 +54,11 @@ let createdJobId = "";
 let createdRootFormId = "";
 let createdImportedFormId = "";
 let createdDuplicateFormId = "";
+let createdDataPoolId = "";
+let dataPoolFormId   = "";   // dedicated form for DATAPOOL-02..09 (clean state)
+let dataPoolFormSlug = "";
+let createdAutoFormId = "";
+let createdBroadcastId = "";
 
 // ── AUTH TESTS ─────────────────────────────────────────────────────────────
 
@@ -1973,6 +1978,389 @@ test("DUPLICATE-04", "POST /api/admin/forms/[id]/duplicate unauthenticated → 4
   eq("status", res.status, 401);
 });
 
+// ── DATAPOOLS ───────────────────────────────────────────────────────────────
+//
+// DataPools (introduced in 0.3.0) deduplicate submissions across one or more
+// forms. The tests below build a pool over the form created in FORMS-02,
+// submit a few entries, and assert the read-time aggregation + exclusions +
+// CSV export + YAML backup/restore round-trip behave as documented.
+
+test("DATAPOOL-01", "GET /api/admin/datapools → 200 array", async () => {
+  const res = await adminClient.get<unknown[]>("/api/admin/datapools");
+  eq("status", res.status, 200);
+  ok("is array", Array.isArray(res.body));
+});
+
+test("DATAPOOL-02", "POST /api/admin/datapools (dedicated form, clean state) → 201", async () => {
+  // Use a fresh form so DATAPOOL-06..09 can assert exact preview counts
+  // without pollution from earlier submission-flow tests (SUBM-*/BULK-*)
+  // that target the shared `createdFormSlug`.
+  const slug = `e2e-pool-form-${Date.now()}`;
+  const form = await adminClient.post<Record<string, unknown>>("/api/admin/forms", {
+    slug, name: "E2E pool form",
+  });
+  eq("form 201", form.status, 201);
+  dataPoolFormId   = form.body.id as string;
+  dataPoolFormSlug = form.body.slug as string;
+
+  const res = await adminClient.post<Record<string, unknown>>("/api/admin/datapools", {
+    slug: `e2e-pool-${Date.now()}`,
+    name: "E2E pool",
+    description: "End-to-end test pool",
+    keyField: "email",
+    additionalFields: ["firstName"],
+    sources: [{ formInstanceId: dataPoolFormId }],
+  });
+  eq("status", res.status, 201);
+  ok("has id", typeof res.body.id === "string");
+  createdDataPoolId = res.body.id as string;
+});
+
+test("DATAPOOL-03", "POST duplicate slug → 409", async () => {
+  if (!createdDataPoolId) return;
+  const pool = await adminClient.get<Record<string, unknown>>(`/api/admin/datapools/${createdDataPoolId}`);
+  const res = await adminClient.post("/api/admin/datapools", {
+    slug: pool.body.slug,
+    name: "Other",
+    keyField: "email",
+    sources: [{ formInstanceId: dataPoolFormId }],
+  });
+  eq("status", res.status, 409);
+});
+
+test("DATAPOOL-04", "POST malformed pool (no sources) → 422", async () => {
+  const res = await adminClient.post("/api/admin/datapools", {
+    slug: "no-source-pool",
+    name: "x",
+    keyField: "email",
+    sources: [],
+  });
+  eq("status", res.status, 422);
+});
+
+test("DATAPOOL-05", "GET /api/admin/datapools/:id → 200 with sources + exclusions", async () => {
+  if (!createdDataPoolId) return;
+  const res = await adminClient.get<Record<string, unknown>>(`/api/admin/datapools/${createdDataPoolId}`);
+  eq("status", res.status, 200);
+  ok("has sources",    Array.isArray(res.body.sources)    && (res.body.sources    as unknown[]).length === 1);
+  ok("has exclusions", Array.isArray(res.body.exclusions) && (res.body.exclusions as unknown[]).length === 0);
+});
+
+test("DATAPOOL-06", "Submit 3 entries (with duplicate email) → preview shows 2 unique", async () => {
+  if (!createdDataPoolId || !dataPoolFormSlug) return;
+  // Three submissions — two share `alice@example.com` to exercise dedup.
+  const submit = (email: string) => new ApiClient(BASE_URL).post(
+    `/api/forms/${dataPoolFormSlug}/submit`,
+    { formData: { email, firstName: email.split("@")[0] } },
+  );
+  await submit("alice@example.com");
+  await submit("Alice@example.com");           // same after LOWER()
+  await submit("dave@example.com");
+  const res = await adminClient.get<{ entries: unknown[]; total: number }>(
+    `/api/admin/datapools/${createdDataPoolId}/preview`,
+  );
+  eq("status", res.status, 200);
+  ok("total is 2", res.body.total === 2);
+});
+
+test("DATAPOOL-07", "GET /api/admin/datapools/:id/export.csv → 200 text/csv", async () => {
+  if (!createdDataPoolId) return;
+  const res = await adminClient.request<string>("GET", `/api/admin/datapools/${createdDataPoolId}/export.csv`);
+  eq("status", res.status, 200);
+  const ct = res.headers.get("content-type") ?? "";
+  ok("content-type is csv", ct.includes("csv"));
+  const lines = (res.body as string).split("\n").filter(l => l.length > 0);
+  // 1 header + 2 data rows (alice and dave after dedup)
+  ok("3 rows total", lines.length === 3);
+});
+
+test("DATAPOOL-08", "POST exclusion → preview total drops by 1", async () => {
+  if (!createdDataPoolId) return;
+  // Grab one entry's sourceSubmissionId to exclude
+  const preview = await adminClient.get<{ entries: Array<{ key: string; sourceSubmissionId: string }> }>(
+    `/api/admin/datapools/${createdDataPoolId}/preview`,
+  );
+  const dave = preview.body.entries.find(e => e.key.toLowerCase() === "dave@example.com");
+  ok("dave entry present", !!dave);
+  const add = await adminClient.post(`/api/admin/datapools/${createdDataPoolId}/exclusions`, {
+    submissionId: dave!.sourceSubmissionId,
+    reason: "e2e test",
+  });
+  eq("status", add.status, 201);
+  const after = await adminClient.get<{ total: number }>(`/api/admin/datapools/${createdDataPoolId}/preview`);
+  ok("total dropped to 1", after.body.total === 1);
+});
+
+test("DATAPOOL-09", "DELETE exclusion → preview total restored", async () => {
+  if (!createdDataPoolId) return;
+  // Find dave's submission id via the audit/listing again, re-add removal
+  const pool = await adminClient.get<{ exclusions: Array<{ submissionId: string }> }>(`/api/admin/datapools/${createdDataPoolId}`);
+  const sid = pool.body.exclusions[0]?.submissionId;
+  if (!sid) return;
+  const res = await adminClient.delete(`/api/admin/datapools/${createdDataPoolId}/exclusions/${sid}`);
+  eq("status", res.status, 200);
+  const after = await adminClient.get<{ total: number }>(`/api/admin/datapools/${createdDataPoolId}/preview`);
+  ok("total back to 2", after.body.total === 2);
+});
+
+test("DATAPOOL-10", "PATCH pool (rename + additionalFields) → 200", async () => {
+  if (!createdDataPoolId) return;
+  const res = await adminClient.patch<Record<string, unknown>>(`/api/admin/datapools/${createdDataPoolId}`, {
+    name: "E2E pool (renamed)",
+    additionalFields: ["firstName", "lastName"],
+  });
+  eq("status", res.status, 200);
+  ok("renamed", res.body.name === "E2E pool (renamed)");
+});
+
+test("DATAPOOL-11", "GET /api/admin/config/backup contains dataPools[] section with formSlug", async () => {
+  if (!createdDataPoolId) return;
+  const res = await adminClient.get<Record<string, unknown>>("/api/admin/config/backup", { Accept: "application/json" });
+  eq("status", res.status, 200);
+  const pools = res.body.dataPools as Array<Record<string, unknown>> | undefined;
+  ok("dataPools present", Array.isArray(pools));
+  const found = (pools ?? []).find(p => p.id === undefined && Array.isArray(p.sources));
+  ok("at least one pool with sources[]", !!found);
+  const sources = (found?.sources as Array<Record<string, unknown>>) ?? [];
+  ok("source uses formSlug (not UUID)", sources.length > 0 && typeof sources[0].formSlug === "string");
+});
+
+test("DATAPOOL-12", "POST /api/admin/config/backup restore dataPools[] (append) creates new pool", async () => {
+  if (!createdFormSlug) return;
+  const newSlug = `restored-pool-${Date.now()}`;
+  const payload = {
+    dataPools: [
+      {
+        slug: newSlug,
+        name: "Restored",
+        keyField: "email",
+        additionalFields: [],
+        sources: [{ formSlug: createdFormSlug }],
+      },
+    ],
+  };
+  const res = await adminClient.post<Record<string, unknown>>(
+    "/api/admin/config/backup?mode=append&sections=dataPools",
+    payload,
+  );
+  eq("status", res.status, 200);
+  const dpResult = (res.body.results as Record<string, unknown>).dataPools as Record<string, unknown>;
+  ok("created list contains new slug", Array.isArray(dpResult.created) && (dpResult.created as string[]).includes(newSlug));
+  // Cleanup — list pools, find the restored one, delete it.
+  const list = await adminClient.get<Array<{ id: string; slug: string }>>("/api/admin/datapools");
+  const restored = list.body.find(p => p.slug === newSlug);
+  if (restored) await adminClient.delete(`/api/admin/datapools/${restored.id}`);
+});
+
+test("DATAPOOL-13", "View bound to a DataPool renders entries from the pool", async () => {
+  if (!createdDataPoolId) return;
+  // Snapshot existing views to splice the test view in/out without
+  // touching the operator's setup.
+  const before = await adminClient.get<Record<string, unknown>>("/api/admin/config/backup", { Accept: "application/json" });
+  const adminCfg = before.body.admin as Record<string, unknown>;
+  const existingViews = (adminCfg.views ?? adminCfg.pages) as Array<Record<string, unknown>>;
+  const testViewId = `pool-view-e2e-${Date.now()}`;
+  const testViewSlug = testViewId;
+  const viewsWithTest = [
+    ...existingViews,
+    {
+      id: testViewId, slug: testViewSlug, title: "Pool source e2e",
+      widgets: [{ type: "submissions_table", id: "tbl-1", title: "Pool entries" }],
+      dataPoolId: createdDataPoolId, showCompletionFunnel: false,
+    },
+  ];
+  const restoreRes = await adminClient.post<Record<string, unknown>>(
+    "/api/admin/config/backup?mode=replace&sections=admin",
+    { admin: { views: viewsWithTest } },
+  );
+  eq("status (restore)", restoreRes.status, 200);
+
+  // Hit the view route — the server renderer should resolve the pool +
+  // build the synthetic submission rows. We only assert HTTP 200 here
+  // (deep DOM assertion lives in the live curl smoke script).
+  const page = await adminClient.request<string>("GET", `/admin/${testViewSlug}`);
+  eq("view status", page.status, 200);
+
+  // Clean up — remove the test view so the operator's setup is restored.
+  await adminClient.post(
+    "/api/admin/config/backup?mode=replace&sections=admin",
+    { admin: { views: existingViews } },
+  );
+});
+
+// ── AUTO DASHBOARD PAGES ─────────────────────────────────────────────────────
+//
+// When `admin.features.autoCreateDashboardPageOnFormCreate` is on, creating a
+// form via the API also adds a dashboard page filtered to that form. Deleting
+// the form removes the page. The backfill endpoint is idempotent.
+
+test("AUTOPAGE-01", "Enable autoCreateDashboardViewOnFormCreate via restore endpoint", async () => {
+  const res = await adminClient.post<Record<string, unknown>>(
+    "/api/admin/config/backup?sections=admin&mode=append",
+    { admin: { features: { autoCreateDashboardViewOnFormCreate: true } } },
+  );
+  eq("status", res.status, 200);
+});
+
+test("AUTOPAGE-02", "Backfill is idempotent — second call creates 0 pages", async () => {
+  // First backfill closes any drift
+  await adminClient.post("/api/admin/config/auto-pages/backfill");
+  // Second one should be a no-op
+  const res = await adminClient.post<{ created: string[]; skipped: string[] }>(
+    "/api/admin/config/auto-pages/backfill",
+  );
+  eq("status", res.status, 200);
+  ok("created is empty on second call", Array.isArray(res.body.created) && res.body.created.length === 0);
+});
+
+test("AUTOPAGE-03", "Create a fresh form → auto-view appended bound to its id", async () => {
+  const slug = `autopage-e2e-${Date.now()}`;
+  const created = await adminClient.post<Record<string, unknown>>("/api/admin/forms", {
+    slug, name: "Auto-view e2e",
+  });
+  eq("status", created.status, 201);
+  createdAutoFormId = created.body.id as string;
+
+  const backup = await adminClient.get<Record<string, unknown>>(
+    "/api/admin/config/backup",
+    { Accept: "application/json" },
+  );
+  const adminCfg = backup.body.admin as Record<string, unknown>;
+  const views = (adminCfg.views ?? adminCfg.pages) as Array<Record<string, unknown>>;
+  const autoView = views.find(p => p.autoGeneratedFor === createdAutoFormId);
+  ok("auto-view exists for the new form", !!autoView);
+  ok("auto-view is a submissions_table view", Array.isArray(autoView?.widgets) && (autoView!.widgets as Array<Record<string, unknown>>).some(w => w.type === "submissions_table"));
+});
+
+test("AUTOPAGE-04", "Delete form → its auto-view is removed", async () => {
+  if (!createdAutoFormId) return;
+  await adminClient.delete(`/api/admin/forms/${createdAutoFormId}`);
+  const backup = await adminClient.get<Record<string, unknown>>(
+    "/api/admin/config/backup",
+    { Accept: "application/json" },
+  );
+  const adminCfg = backup.body.admin as Record<string, unknown>;
+  const views = (adminCfg.views ?? adminCfg.pages) as Array<Record<string, unknown>>;
+  const orphan = views.find(p => p.autoGeneratedFor === createdAutoFormId);
+  ok("auto-view deleted along with the form", !orphan);
+  createdAutoFormId = "";
+});
+
+test("AUTOPAGE-05", "Disable the toggle — restore endpoint resets it", async () => {
+  const res = await adminClient.post<Record<string, unknown>>(
+    "/api/admin/config/backup?sections=admin&mode=append",
+    { admin: { features: { autoCreateDashboardViewOnFormCreate: false } } },
+  );
+  eq("status", res.status, 200);
+});
+
+// ── EMAIL BROADCAST PROVIDER ────────────────────────────────────────────────
+
+test("BROADCAST-01", "GET /api/admin/email/provider → 200 with safe fields", async () => {
+  const res = await adminClient.get<Record<string, unknown>>("/api/admin/email/provider");
+  eq("status", res.status, 200);
+  ok("no apiKey in response", !("apiKey" in res.body) && !("apiKeyEncrypted" in res.body));
+});
+
+test("BROADCAST-02", "PUT /api/admin/email/provider configures provider", async () => {
+  const res = await adminClient.put<Record<string, unknown>>("/api/admin/email/provider", {
+    provider:    "resend",
+    fromAddress: "contact@example.com",
+    fromName:    "Test Org",
+    apiKey:      "re_test_FAKE_KEY",
+    apiKeyExpiresAt: "2027-12-31",
+  });
+  eq("status", res.status, 200);
+  ok("apiKeyConfigured true", res.body.apiKeyConfigured === true);
+  ok("provider stored", res.body.provider === "resend");
+});
+
+test("BROADCAST-03", "PUT invalid fromAddress → 422", async () => {
+  const res = await adminClient.put("/api/admin/email/provider", { fromAddress: "not-an-email" });
+  eq("status", res.status, 422);
+});
+
+// ── EMAIL BROADCASTS ────────────────────────────────────────────────────────
+//
+// These tests reuse the DataPool created by DATAPOOL-02 as the recipient
+// source. They don't actually call out to the provider — `/send` is skipped
+// to keep the suite hermetic. Provider HTTP integration is covered manually
+// by the curl smoke tests under `scripts/`.
+
+test("BROADCAST-04", "GET /api/admin/email/broadcasts → 200 array", async () => {
+  const res = await adminClient.get<unknown[]>("/api/admin/email/broadcasts");
+  eq("status", res.status, 200);
+  ok("is array", Array.isArray(res.body));
+});
+
+test("BROADCAST-05", "POST broadcast → 201", async () => {
+  if (!createdDataPoolId) return;
+  const res = await adminClient.post<Record<string, unknown>>("/api/admin/email/broadcasts", {
+    name:        "E2E broadcast",
+    subject:     "Hello e2e",
+    bodyHtml:    "<p>Body</p>",
+    bodyText:    "Body",
+    dataPoolIds: [createdDataPoolId],
+  });
+  eq("status", res.status, 201);
+  ok("has id",     typeof res.body.id === "string");
+  ok("status=draft", res.body.status === "draft");
+  createdBroadcastId = res.body.id as string;
+});
+
+test("BROADCAST-06", "POST broadcast empty dataPoolIds → 422", async () => {
+  const res = await adminClient.post("/api/admin/email/broadcasts", {
+    name: "x", subject: "x", bodyHtml: "x", dataPoolIds: [],
+  });
+  eq("status", res.status, 422);
+});
+
+test("BROADCAST-07", "GET single broadcast → 200", async () => {
+  if (!createdBroadcastId) return;
+  const res = await adminClient.get<Record<string, unknown>>(`/api/admin/email/broadcasts/${createdBroadcastId}`);
+  eq("status", res.status, 200);
+  ok("name matches", res.body.name === "E2E broadcast");
+});
+
+test("BROADCAST-08", "PATCH draft broadcast → 200", async () => {
+  if (!createdBroadcastId) return;
+  const res = await adminClient.patch<Record<string, unknown>>(`/api/admin/email/broadcasts/${createdBroadcastId}`, {
+    name:     "E2E broadcast (renamed)",
+    bodyHtml: "<p>Body <strong>updated</strong></p><script>alert(1)</script>",
+  });
+  eq("status", res.status, 200);
+  ok("renamed", res.body.name === "E2E broadcast (renamed)");
+});
+
+test("BROADCAST-09", "POST preview sanitizes <script> + inlines CSS", async () => {
+  if (!createdBroadcastId) return;
+  const res = await adminClient.post<Record<string, unknown>>(
+    `/api/admin/email/broadcasts/${createdBroadcastId}/preview`, {},
+  );
+  eq("status", res.status, 200);
+  const html = res.body.html as string;
+  ok("<script> stripped", !html.includes("<script"));
+  ok("body preserved", html.includes("<strong>updated</strong>"));
+  ok("recipientCount is a number", typeof res.body.recipientCount === "number");
+});
+
+test("BROADCAST-10", "DELETE broadcast → 200, GET → 404", async () => {
+  if (!createdBroadcastId) return;
+  const del = await adminClient.delete(`/api/admin/email/broadcasts/${createdBroadcastId}`);
+  eq("status (delete)", del.status, 200);
+  const get = await adminClient.get(`/api/admin/email/broadcasts/${createdBroadcastId}`);
+  eq("status (after delete)", get.status, 404);
+  createdBroadcastId = "";
+});
+
+test("BROADCAST-11", "Clean provider config (reset to null)", async () => {
+  const res = await adminClient.put<Record<string, unknown>>("/api/admin/email/provider", {
+    provider: null, fromAddress: null, fromName: null, apiKey: "",
+  });
+  eq("status", res.status, 200);
+  ok("apiKeyConfigured false after clear", res.body.apiKeyConfigured === false);
+});
+
 // ── CLEANUP ────────────────────────────────────────────────────────────────
 
 test("CLEAN-01", "DELETE /api/admin/users/[id] → 200", async () => {
@@ -2020,6 +2408,23 @@ test("CLEAN-08", "DELETE duplicated form from DUPLICATE-01 → 200", async () =>
   if (!createdDuplicateFormId) return;
   const res = await adminClient.delete(`/api/admin/forms/${createdDuplicateFormId}`);
   eq("status", res.status, 200);
+});
+
+test("CLEAN-09", "DELETE DataPool from DATAPOOL-02 → 200", async () => {
+  if (!createdDataPoolId) return;
+  const res = await adminClient.delete(`/api/admin/datapools/${createdDataPoolId}`);
+  eq("status", res.status, 200);
+  // Re-fetch should now 404
+  const after = await adminClient.get(`/api/admin/datapools/${createdDataPoolId}`);
+  eq("status (after delete)", after.status, 404);
+});
+
+test("CLEAN-10", "DELETE dedicated DATAPOOL form → 200", async () => {
+  if (!dataPoolFormId) return;
+  const res = await adminClient.delete(`/api/admin/forms/${dataPoolFormId}`);
+  eq("status", res.status, 200);
+  dataPoolFormId = "";
+  dataPoolFormSlug = "";
 });
 
 // ── ROOT PAGE (useCustomRoot feature) ────────────────────────────────────────
@@ -2102,6 +2507,55 @@ test("ROOTPAGE-09", "PATCH useCustomRoot=false (restore) + GET / → 200 (Welcom
   await adminClient.patch("/api/admin/app-config", { useCustomRoot: false });
   const res = await new ApiClient(BASE_URL).get("/");
   eq("status", res.status, 200);
+});
+
+test("ROOTPAGE-10", "Toggle takes effect immediately, no cache delay", async () => {
+  // Regression test for the 0.2.2 bug where the in-process cache of
+  // `getUseCustomRoot()` held stale values across PATCHes — the toggle
+  // appeared to require a server restart to take effect. The fix removes
+  // the cache; this test pings POST /api/admin/forms with slug="/" right
+  // after each toggle flip and asserts the response reflects the new value.
+  //
+  // Sequence: ensure false → POST "/" must 409 → PATCH true → POST "/"
+  // must 201 → DELETE the created form → PATCH back to false → POST "/"
+  // must 409 again. No sleeps, no restarts.
+
+  // The framework's `ensureFormInstancesSeeded` re-creates a "/" form from
+  // form.config.ts whenever form_instances is empty (which happens after
+  // ROOTPAGE-08 deletes the test "/" form and the next GET / triggers the
+  // root layout). That would make the POST below return 409 (slug already
+  // in use) instead of 201, masking the regression we want to detect.
+  // Delete any leftover "/" form right before the toggle-driven asserts.
+  async function deleteRootIfPresent() {
+    const forms = await adminClient.get<Array<Record<string, unknown>>>("/api/admin/forms");
+    const list = Array.isArray(forms.body) ? forms.body : [];
+    const root = list.find(f => f.slug === "/");
+    if (root) await adminClient.delete(`/api/admin/forms/${root.id as string}`);
+  }
+
+  await adminClient.patch("/api/admin/app-config", { useCustomRoot: false });
+  await deleteRootIfPresent();
+  const before = await adminClient.post<Record<string, unknown>>("/api/admin/forms", {
+    slug: "/", name: "Probe (should reject)",
+  });
+  eq("status before toggle", before.status, 409);
+
+  await adminClient.patch("/api/admin/app-config", { useCustomRoot: true });
+  await deleteRootIfPresent();
+  const after = await adminClient.post<Record<string, unknown>>("/api/admin/forms", {
+    slug: "/", name: "Probe (should accept)",
+  });
+  eq("status after toggle", after.status, 201);
+  const probeId = after.body.id as string;
+
+  await adminClient.delete(`/api/admin/forms/${probeId}`);
+  await adminClient.patch("/api/admin/app-config", { useCustomRoot: false });
+  await deleteRootIfPresent();
+
+  const restored = await adminClient.post<Record<string, unknown>>("/api/admin/forms", {
+    slug: "/", name: "Probe (should reject again)",
+  });
+  eq("status after toggle off again", restored.status, 409);
 });
 
 // ── BACKUP PROVIDERS ─────────────────────────────────────────────────────────

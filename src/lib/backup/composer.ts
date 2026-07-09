@@ -1,6 +1,9 @@
 import AdmZip from "adm-zip";
 import { db } from "@/lib/db";
-import { submissions, externalRecords, externalDatasets, users, scheduledJobs, appSettings, appConfig } from "@/lib/db/schema";
+import {
+  submissions, externalRecords, externalDatasets, users, scheduledJobs,
+  appSettings, appConfig, dataPools, dataPoolSources,
+} from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { listFormInstances } from "@/lib/db/formInstanceLoader";
 import { getFormConfig } from "@/lib/config";
@@ -27,7 +30,7 @@ export async function composeBackup(options: ComposeOptions = {}): Promise<Buffe
   const exportedAt = new Date().toISOString();
 
   // ── 1. Config YAML (existing export format) ─────────────────────────────
-  const [adminConfig, forms, jobs, datasets, settings, appCfg] = await Promise.all([
+  const [adminConfig, forms, jobs, datasets, settings, appCfg, pools, poolSourceRows] = await Promise.all([
     getFormConfig(),
     listFormInstances(),
     db.select({
@@ -43,6 +46,8 @@ export async function composeBackup(options: ComposeOptions = {}): Promise<Buffe
     }).from(externalDatasets),
     db.select().from(appSettings).where(eq(appSettings.id, 1)).limit(1),
     db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+    db.select().from(dataPools),
+    db.select().from(dataPoolSources),
   ]);
 
   const formsExport = forms.map(f => {
@@ -82,6 +87,27 @@ export async function composeBackup(options: ComposeOptions = {}): Promise<Buffe
     };
   });
 
+  // DataPools: emit source forms as slugs (portable across deployments). Pools
+  // with at least one source whose form has been deleted are still exported —
+  // restoration will report the missing slug as an error.
+  const formSlugById = new Map(forms.map(f => [f.id, f.slug]));
+  const sourcesByPool = new Map<string, string[]>();
+  for (const src of poolSourceRows) {
+    const slug = formSlugById.get(src.formInstanceId);
+    if (!slug) continue;
+    const list = sourcesByPool.get(src.dataPoolId) ?? [];
+    list.push(slug);
+    sourcesByPool.set(src.dataPoolId, list);
+  }
+  const dataPoolsExport = pools.map(p => ({
+    slug:        p.slug,
+    name:        p.name,
+    ...(p.description ? { description: p.description } : {}),
+    keyField:    p.keyField,
+    additionalFields: p.additionalFields,
+    sources:     (sourcesByPool.get(p.id) ?? []).map(formSlug => ({ formSlug })),
+  }));
+
   const configPayload = {
     version: 2,
     exportedAt,
@@ -96,6 +122,7 @@ export async function composeBackup(options: ComposeOptions = {}): Promise<Buffe
     forms:         formsExport,
     scheduledJobs: jobs,
     datasets,
+    dataPools:     dataPoolsExport,
   };
 
   const yamlStr = serializeConfigToString(configPayload);

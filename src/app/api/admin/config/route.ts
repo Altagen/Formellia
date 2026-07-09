@@ -39,6 +39,14 @@ export async function PUT(req: NextRequest) {
     );
   }
 
+  // 0.4.0 fwd-compat with 0.3.x clients that emit `admin.views` — remap it
+  // to the canonical `admin.pages` used by our TS types. `pages` wins when
+  // both are present.
+  const adminAny = body.admin as FormConfig["admin"] & { views?: unknown };
+  if (adminAny.views !== undefined && (body.admin as { pages?: unknown }).pages === undefined) {
+    (body.admin as { pages?: unknown }).pages = adminAny.views as FormConfig["admin"]["pages"];
+  }
+  delete adminAny.views;
   if (!Array.isArray(body.admin.pages)) {
     return NextResponse.json({ error: "admin.pages must be an array" }, { status: 400 });
   }

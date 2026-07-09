@@ -143,9 +143,9 @@ detail pane.
 
 ## 7. Build a dashboard
 
-Dashboard pages aren't accepted by the boot YAML — they go through
-**Admin → Configuration → Pages → New page** (UI), or through the
-restore endpoint with `admin.pages` (YAML). Either way:
+Dashboard views aren't accepted by the boot YAML — they go through
+**Admin → Configuration → Vues → Add view** (UI), or through the
+restore endpoint with `admin.views` (YAML). Either way:
 
 - Pick a `formInstanceId` (the form's id or slug — `/` for the root form).
 - Add widgets: stats cards, charts (bar / line / area / pie), stats

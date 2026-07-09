@@ -24,7 +24,7 @@ const VALID_JOB_ACTIONS: readonly JobAction[] = [
   "retention_cleanup", "export_json", "export_csv", "export_backup", "dataset_poll", "audit_purge",
 ] as const;
 
-type RestoreSection = "forms" | "scheduledJobs" | "datasets" | "admin" | "app";
+type RestoreSection = "forms" | "scheduledJobs" | "datasets" | "admin" | "app" | "dataPools";
 
 export interface RestoreOptions {
   mode:     "append" | "replace";

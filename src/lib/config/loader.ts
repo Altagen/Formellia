@@ -4,38 +4,25 @@ import type { FormConfig } from "@/types/config";
 const CONFIG_SOURCE = process.env.CONFIG_SOURCE ?? "db";
 
 // ─────────────────────────────────────────────────────────
-// Module-level cache (DB mode only)
+// No cache (same reasoning as src/lib/security/rootPageConfig.ts).
 // ─────────────────────────────────────────────────────────
 //
-// Per-request cache only. Next.js under Turbopack (and prod hot-swaps) can
-// duplicate module state across worker instances, which made a longer TTL
-// cache misbehave: mutations invalidated the cache in one instance while the
-// RSC render read a stale copy from another. Keeping the window tight enough
-// that all reads inside one request hit the cache but a subsequent request
-// after a mutation always sees fresh data eliminates the entire race.
-const CACHE_TTL_MS = 100; // ms
-
-let cache: FormConfig | null = null;
-let cacheAt = 0;
-
-function getCache(): FormConfig | null {
-  if (!cache) return null;
-  if (Date.now() - cacheAt > CACHE_TTL_MS) {
-    cache = null;
-    return null;
-  }
-  return cache;
-}
-
-function setCache(config: FormConfig): void {
-  cache = config;
-  cacheAt = Date.now();
-}
-
-function invalidateCache(): void {
-  cache = null;
-  cacheAt = 0;
-}
+// Earlier revisions kept a 60s in-memory cache here. Two real-world scenarios
+// surfaced stale-read bugs that pinned the operator to old config until the
+// TTL expired:
+//
+//   - Next.js Turbopack splits server components and route handlers across
+//     separate module bundles. The PUT route handler invalidated *its* cache,
+//     while the layout's getFormConfig kept serving its own up-to-60s-old copy.
+//     The operator deleted a view, the DB was correct, but the admin sidebar
+//     and the views list both kept rendering the deleted view until the layout
+//     bundle's cache expired.
+//   - Production deployments running >1 worker only invalidate the cache in
+//     the worker that handled the PUT; other workers serve stale until TTL.
+//
+// The on-disk row is the source of truth. The DB read is a single row by PK
+// from a one-row table (`form_config WHERE id = 1`) — sub-millisecond on
+// Postgres and dwarfed by the React render that follows.
 
 // ─────────────────────────────────────────────────────────
 // File config (compiled into bundle — zero DB read)
@@ -50,7 +37,7 @@ function getFileConfig(): FormConfig {
 }
 
 // ─────────────────────────────────────────────────────────
-// DB config (editable, cached)
+// DB config (editable, uncached)
 // ─────────────────────────────────────────────────────────
 
 async function readFromDb(): Promise<FormConfig | null> {
@@ -60,7 +47,32 @@ async function readFromDb(): Promise<FormConfig | null> {
 
   const rows = await db.select().from(formConfig).where(eq(formConfig.id, 1)).limit(1);
   if (rows.length === 0) return null;
-  return rows[0].config as FormConfig;
+  return normalizeAdminPagesKey(rows[0].config as FormConfig);
+}
+
+/**
+ * Backward-compat with 0.3.0 storage: the 0.3.0 release renamed `admin.pages`
+ * → `admin.views` (and `admin.defaultPage` → `admin.defaultView`) in the DB
+ * shape. This branch reverted the rename, so DB rows written by 0.3.0 carry
+ * the newer keys; this helper remaps them back to the canonical `pages` /
+ * `defaultPage` shape our TS types expect. The next save persists the
+ * canonical shape.
+ */
+function normalizeAdminPagesKey(config: FormConfig): FormConfig {
+  const admin = config.admin as FormConfig["admin"] & { views?: unknown; defaultView?: unknown };
+  let mutated = false;
+  const next = { ...admin };
+  if (!Array.isArray(admin.pages) && Array.isArray(admin.views)) {
+    next.pages = admin.views as FormConfig["admin"]["pages"];
+    delete (next as { views?: unknown }).views;
+    mutated = true;
+  }
+  if (!admin.defaultPage && typeof admin.defaultView === "string") {
+    next.defaultPage = admin.defaultView;
+    delete (next as { defaultView?: unknown }).defaultView;
+    mutated = true;
+  }
+  return mutated ? { ...config, admin: next } : config;
 }
 
 async function writeToDb(config: FormConfig): Promise<void> {
@@ -80,39 +92,36 @@ async function writeToDb(config: FormConfig): Promise<void> {
 /**
  * Returns the active FormConfig.
  * - FILE mode: returns the statically imported form.config.ts — no DB read.
- * - DB mode: reads from DB with a 60s cache, seeds from file on first boot.
+ * - DB mode: reads from DB on every call (no cache, see top-of-file note),
+ *   seeds from file on first boot.
  */
 export async function getFormConfig(): Promise<FormConfig> {
   if (CONFIG_SOURCE === "file") {
     return getFileConfig();
   }
 
-  const cached = getCache();
-  if (cached) return cached;
-
   let config = await readFromDb();
   if (!config) {
     config = getFileConfig();
     await writeToDb(config);
   } else if (!config.admin.pages) {
-    // Migrate old format (admin.widgets) → new format (admin.pages)
+    // Legacy row missing the `pages` key entirely — seed admin section
+    // from the file config so the loader never returns a half-built shape.
     const fresh = getFileConfig();
     config = { ...config, admin: fresh.admin };
     await writeToDb(config);
   }
 
-  setCache(config);
   return config;
 }
 
 /**
- * Persists a new config to DB and invalidates the cache.
- * No-op in FILE mode (caller should check isConfigEditable first).
+ * Persists a new config to DB. No-op in FILE mode (caller should check
+ * isConfigEditable first).
  */
 export async function saveFormConfig(config: FormConfig): Promise<void> {
   if (CONFIG_SOURCE === "file") return;
   await writeToDb(config);
-  invalidateCache();
 }
 
 /**
@@ -122,7 +131,6 @@ export async function saveFormConfig(config: FormConfig): Promise<void> {
 export async function resetFormConfig(): Promise<void> {
   if (CONFIG_SOURCE === "file") return;
   await writeToDb(getFileConfig());
-  invalidateCache();
 }
 
 /**
@@ -148,11 +156,6 @@ export async function ensureConfigSeeded(): Promise<void> {
   // Bootstrap admin user from env vars (no-op if user already exists or vars absent)
   const { ensureAdminUserSeeded } = await import("@/lib/db/seedAdminUser");
   await ensureAdminUserSeeded();
-
-  // UI-11 one-shot: strip legacy per-form email credentials + submitterConfirmation.
-  // Idempotent — only forms still carrying the deprecated fields get touched.
-  const { stripLegacyEmailFieldsOnBoot } = await import("@/lib/email/legacyMigration");
-  await stripLegacyEmailFieldsOnBoot();
 }
 
 /**

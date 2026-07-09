@@ -6,7 +6,7 @@ import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { FormConfig } from "@/types/config";
 import type { FormInstance } from "@/types/formInstance";
-import { PagesTab } from "@/components/admin/config/PagesTab";
+import { PagesTab } from "@/components/admin/config/ViewsTab";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useTranslations } from "@/lib/context/LocaleContext";
