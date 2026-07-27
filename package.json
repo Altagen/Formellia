@@ -43,7 +43,7 @@
     "@radix-ui/react-tabs": "^1.1.21",
     "@radix-ui/react-tooltip": "^1.2.16",
     "@tailwindcss/typography": "^0.5.20",
-    "@tiptap/extension-link": "^3.27.3",
+    "@tiptap/extension-link": "^3.29.0",
     "@tiptap/extension-underline": "^3.27.3",
     "@tiptap/react": "^3.27.3",
     "@tiptap/starter-kit": "^3.27.3",
