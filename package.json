@@ -62,7 +62,7 @@
     "lucia": "^3",
     "lucide-react": "^1.28.0",
     "nanoid": "^5.1.16",
-    "next": "^16.2.9",
+    "next": "^16.2.12",
     "node-cron": "^4.6.0",
     "pg": "latest",
     "pino": "^10.3.1",
