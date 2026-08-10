@@ -70,7 +70,7 @@
     "radix-ui": "^1.6.7",
     "react": "^19",
     "react-dom": "^19",
-    "react-is": "^19.2.7",
+    "react-is": "^19.2.8",
     "react-markdown": "^10.1.0",
     "recharts": "latest",
     "sonner": "^2.0.7",
