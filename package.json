@@ -61,7 +61,7 @@
     "juice": "^12.1.2",
     "lucia": "^3",
     "lucide-react": "^1.35.0",
-    "nanoid": "^5.1.16",
+    "nanoid": "^6.0.1",
     "next": "^16.2.12",
     "node-cron": "^4.6.0",
     "pg": "latest",
