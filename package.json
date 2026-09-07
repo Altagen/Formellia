@@ -73,7 +73,7 @@
     "react-is": "^19.2.8",
     "react-markdown": "^10.1.0",
     "recharts": "latest",
-    "sonner": "^2.0.7",
+    "sonner": "^2.0.8",
     "tailwind-merge": "latest",
     "tailwindcss-animate": "^1.0.7",
     "zod": "latest"
