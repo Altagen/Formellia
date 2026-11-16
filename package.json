@@ -54,7 +54,7 @@
     "csv-parse": "^7.0.2",
     "drizzle-orm": "^0.45.4",
     "framer-motion": "latest",
-    "geist": "^1.7.2",
+    "geist": "^1.9.2",
     "html-to-image": "^1.11.13",
     "isomorphic-dompurify": "^3.19.0",
     "js-yaml": "^5.5.0",
