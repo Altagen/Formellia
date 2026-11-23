@@ -88,7 +88,7 @@
     "@types/pg": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^5.1.1",
     "dotenv-cli": "^11.0.0",
     "drizzle-kit": "latest",
     "husky": "^9.1.7",
